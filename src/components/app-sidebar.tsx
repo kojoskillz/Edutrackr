@@ -36,7 +36,7 @@ const data = {
           url: "/teachers",
         },
         {
-          title: "Students",
+          title: "Class/Students",
           url: "/students",
         },
         {
