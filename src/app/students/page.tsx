@@ -26,9 +26,12 @@ import SaveIcon from "@mui/icons-material/Save"; // Correct import path
 import CancelIcon from "@mui/icons-material/Close"; // Corrected import path
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import SchoolIcon from "@mui/icons-material/School"; // Icon for viewing students
+import ContentCopyIcon from "@mui/icons-material/ContentCopy"; // Icon for copying
 import Modal from "@mui/material/Modal";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button"; // Import Button for "Back to Classes"
+import Snackbar from "@mui/material/Snackbar"; // For copy feedback
+import Alert from "@mui/material/Alert"; // For copy feedback message
 
 import {
   DataGrid,
@@ -86,7 +89,6 @@ const calculateAge = (dob: string) => {
   return age;
 };
 
-
 // Declare module for ToolbarPropsOverrides (Updated to include className for student toolbar)
 declare module "@mui/x-data-grid" {
   interface ToolbarPropsOverrides {
@@ -94,6 +96,8 @@ declare module "@mui/x-data-grid" {
     setRowModesModel: React.Dispatch<React.SetStateAction<GridRowModesModel>>;
     // Add className for the student toolbar
     className?: string; // Optional as it's only for student toolbar
+    // Add prop for copying all student names
+    onCopyAllStudentNames: () => void;
   }
 }
 
@@ -132,42 +136,50 @@ function ClassEditToolbar(props: GridSlotProps["toolbar"]) {
   );
 }
 
-// Toolbar component for the Students DataGrid, includes an "Add Student" button
+// Toolbar component for the Students DataGrid, includes an "Add Student" and "Copy All" button
 function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
-  const { setRows, setRowModesModel, className } = props; // Receive className prop
+  const { setRows, setRowModesModel, className, onCopyAllStudentNames } = props; // Receive className and onCopyAllStudentNames props
   return (
-    <Toolbar>
-      <Tooltip title={`Add Student to ${className}`}>
-        <ToolbarButton
-          onClick={() => {
-            const id = randomId();
-            // Add a new empty row, pre-filling the class with the current className
-            setRows((r) => [
-              ...r,
-              {
-                id,
-                name: "",
-                dob: "",
-                age: 0,
-                class: className || "", // Set the class to the current class name, default to empty if not available
-                gender: "Male",
-                isNew: true,
-              },
-            ]);
-            // Set the new row to edit mode and focus on the 'name' field
-            setRowModesModel((m) => ({
-              ...m,
-              [id]: { mode: GridRowModes.Edit, fieldToFocus: "name" },
-            }));
-          }}
-        >
-          <AddIcon fontSize="small" />
-        </ToolbarButton>
-      </Tooltip>
+    <Toolbar className="flex justify-between w-full">
+      <div>
+        <Tooltip title={`Add Student to ${className}`}>
+          <ToolbarButton
+            onClick={() => {
+              const id = randomId();
+              // Add a new empty row, pre-filling the class with the current className
+              setRows((r) => [
+                ...r,
+                {
+                  id,
+                  name: "",
+                  dob: "",
+                  age: 0,
+                  class: className || "", // Set the class to the current class name, default to empty if not available
+                  gender: "Male",
+                  isNew: true,
+                },
+              ]);
+              // Set the new row to edit mode and focus on the 'name' field
+              setRowModesModel((m) => ({
+                ...m,
+                [id]: { mode: GridRowModes.Edit, fieldToFocus: "name" },
+              }));
+            }}
+          >
+            <AddIcon fontSize="small" />
+          </ToolbarButton>
+        </Tooltip>
+      </div>
+      <div>
+        <Tooltip title={`Copy All Student Names in ${className}`}>
+          <ToolbarButton onClick={onCopyAllStudentNames}>
+            <ContentCopyIcon fontSize="small" />
+          </ToolbarButton>
+        </Tooltip>
+      </div>
     </Toolbar>
   );
 }
-
 
 // Main page component for managing classes and students on one page
 export default function ClassesPage() {
@@ -191,6 +203,10 @@ export default function ClassesPage() {
   const [showStudentsTable, setShowStudentsTable] = React.useState(false);
   const [selectedClassId, setSelectedClassId] = React.useState<string | null>(null);
   const [selectedClassName, setSelectedClassName] = React.useState<string | null>(null);
+
+  // State for copy feedback Snackbar
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+  const [snackbarMessage, setSnackbarMessage] = React.useState("");
 
 
   // Effect to load class data from localStorage on component mount
@@ -227,7 +243,7 @@ export default function ClassesPage() {
     localStorage.setItem("classes", JSON.stringify(classRows));
   }, [classRows]); // Dependency array ensures this runs whenever 'classRows' changes
 
-   // Effect to persist ALL student data to localStorage whenever the 'allStudents' state changes
+    // Effect to persist ALL student data to localStorage whenever the 'allStudents' state changes
   React.useEffect(() => {
     localStorage.setItem("students", JSON.stringify(allStudents));
   }, [allStudents]); // Dependency array ensures this runs whenever 'allStudents' changes
@@ -243,7 +259,7 @@ export default function ClassesPage() {
     }
   };
 
-   // Handler for when student row editing stops
+    // Handler for when student row editing stops
   const handleStudentRowEditStop: GridEventListener<"rowEditStop"> = (
     params,
     event
@@ -253,6 +269,19 @@ export default function ClassesPage() {
     }
   };
 
+  // Handler for opening the copy feedback Snackbar
+  const handleSnackbarOpen = (message: string) => {
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+  };
+
+  // Handler for closing the copy feedback Snackbar
+  const handleSnackbarClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
 
   // Action handlers for Class DataGrid rows (edit, save, cancel, delete, view, view students)
   const classActions = {
@@ -286,7 +315,34 @@ export default function ClassesPage() {
     },
   };
 
-  // Action handlers for Student DataGrid rows (edit, save, cancel, delete, view)
+  // Function to copy a single student name to the clipboard
+  const handleCopySingleStudentName = (name: string) => {
+    navigator.clipboard.writeText(name).then(() => {
+      handleSnackbarOpen(`Copied "${name}"`);
+    }).catch(err => {
+      console.error("Failed to copy student name: ", err);
+      handleSnackbarOpen("Failed to copy name");
+    });
+  };
+
+    // Function to copy all visible student names to the clipboard
+  const handleCopyAllStudentNames = () => {
+      const names = studentsForSelectedClass.map(student => (student as StudentRow).name);
+      if (names.length > 0) {
+          const namesString = names.join('\n'); // Join names with newlines
+          navigator.clipboard.writeText(namesString).then(() => {
+              handleSnackbarOpen(`Copied ${names.length} student name(s)`);
+          }).catch(err => {
+              console.error("Failed to copy all student names: ", err);
+              handleSnackbarOpen("Failed to copy names");
+          });
+      } else {
+          handleSnackbarOpen("No students to copy");
+      }
+  };
+
+
+  // Action handlers for Student DataGrid rows (edit, save, cancel, delete, view, copy)
   const studentActions = {
     edit: (id: GridRowId) => () =>
       setStudentRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.Edit } })),
@@ -302,8 +358,8 @@ export default function ClassesPage() {
       if (row?.isNew && row.class === selectedClassName) {
         setAllStudents((r) => r.filter((x) => x.id !== id));
       } else if (row?.isNew) {
-         // If it was a new row but somehow not assigned to this class, still remove it.
-         setAllStudents((r) => r.filter((x) => x.id !== id));
+          // If it was a new row but somehow not assigned to this class, still remove it.
+          setAllStudents((r) => r.filter((x) => x.id !== id));
       }
     },
     delete: (id: GridRowId) => () =>
@@ -314,6 +370,12 @@ export default function ClassesPage() {
       const row = allStudents.find((r) => r.id === id) as StudentRow;
       setViewStudentRow(row);
     },
+    copyName: (id: GridRowId) => () => {
+        const row = allStudents.find((r) => r.id === id) as StudentRow;
+        if (row?.name) {
+           handleCopySingleStudentName(row.name);
+        }
+    }
   };
 
 
@@ -329,7 +391,7 @@ export default function ClassesPage() {
     return updated; // Return the updated row
   };
 
-   // Function to process updates to a Student row after editing
+    // Function to process updates to a Student row after editing
   const processStudentRowUpdate = (newRow: GridRowModel) => {
     // Calculate age based on the updated DOB
     const updated: StudentRow = {
@@ -359,7 +421,7 @@ export default function ClassesPage() {
   // Filter the ALL students based on the selected class and search text
   const studentsForSelectedClass = React.useMemo(() => {
     const t = studentSearchText.toLowerCase();
-     return allStudents.filter((r) => {
+      return allStudents.filter((r) => {
         const row = r as StudentRow; // Cast for type safety
         // Filter by selected class first, then by search text
         return row.class === selectedClassName && (
@@ -368,7 +430,7 @@ export default function ClassesPage() {
             (row.dob?.includes(t) ?? false) || // Check date of birth string
             (row.gender?.toLowerCase() ?? "").includes(t) // Check gender
         );
-     });
+      });
   }, [allStudents, selectedClassName, studentSearchText]); // Recalculate when allStudents, selectedClassName, or studentSearchText changes
 
 
@@ -417,13 +479,13 @@ export default function ClassesPage() {
             ]
           : [
                // This action now triggers showing the student table on the same page
-              <GridActionsCellItem
-                key="viewStudents"
-                icon={<SchoolIcon />}
-                label="View Students"
-                onClick={classActions.viewStudents(id, classRow.name)} // Call the action to switch view
-                color="inherit"
-              />,
+               <GridActionsCellItem
+                 key="viewStudents"
+                 icon={<SchoolIcon />}
+                 label="View Students"
+                 onClick={classActions.viewStudents(id, classRow.name)} // Call the action to switch view
+                 color="inherit"
+               />,
               <GridActionsCellItem
                 key="view"
                 icon={<VisibilityIcon />}
@@ -449,7 +511,7 @@ export default function ClassesPage() {
     },
   ];
 
-   // Define the columns for the Students DataGrid (Copied from the students page)
+    // Define the columns for the Students DataGrid (Copied from the students page)
   const studentColumns: GridColDef[] = [
     {
       field: "image",
@@ -543,9 +605,11 @@ export default function ClassesPage() {
       field: "actions",
       type: "actions",
       headerName: "Actions",
-      width: 140,
-      getActions: ({ id }) => {
+      width: 170, // Increased width to accommodate the new action
+      getActions: ({ id, row }) => {
         const isEdit = studentRowModesModel[id]?.mode === GridRowModes.Edit;
+         const studentRow = row as StudentRow; // Cast row to StudentRow
+
         // Render different actions based on whether the row is in edit mode
         return isEdit
           ? [
@@ -564,6 +628,13 @@ export default function ClassesPage() {
               />,
             ]
           : [
+              <GridActionsCellItem
+                  key="copyName"
+                  icon={<ContentCopyIcon />}
+                  label="Copy Name"
+                  onClick={studentActions.copyName(id)}
+                  color="inherit"
+              />,
               <GridActionsCellItem
                 key="view"
                 icon={<VisibilityIcon />}
@@ -606,15 +677,15 @@ export default function ClassesPage() {
                   <BreadcrumbLink href="#">Dashboard</BreadcrumbLink> {/* Update href as needed */}
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
-                 <BreadcrumbItem>
+                  <BreadcrumbItem>
                     {/* Breadcrumb link back to classes if viewing students */}
                    {showStudentsTable ? (
-                       <BreadcrumbLink href="#" onClick={() => setShowStudentsTable(false)}>Classes</BreadcrumbLink>
+                        <BreadcrumbLink href="#" onClick={() => setShowStudentsTable(false)}>Classes</BreadcrumbLink>
                    ) : (
-                       <BreadcrumbPage>Classes</BreadcrumbPage>
+                        <BreadcrumbPage>Classes</BreadcrumbPage>
                    )}
-                </BreadcrumbItem>
-                {/* Show current class in breadcrumb if viewing students */}
+                  </BreadcrumbItem>
+                  {/* Show current class in breadcrumb if viewing students */}
                 {showStudentsTable && selectedClassName && (
                     <>
                         <BreadcrumbSeparator className="hidden md:block" />
@@ -748,8 +819,8 @@ export default function ClassesPage() {
                         onRowModesModelChange={setStudentRowModesModel}
                         onRowEditStop={handleStudentRowEditStop}
                         processRowUpdate={processStudentRowUpdate} // Function to call after row update
-                        slots={{ toolbar: StudentEditToolbar as React.ElementType }} // Use custom toolbar (contains the Add Student button)
-                        slotProps={{ toolbar: { setRows: setAllStudents, setRowModesModel: setStudentRowModesModel, className: selectedClassName || '' } }} // Pass props including className
+                        slots={{ toolbar: StudentEditToolbar as React.ElementType }} // Use custom toolbar (contains the Add Student and Copy All button)
+                        slotProps={{ toolbar: { setRows: setAllStudents, setRowModesModel: setStudentRowModesModel, className: selectedClassName || '', onCopyAllStudentNames: handleCopyAllStudentNames } }} // Pass props including className and copy handler
                         showToolbar // Display the toolbar
                       />
                     </Box>
@@ -803,6 +874,17 @@ export default function ClassesPage() {
                     </Modal>
                 </>
             )}
+             {/* Snackbar for copy feedback */}
+             <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={3000} // Auto-hide after 3 seconds
+                onClose={handleSnackbarClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            >
+                <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
           </div>
         </SidebarInset>
       </SidebarProvider>
