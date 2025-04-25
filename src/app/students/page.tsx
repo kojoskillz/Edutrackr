@@ -22,11 +22,13 @@ import Tooltip from "@mui/material/Tooltip";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
-import SaveIcon from "@mui/icons-material/Save";
-import CancelIcon from "@mui/icons-material/Close";
+import SaveIcon from "@mui/icons-material/Save"; // Correct import path
+import CancelIcon from "@mui/icons-material/Close"; // Corrected import path
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import SchoolIcon from "@mui/icons-material/School"; // Icon for viewing students
 import Modal from "@mui/material/Modal";
 import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button"; // Import Button for "Back to Classes"
 
 import {
   DataGrid,
@@ -44,50 +46,79 @@ import {
   ToolbarButton,
 } from "@mui/x-data-grid";
 
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs from "dayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker"; // Needed for student DOB
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"; // Needed for DatePicker
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"; // Needed for DatePicker
+import dayjs from "dayjs"; // Needed for DatePicker
 import { randomId } from "@mui/x-data-grid-generator";
+// Link is no longer needed for navigating to a separate student page
+// import Link from "next/link"; // Import Link for navigation
 
-type StudentRow = {
+// Define the type for a Class row
+type ClassRow = {
   id: string;
   name: string;
-  dob: string;       // ISO string
-  age: number;
-  class: string;
-  gender?: string;
-  image?: string;    // DataURL
+  teacher: string;
+  description?: string;
+  capacity?: number;
   isNew?: boolean;
 };
 
+// Define the type for a Student row (Copied from the students page)
+type StudentRow = {
+  id: string;
+  name: string;
+  dob: string; // ISO string
+  age: number;
+  class: string; // This will store the class name
+  gender?: string;
+  image?: string; // DataURL
+  isNew?: boolean;
+};
+
+// Helper function to calculate age from date of birth (Copied from the students page)
 const calculateAge = (dob: string) => {
-  const b = new Date(dob), today = new Date();
+  const b = new Date(dob),
+    today = new Date();
   let age = today.getFullYear() - b.getFullYear();
   const m = today.getMonth() - b.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
   return age;
 };
 
+
+// Declare module for ToolbarPropsOverrides (Updated to include className for student toolbar)
 declare module "@mui/x-data-grid" {
   interface ToolbarPropsOverrides {
     setRows: React.Dispatch<React.SetStateAction<GridRowsProp>>;
     setRowModesModel: React.Dispatch<React.SetStateAction<GridRowModesModel>>;
+    // Add className for the student toolbar
+    className?: string; // Optional as it's only for student toolbar
   }
 }
 
-function EditToolbar(props: GridSlotProps["toolbar"]) {
+// Toolbar component for the Classes DataGrid, includes an "Add Class" button
+function ClassEditToolbar(props: GridSlotProps["toolbar"]) {
   const { setRows, setRowModesModel } = props;
   return (
     <Toolbar>
-      <Tooltip title="Add Student">
+      <Tooltip title="Add Class">
         <ToolbarButton
           onClick={() => {
             const id = randomId();
-            setRows((r) => [
+            // Add a new empty row with a unique ID and the 'isNew' flag for a class
+            setRows((r: GridRowsProp) => [
               ...r,
-              { id, name: "", dob: "", age: 0, class: "", gender: "Male", isNew: true },
+              {
+                id,
+                name: "",
+                teacher: "",
+                description: "",
+                capacity: 0,
+                isNew: true,
+              },
             ]);
+            // Set the new row to edit mode and focus on the 'name' field
             setRowModesModel((m) => ({
               ...m,
               [id]: { mode: GridRowModes.Edit, fieldToFocus: "name" },
@@ -101,93 +132,342 @@ function EditToolbar(props: GridSlotProps["toolbar"]) {
   );
 }
 
-export default function Page() {
-  const [rows, setRows] = React.useState<GridRowsProp>([]);
-  const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({});
-  const [searchText, setSearchText] = React.useState("");
-  const [viewRow, setViewRow] = React.useState<StudentRow | null>(null);
+// Toolbar component for the Students DataGrid, includes an "Add Student" button
+function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
+  const { setRows, setRowModesModel, className } = props; // Receive className prop
+  return (
+    <Toolbar>
+      <Tooltip title={`Add Student to ${className}`}>
+        <ToolbarButton
+          onClick={() => {
+            const id = randomId();
+            // Add a new empty row, pre-filling the class with the current className
+            setRows((r) => [
+              ...r,
+              {
+                id,
+                name: "",
+                dob: "",
+                age: 0,
+                class: className || "", // Set the class to the current class name, default to empty if not available
+                gender: "Male",
+                isNew: true,
+              },
+            ]);
+            // Set the new row to edit mode and focus on the 'name' field
+            setRowModesModel((m) => ({
+              ...m,
+              [id]: { mode: GridRowModes.Edit, fieldToFocus: "name" },
+            }));
+          }}
+        >
+          <AddIcon fontSize="small" />
+        </ToolbarButton>
+      </Tooltip>
+    </Toolbar>
+  );
+}
 
-  // Load saved on mount
+
+// Main page component for managing classes and students on one page
+export default function ClassesPage() {
+  // State for Class DataGrid
+  const [classRows, setClassRows] = React.useState<GridRowsProp>([]); // State for DataGrid rows (classes)
+  const [classRowModesModel, setClassRowModesModel] = React.useState<GridRowModesModel>(
+    {}
+  ); // State for managing class row edit modes
+  const [classSearchText, setClassSearchText] = React.useState(""); // State for class search input
+  const [viewClassRow, setViewClassRow] = React.useState<ClassRow | null>(null); // State for the class row being viewed in the modal
+
+  // State for Student DataGrid (Copied from the students page)
+  const [allStudents, setAllStudents] = React.useState<GridRowsProp>([]); // State for ALL student data
+  const [studentRowModesModel, setStudentRowModesModel] = React.useState<GridRowModesModel>(
+    {}
+  ); // State for managing student row edit modes
+  const [studentSearchText, setStudentSearchText] = React.useState(""); // State for student search input
+  const [viewStudentRow, setViewStudentRow] = React.useState<StudentRow | null>(null); // State for the student row being viewed in the modal
+
+  // State to manage which table is visible
+  const [showStudentsTable, setShowStudentsTable] = React.useState(false);
+  const [selectedClassId, setSelectedClassId] = React.useState<string | null>(null);
+  const [selectedClassName, setSelectedClassName] = React.useState<string | null>(null);
+
+
+  // Effect to load class data from localStorage on component mount
   React.useEffect(() => {
-    const saved = localStorage.getItem("students");
-    if (saved) {
-      setRows(JSON.parse(saved));
+    const savedClasses = localStorage.getItem("classes");
+    if (savedClasses) {
+      try {
+        setClassRows(JSON.parse(savedClasses));
+      } catch (error) {
+        console.error("Failed to parse class data from localStorage", error);
+        setClassRows([]);
+      }
     } else {
-      // initialize empty
-      setRows([]);
+      setClassRows([]);
     }
-  }, []);
 
-  // Persist whenever rows change
+    // Effect to load ALL student data from localStorage on component mount
+    const savedStudents = localStorage.getItem("students");
+    if (savedStudents) {
+        try {
+            setAllStudents(JSON.parse(savedStudents));
+        } catch (error) {
+            console.error("Failed to parse student data from localStorage", error);
+            setAllStudents([]);
+        }
+    } else {
+        setAllStudents([]);
+    }
+
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Effect to persist class data to localStorage whenever the 'classRows' state changes
   React.useEffect(() => {
-    localStorage.setItem("students", JSON.stringify(rows));
-  }, [rows]);
+    localStorage.setItem("classes", JSON.stringify(classRows));
+  }, [classRows]); // Dependency array ensures this runs whenever 'classRows' changes
 
-  const handleRowEditStop: GridEventListener<"rowEditStop"> = (params, event) => {
+   // Effect to persist ALL student data to localStorage whenever the 'allStudents' state changes
+  React.useEffect(() => {
+    localStorage.setItem("students", JSON.stringify(allStudents));
+  }, [allStudents]); // Dependency array ensures this runs whenever 'allStudents' changes
+
+
+  // Handler for when class row editing stops
+  const handleClassRowEditStop: GridEventListener<"rowEditStop"> = (
+    params,
+    event
+  ) => {
     if (params.reason === GridRowEditStopReasons.rowFocusOut) {
       event.defaultMuiPrevented = true;
     }
   };
 
-  const actions = {
+   // Handler for when student row editing stops
+  const handleStudentRowEditStop: GridEventListener<"rowEditStop"> = (
+    params,
+    event
+  ) => {
+    if (params.reason === GridRowEditStopReasons.rowFocusOut) {
+      event.defaultMuiPrevented = true;
+    }
+  };
+
+
+  // Action handlers for Class DataGrid rows (edit, save, cancel, delete, view, view students)
+  const classActions = {
     edit: (id: GridRowId) => () =>
-      setRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.Edit } })),
+      setClassRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.Edit } })),
     save: (id: GridRowId) => () =>
-      setRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.View } })),
+      setClassRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.View } })),
     cancel: (id: GridRowId) => () => {
-      setRowModesModel((m) => ({
+      setClassRowModesModel((m) => ({
         ...m,
         [id]: { mode: GridRowModes.View, ignoreModifications: true },
       }));
-      const row = rows.find((r) => r.id === id) as StudentRow;
+      // If the row was newly added, remove it on cancel
+      const row = classRows.find((r) => r.id === id) as ClassRow;
       if (row?.isNew) {
-        setRows((r) => r.filter((x) => x.id !== id));
+        setClassRows((r) => r.filter((x) => x.id !== id));
       }
     },
     delete: (id: GridRowId) => () =>
-      setRows((r) => r.filter((x) => x.id !== id)),
+      setClassRows((r) => r.filter((x) => x.id !== id)),
     view: (id: GridRowId) => () => {
-      const row = rows.find((r) => r.id === id) as StudentRow;
-      setViewRow(row);
+      // Find the row and set it to be viewed in the modal
+      const row = classRows.find((r) => r.id === id) as ClassRow;
+      setViewClassRow(row);
+    },
+    // Action to view students for a specific class (switches to student table view)
+    viewStudents: (id: GridRowId, className: string) => () => {
+        setSelectedClassId(id as string);
+        setSelectedClassName(className);
+        setShowStudentsTable(true);
     },
   };
 
-  const processRowUpdate = (newRow: GridRowModel) => {
-    const updated: StudentRow = {
-      ...newRow,
-      age: calculateAge(newRow.dob),
-      isNew: false,
-    };
-    setRows((r) => r.map((x) => (x.id === newRow.id ? updated : x)));
-    return updated;
+  // Action handlers for Student DataGrid rows (edit, save, cancel, delete, view)
+  const studentActions = {
+    edit: (id: GridRowId) => () =>
+      setStudentRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.Edit } })),
+    save: (id: GridRowId) => () =>
+      setStudentRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.View } })),
+    cancel: (id: GridRowId) => () => {
+      setStudentRowModesModel((m) => ({
+        ...m,
+        [id]: { mode: GridRowModes.View, ignoreModifications: true },
+      }));
+      // If the row was newly added and belongs to this class, remove it on cancel
+      const row = allStudents.find((r) => r.id === id) as StudentRow;
+      if (row?.isNew && row.class === selectedClassName) {
+        setAllStudents((r) => r.filter((x) => x.id !== id));
+      } else if (row?.isNew) {
+         // If it was a new row but somehow not assigned to this class, still remove it.
+         setAllStudents((r) => r.filter((x) => x.id !== id));
+      }
+    },
+    delete: (id: GridRowId) => () =>
+      // Delete the student from the overall list
+      setAllStudents((r) => r.filter((x) => x.id !== id)),
+    view: (id: GridRowId) => () => {
+      // Find the row and set it to be viewed in the modal
+      const row = allStudents.find((r) => r.id === id) as StudentRow;
+      setViewStudentRow(row);
+    },
   };
 
-  const filtered = rows.filter((r) => {
-    const t = searchText.toLowerCase();
+
+  // Function to process updates to a Class row after editing
+  const processClassRowUpdate = (newRow: GridRowModel) => {
+    const updated: ClassRow = {
+      ...newRow,
+      isNew: false, // Mark as not new after saving
+    } as ClassRow; // Cast to ClassRow
+
+    // Update the rows state with the modified row
+    setClassRows((r) => r.map((x) => (x.id === newRow.id ? updated : x)));
+    return updated; // Return the updated row
+  };
+
+   // Function to process updates to a Student row after editing
+  const processStudentRowUpdate = (newRow: GridRowModel) => {
+    // Calculate age based on the updated DOB
+    const updated: StudentRow = {
+      ...newRow,
+      age: calculateAge(newRow.dob as string), // Ensure dob is treated as string
+      isNew: false, // Mark as not new after saving
+    } as StudentRow; // Cast to StudentRow
+
+    // Update the ALL students state with the modified row
+    setAllStudents((r) => r.map((x) => (x.id === newRow.id ? updated : x)));
+    return updated; // Return the updated row
+  };
+
+
+  // Filter the Class rows based on the search text
+  const filteredClasses = classRows.filter((r) => {
+    const t = classSearchText.toLowerCase();
+    const row = r as ClassRow; // Cast for type safety
+
     return (
-      r.name.toLowerCase().includes(t) ||
-      r.class.toLowerCase().includes(t) ||
-      r.dob.includes(t) ||
-      (r.gender?.toLowerCase().includes(t) ?? false)
+      (row.name?.toLowerCase() ?? "").includes(t) || // Check class name
+      (row.teacher?.toLowerCase() ?? "").includes(t) || // Check teacher name
+      (row.description?.toLowerCase() ?? "").includes(t) // Check description
     );
   });
 
-  const columns: GridColDef[] = [
+  // Filter the ALL students based on the selected class and search text
+  const studentsForSelectedClass = React.useMemo(() => {
+    const t = studentSearchText.toLowerCase();
+     return allStudents.filter((r) => {
+        const row = r as StudentRow; // Cast for type safety
+        // Filter by selected class first, then by search text
+        return row.class === selectedClassName && (
+            (row.name?.toLowerCase() ?? "").includes(t) || // Check name
+            (row.class?.toLowerCase() ?? "").includes(t) || // Check class (redundant after class filter, but good for robustness)
+            (row.dob?.includes(t) ?? false) || // Check date of birth string
+            (row.gender?.toLowerCase() ?? "").includes(t) // Check gender
+        );
+     });
+  }, [allStudents, selectedClassName, studentSearchText]); // Recalculate when allStudents, selectedClassName, or studentSearchText changes
+
+
+  // Define the columns for the Classes DataGrid
+  const classColumns: GridColDef[] = [
+    { field: "name", headerName: "Class Name", width: 180, editable: true },
+    { field: "teacher", headerName: "Teacher", width: 180, editable: true },
+    {
+      field: "description",
+      headerName: "Description",
+      width: 250,
+      editable: true,
+    },
+    {
+      field: "capacity",
+      headerName: "Capacity",
+      width: 100,
+      type: "number",
+      editable: true,
+    },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Actions",
+      width: 200, // Increased width to accommodate the new action
+      getActions: ({ id, row }) => {
+        const isEdit = classRowModesModel[id]?.mode === GridRowModes.Edit;
+        const classRow = row as ClassRow; // Cast row to ClassRow
+
+        // Render different actions based on whether the row is in edit mode
+        return isEdit
+          ? [
+              <GridActionsCellItem
+                key="save"
+                icon={<SaveIcon />}
+                label="Save"
+                onClick={classActions.save(id)}
+                color="primary"
+              />,
+              <GridActionsCellItem
+                key="cancel"
+                icon={<CancelIcon />}
+                label="Cancel"
+                onClick={classActions.cancel(id)}
+              />,
+            ]
+          : [
+               // This action now triggers showing the student table on the same page
+              <GridActionsCellItem
+                key="viewStudents"
+                icon={<SchoolIcon />}
+                label="View Students"
+                onClick={classActions.viewStudents(id, classRow.name)} // Call the action to switch view
+                color="inherit"
+              />,
+              <GridActionsCellItem
+                key="view"
+                icon={<VisibilityIcon />}
+                label="View Class Details" // Updated label for clarity
+                onClick={classActions.view(id)}
+              />,
+              <GridActionsCellItem
+                key="edit"
+                icon={<EditIcon />}
+                label="Edit Class" // Updated label for clarity
+                onClick={classActions.edit(id)}
+                color="inherit"
+              />,
+              <GridActionsCellItem
+                key="delete"
+                icon={<DeleteIcon />}
+                label="Delete Class" // Updated label for clarity
+                onClick={classActions.delete(id)}
+                color="inherit"
+              />,
+            ];
+      },
+    },
+  ];
+
+   // Define the columns for the Students DataGrid (Copied from the students page)
+  const studentColumns: GridColDef[] = [
     {
       field: "image",
       headerName: "Photo",
       width: 100,
       editable: true,
       renderCell: (p) =>
+        // Render image if available
         p.value ? (
           <img
             src={p.value as string}
-            alt="stud"
+            alt="student photo"
             className="h-8 w-8 rounded-full object-cover"
           />
         ) : null,
       renderEditCell: (params) => {
         const { id, field, api } = params;
+        // Render a file input for image selection in edit mode
         return (
           <input
             type="file"
@@ -197,12 +477,13 @@ export default function Page() {
               if (!file) return;
               const reader = new FileReader();
               reader.onloadend = () => {
+                // Set the cell value to the data URL of the selected image
                 api.setEditCellValue(
                   { id, field, value: reader.result },
                   reader.result
                 );
               };
-              reader.readAsDataURL(file);
+              reader.readAsDataURL(file); // Read the file as a data URL
             }}
           />
         );
@@ -214,14 +495,17 @@ export default function Page() {
       headerName: "Date of Birth",
       width: 160,
       editable: true,
+      // Render the date in a human-readable format
       renderCell: (p) =>
-        new Date(p.value as string).toLocaleDateString("en-GB"),
+        p.value ? new Date(p.value as string).toLocaleDateString("en-GB") : "",
       renderEditCell: (params) => {
         const { id, field, value, api } = params;
+        // Render a DatePicker for editing the date of birth
         return (
           <DatePicker
-            value={value ? dayjs(value as string) : null}
+            value={value ? dayjs(value as string) : null} // Use dayjs for DatePicker value
             onChange={(v) => {
+              // Set the cell value to the ISO string of the selected date
               api.setEditCellValue(
                 { id, field, value: v?.toISOString() },
                 v
@@ -237,17 +521,23 @@ export default function Page() {
       headerName: "Gender",
       width: 120,
       editable: true,
-      type: "singleSelect",
-      valueOptions: ["Male", "Female", "Other"],
+      type: "singleSelect", // Use a single select dropdown for gender
+      valueOptions: ["Male", "Female", "Other"], // Define available options
     },
-    { field: "age", headerName: "Age", width: 80, type: "number", editable: false },
     {
-      field: "class",
-      headerName: "Class",
-      width: 140,
-      editable: true,
-      type: "singleSelect",
-      valueOptions: ["Basic 1", "Basic 2", "Basic 3", "Basic 4", "Basic 5","Basic 6", "Basic 7","Basic 8","Basic 9"],
+      field: "age",
+      headerName: "Age",
+      width: 80,
+      type: "number",
+      editable: false, // Age is calculated, not directly editable
+    },
+    {
+        // The class field is included but not editable on this page
+        // as students are managed *within* a specific class context here.
+        field: "class",
+        headerName: "Class",
+        width: 140,
+        editable: false, // Not editable in this view
     },
     {
       field: "actions",
@@ -255,42 +545,43 @@ export default function Page() {
       headerName: "Actions",
       width: 140,
       getActions: ({ id }) => {
-        const isEdit = rowModesModel[id]?.mode === GridRowModes.Edit;
+        const isEdit = studentRowModesModel[id]?.mode === GridRowModes.Edit;
+        // Render different actions based on whether the row is in edit mode
         return isEdit
           ? [
               <GridActionsCellItem
                 key="save"
                 icon={<SaveIcon />}
                 label="Save"
-                onClick={actions.save(id)}
+                onClick={studentActions.save(id)}
                 color="primary"
               />,
               <GridActionsCellItem
                 key="cancel"
                 icon={<CancelIcon />}
                 label="Cancel"
-                onClick={actions.cancel(id)}
+                onClick={studentActions.cancel(id)}
               />,
             ]
           : [
               <GridActionsCellItem
                 key="view"
                 icon={<VisibilityIcon />}
-                label="View"
-                onClick={actions.view(id)}
+                label="View Student Details"
+                onClick={studentActions.view(id)}
               />,
               <GridActionsCellItem
                 key="edit"
                 icon={<EditIcon />}
-                label="Edit"
-                onClick={actions.edit(id)}
+                label="Edit Student"
+                onClick={studentActions.edit(id)}
                 color="inherit"
               />,
               <GridActionsCellItem
                 key="delete"
                 icon={<DeleteIcon />}
-                label="Delete"
-                onClick={actions.delete(id)}
+                label="Delete Student"
+                onClick={studentActions.delete(id)}
                 color="inherit"
               />,
             ];
@@ -298,104 +589,220 @@ export default function Page() {
     },
   ];
 
+
   return (
+    // LocalizationProvider is needed for the DatePicker component (used in student table)
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
+          {/* Header section with sidebar trigger and breadcrumb */}
           <header className="flex h-16 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">Dashboard</BreadcrumbLink>
+                  <BreadcrumbLink href="#">Dashboard</BreadcrumbLink> {/* Update href as needed */}
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Students</BreadcrumbPage>
+                 <BreadcrumbItem>
+                    {/* Breadcrumb link back to classes if viewing students */}
+                   {showStudentsTable ? (
+                       <BreadcrumbLink href="#" onClick={() => setShowStudentsTable(false)}>Classes</BreadcrumbLink>
+                   ) : (
+                       <BreadcrumbPage>Classes</BreadcrumbPage>
+                   )}
                 </BreadcrumbItem>
+                {/* Show current class in breadcrumb if viewing students */}
+                {showStudentsTable && selectedClassName && (
+                    <>
+                        <BreadcrumbSeparator className="hidden md:block" />
+                        <BreadcrumbItem>
+                            <BreadcrumbPage>{selectedClassName} Students</BreadcrumbPage>
+                        </BreadcrumbItem>
+                    </>
+                )}
               </BreadcrumbList>
             </Breadcrumb>
           </header>
 
+          {/* Main content area */}
           <div className="flex flex-1 bg-gray-300 flex-col gap-4 p-4">
-            <div className="flex justify-end mb-2">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="w-full md:w-1/3 px-4 py-2 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
 
-            <Box
-              sx={{
-                height: 600,
-                width: "100%",
-                "& .actions": { color: "text.secondary" },
-                "& .textPrimary": { color: "text.primary" },
-              }}
-            >
-              <DataGrid
-                rows={filtered}
-                columns={columns}
-                editMode="row"
-                rowModesModel={rowModesModel}
-                onRowModesModelChange={setRowModesModel}
-                onRowEditStop={handleRowEditStop}
-                processRowUpdate={processRowUpdate}
-                slots={{ toolbar: EditToolbar }}
-                slotProps={{ toolbar: { setRows, setRowModesModel } }}
-                showToolbar
-              />
-            </Box>
+            {/* Conditional Rendering: Show Classes Table or Students Table */}
+            {!showStudentsTable ? (
+                // --- Classes Table View ---
+                <>
+                    {/* Search input for Classes */}
+                    <div className="flex justify-end mb-2">
+                        <input
+                            type="text"
+                            placeholder="Search Classes..."
+                            value={classSearchText}
+                            onChange={(e) => setClassSearchText(e.target.value)}
+                            className="w-full md:w-1/3 px-4 py-2 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
 
-            <Modal open={!!viewRow} onClose={() => setViewRow(null)}>
-              <Box
-                sx={{
-                  p: 3,
-                  bgcolor: "background.paper",
-                  borderRadius: 2,
-                  boxShadow: 24,
-                  width: 360,
-                  mx: "auto",
-                  my: "10%",
-                }}
-              >
-                <Typography variant="h6" gutterBottom>
-                  Student Details
-                </Typography>
-                {viewRow && (
-                  <div className="space-y-2">
-                    {viewRow.image && (
-                      <img
-                        src={viewRow.image}
-                        alt="stud"
-                        className="h-16 w-16 rounded-full object-cover"
+                    {/* DataGrid container for Classes */}
+                    <Box
+                      sx={{
+                        height: 600,
+                        width: "100%",
+                        "& .actions": { color: "text.secondary" },
+                        "& .textPrimary": { color: "text.primary" },
+                      }}
+                    >
+                      {/* Material UI DataGrid component for Classes */}
+                      <DataGrid
+                        rows={filteredClasses} // Use filtered class rows
+                        columns={classColumns}
+                        editMode="row" // Enable row editing
+                        rowModesModel={classRowModesModel}
+                        onRowModesModelChange={setClassRowModesModel}
+                        onRowEditStop={handleClassRowEditStop}
+                        processRowUpdate={processClassRowUpdate} // Function to call after row update
+                        slots={{ toolbar: ClassEditToolbar as React.ElementType }} // Use custom toolbar (contains the Add Class button)
+                        slotProps={{ toolbar: { setRows: setClassRows, setRowModesModel: setClassRowModesModel } }} // Pass props to toolbar
+                        showToolbar // Display the toolbar
                       />
-                    )}
-                    <p>
-                      <strong>Name:</strong> {viewRow.name}
-                    </p>
-                    <p>
-                      <strong>DOB:</strong>{" "}
-                      {new Date(viewRow.dob).toLocaleDateString("en-GB")}
-                    </p>
-                    <p>
-                      <strong>Gender:</strong> {viewRow.gender}
-                    </p>
-                    <p>
-                      <strong>Age:</strong> {viewRow.age}
-                    </p>
-                    <p>
-                      <strong>Class:</strong> {viewRow.class}
-                    </p>
-                  </div>
-                )}
-              </Box>
-            </Modal>
+                    </Box>
+
+                    {/* Modal for viewing class details */}
+                    <Modal open={!!viewClassRow} onClose={() => setViewClassRow(null)}>
+                      <Box
+                        sx={{
+                          p: 3,
+                          bgcolor: "background.paper",
+                          borderRadius: 2,
+                          boxShadow: 24,
+                          width: 360,
+                          mx: "auto", // Center the modal horizontally
+                          my: "10%", // Position the modal vertically
+                        }}
+                      >
+                        <Typography variant="h6" gutterBottom>
+                          Class Details
+                        </Typography>
+                        {viewClassRow && (
+                          <div className="space-y-2">
+                            {/* Display class details */}
+                            <p>
+                              <strong>Class Name:</strong> {viewClassRow.name}
+                            </p>
+                            <p>
+                              <strong>Teacher:</strong> {viewClassRow.teacher}
+                            </p>
+                            {viewClassRow.description && (
+                              <p>
+                                <strong>Description:</strong> {viewClassRow.description}
+                              </p>
+                            )}
+                            {viewClassRow.capacity !== undefined && (
+                              <p>
+                                <strong>Capacity:</strong> {viewClassRow.capacity}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </Box>
+                    </Modal>
+                </>
+            ) : (
+                // --- Students Table View ---
+                <>
+                    {/* Back to Classes Button */}
+                    <div className="flex justify-start mb-2">
+                        <Button variant="outlined" onClick={() => setShowStudentsTable(false)}>
+                            Back to Classes
+                        </Button>
+                    </div>
+
+                    {/* Search input for Students */}
+                    <div className="flex justify-end mb-2">
+                        <input
+                            type="text"
+                            placeholder={`Search students in ${selectedClassName || ''}...`} // Dynamic placeholder
+                            value={studentSearchText}
+                            onChange={(e) => setStudentSearchText(e.target.value)}
+                            className="w-full md:w-1/3 px-4 py-2 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    {/* DataGrid container for Students */}
+                    <Box
+                      sx={{
+                        height: 600,
+                        width: "100%",
+                        "& .actions": { color: "text.secondary" },
+                        "& .textPrimary": { color: "text.primary" },
+                      }}
+                    >
+                      {/* Material UI DataGrid component for Students */}
+                      <DataGrid
+                        rows={studentsForSelectedClass} // Use filtered student rows for the selected class
+                        columns={studentColumns}
+                        editMode="row" // Enable row editing
+                        rowModesModel={studentRowModesModel}
+                        onRowModesModelChange={setStudentRowModesModel}
+                        onRowEditStop={handleStudentRowEditStop}
+                        processRowUpdate={processStudentRowUpdate} // Function to call after row update
+                        slots={{ toolbar: StudentEditToolbar as React.ElementType }} // Use custom toolbar (contains the Add Student button)
+                        slotProps={{ toolbar: { setRows: setAllStudents, setRowModesModel: setStudentRowModesModel, className: selectedClassName || '' } }} // Pass props including className
+                        showToolbar // Display the toolbar
+                      />
+                    </Box>
+
+                    {/* Modal for viewing student details */}
+                    <Modal open={!!viewStudentRow} onClose={() => setViewStudentRow(null)}>
+                      <Box
+                        sx={{
+                          p: 3,
+                          bgcolor: "background.paper",
+                          borderRadius: 2,
+                          boxShadow: 24,
+                          width: 360,
+                          mx: "auto", // Center the modal horizontally
+                          my: "10%", // Position the modal vertically
+                        }}
+                      >
+                        <Typography variant="h6" gutterBottom>
+                          Student Details
+                        </Typography>
+                        {viewStudentRow && (
+                          <div className="space-y-2">
+                            {/* Display student image if available */}
+                            {viewStudentRow.image && (
+                              <img
+                                src={viewStudentRow.image}
+                                alt="student photo"
+                                className="h-16 w-16 rounded-full object-cover"
+                              />
+                            )}
+                            {/* Display student details */}
+                            <p>
+                              <strong>Name:</strong> {viewStudentRow.name}
+                            </p>
+                            <p>
+                              <strong>DOB:</strong>{" "}
+                              {new Date(viewStudentRow.dob).toLocaleDateString("en-GB")}
+                            </p>
+                            <p>
+                              <strong>Gender:</strong> {viewStudentRow.gender}
+                            </p>
+                            <p>
+                              <strong>Age:</strong> {viewStudentRow.age}
+                            </p>
+                            <p>
+                              <strong>Class:</strong> {viewStudentRow.class}
+                            </p>
+                          </div>
+                        )}
+                      </Box>
+                    </Modal>
+                </>
+            )}
           </div>
         </SidebarInset>
       </SidebarProvider>
