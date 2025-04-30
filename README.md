@@ -1,6 +1,4 @@
-Here's a clean, professional documentation draft for your **Edutrack School Management System**. You can include this in your project’s GitHub README or internal documentation:
 
----
 
 # 📚 **Edutrack – School Management System**
 
