@@ -108,4 +108,3 @@ Software Engineer | Skilluxe technologies
 
 ---
 
-Would you like this exported as a downloadable PDF or markdown file?
