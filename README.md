@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Here's a clean, professional documentation draft for your **Edutrack School Management System**. You can include this in your project’s GitHub README or internal documentation:
 
-## Getting Started
+---
 
-First, run the development server:
+# 📚 **Edutrack – School Management System**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+**Edutrack** is a modern, web-based school management platform designed to help schools streamline administrative tasks, enhance communication, and centralize data handling. Built with **Next.js**, **React**, and **Tailwind CSS**, it is modular, responsive, and easy to extend.
+
+---
+
+## 🧩 **Core Modules**
+
+### 1. 👨‍🏫 Teachers Management
+- Add, edit, and remove teacher records.
+- Store teacher details: name, ID, date of birth, appointment date, age, and image.
+- View teacher profile with full data.
+- Inline editing using **MUI DataGrid**.
+
+### 2. 👨‍🎓 Students Management
+- Add and manage students with class, date of birth, and auto-calculated age.
+- Upload and preview student photos.
+- Filter/search students by name/class.
+- Full CRUD support with persistent localStorage data.
+
+### 3. 💳 Fees Management
+- Track student fee status (Paid / Unpaid).
+- Record fee amounts per student and class.
+- Export fee records and filter by payment status.
+- Summary view of total paid and unpaid.
+
+### 4. 🧾 Results Input Sheet
+- Excel-style grid for entering and calculating student scores.
+- Auto-calculate total, average, position, and remarks.
+- Editable headers for class, subject, term, year, and teacher name.
+- Supports adding/removing subject columns dynamically.
+
+### 5. 📄 Report Card
+- Generates printable student report cards.
+- Pulls data directly from the results sheet.
+- Clean design ready for export or hard copy.
+
+---
+
+## 🛠 **Technology Stack**
+- **Frontend**: Next.js, React, Tailwind CSS, ShadCN UI, MUI
+- **State/Data**: React Context + `localStorage` for persistence
+- **UI Components**: ShadCN, MUI DataGrid
+- **Utilities**: UUID, date-fns, html2pdf.js (for print/export)
+
+---
+
+## 📦 **Project Structure**
+```
+/app
+  /teachers
+  /students
+  /fees
+  /results
+  /report-card
+/components
+  TeacherTable.tsx
+  StudentForm.tsx
+  ResultSheet.tsx
+/context
+  StudentContext.tsx
+  TeacherContext.tsx
+/lib
+  storage.ts
+  utils.ts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🔐 Authentication (Optional)
+- Currently single-user or school use (no login system).
+- Future plan: Add Firebase Auth or NextAuth for user access control.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🚀 How to Run the Project
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# 1. Clone the repository
+git clone https://github.com/yourusername/edutrack.git
+cd edutrack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 2. Install dependencies
+npm install
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 3. Run the development server
+npm run dev
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ✅ Future Improvements
+- Add AI-assisted Lesson Note Generator (in progress)
+- Parent portal access (view results, pay fees)
+- Timetable and attendance modules
+- Multi-school account support
+- Export to Excel or PDF across modules
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 👨‍💻 Developed By
+**[Kwadwo Nyarko]**  
+Software Engineer | Skilluxe technologies
+
+---
+
+Would you like this exported as a downloadable PDF or markdown file?
