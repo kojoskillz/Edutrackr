@@ -312,7 +312,8 @@ export default function TeachersPage() {
               top: "50%", left: "50%",
               transform: "translate(-50%, -50%)",
               width: 450, bgcolor: "background.paper",
-              boxShadow: 24, p: 3, borderRadius: 2
+              boxShadow: 24, p: 3, borderRadius: 2,
+              maxHeight: '90vh', overflowY: 'auto' // Add scrolling for smaller screens
             }}>
             <h2 className="text-xl font-semibold mb-4">Add New Teacher</h2>
             <Grid container spacing={2}>
@@ -345,10 +346,11 @@ export default function TeachersPage() {
                 />
               </Grid>
               <Grid item xs={12}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teacher Image</label> {/* Added label */}
                 <input
                   type="file" accept="image/*"
                   onChange={handleImageChange}
-                  className="mb-2"
+                  className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" // Styled input
                 />
               </Grid>
               {newTeacher.image && (
@@ -361,7 +363,7 @@ export default function TeachersPage() {
                 </Grid>
               )}
               <Grid item xs={6}>
-                <TextField
+                 <TextField
                   fullWidth label="DOB" type="date"
                   InputLabelProps={{ shrink: true }}
                   value={newTeacher.dob}
@@ -420,31 +422,35 @@ export default function TeachersPage() {
               top: "50%", left: "50%",
               transform: "translate(-50%, -50%)",
               width: 450, bgcolor: "background.paper",
-              boxShadow: 24, p: 3, borderRadius: 2
+              boxShadow: 24, p: 3, borderRadius: 2,
+              maxHeight: '90vh', overflowY: 'auto' // Add scrolling for smaller screens
             }}>
             <h2 className="text-xl font-semibold mb-4">Teacher Details</h2>
             {selectedTeacher ? (
               <Grid container spacing={2}>
+                 {/* Display Image */}
+                 {selectedTeacher.image && (
+                  <Grid item xs={12} className="flex justify-center"> {/* Center the image */}
+                    <img
+                      src={selectedTeacher.image}
+                      alt={`${selectedTeacher.name}'s image`}
+                      className="h-32 w-32 object-cover rounded-full border-2 border-blue-500" // Make image round
+                    />
+                  </Grid>
+                )}
+                {/* Display other details */}
                 {Object.entries(selectedTeacher).map(([key, val]) =>
-                  key !== "id" && key !== "isNew" ? (
+                   // Exclude 'id', 'isNew', and 'image' keys from TextField rendering
+                  key !== "id" && key !== "isNew" && key !== "image" ? (
                     <Grid item xs={12} key={key}>
                       <TextField
                         fullWidth
-                        label={key}
+                        label={key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')} // Capitalize and space out camelCase
                         value={String(val)}
                         InputProps={{ readOnly: true }}
                       />
                     </Grid>
                   ) : null
-                )}
-                {selectedTeacher.image && (
-                  <Grid item xs={12}>
-                    <img
-                      src={selectedTeacher.image}
-                      alt="Teacher"
-                      className="h-24 w-24 object-cover rounded"
-                    />
-                  </Grid>
                 )}
                 <Grid item xs={12} className="text-right">
                   <Button variant="contained" onClick={() => setDetailsModalOpen(false)}>
