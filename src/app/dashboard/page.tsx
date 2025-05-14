@@ -266,7 +266,7 @@ export default function Page() {
   }
   
   const auth = useAuth();
-  const typedAuth = auth ? (auth as AuthContextType) : null; // Safely cast only if auth is not null
+  // const typedAuth = auth ? (auth as AuthContextType) : null; // Safely cast only if auth is not null
   const user = auth?.user; // Safely access the user property
   // const user = auth?.user;
 
