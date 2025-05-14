@@ -17,18 +17,20 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"; // Assuming this path is correct
 
-// import Tooltip from "@mui/material/Tooltip"; // Still used for StatCard (though a custom tooltip might be better with Tailwind)
-// import AddIcon from "@mui/icons-material/Add"; // Not used in the final component, can be removed
+import Tooltip from "@mui/material/Tooltip"; // Still used for StatCard (though a custom tooltip might be better with Tailwind)
 
+
+// These imports are not used in the current component and can be removed
+// import AddIcon from "@mui/icons-material/Add";
 // import {
 //   GridRowsProp,
 //   GridRowModesModel,
 //   GridRowModes,
 //   GridSlotProps,
-//   Toolbar as MuiToolbar, // Not used in the final component, can be removed
-// } from "@mui/x-data-grid"; // Only GridSlotProps, GridRowsProp, GridRowModesModel, GridRowModes are used for type hints, consider if needed
+//   Toolbar as MuiToolbar,
+// } from "@mui/x-data-grid";
+// import { randomId } from "@mui/x-data-grid-generator";
 
-// import { randomId } from "@mui/x-data-grid-generator"; // Not used in the final component, can be removed
 
 // Import necessary hooks and components for the dashboard
 import { useAuth } from "@/context/AuthContext"; // Assuming this path is correct
@@ -44,6 +46,7 @@ import {
   CategoryScale,
   LinearScale,
   Title as ChartTitle, // Import Title for chart titles
+  TooltipItem // Import TooltipItem type for tooltip callbacks
 } from "chart.js";
 import useFeesStore, { useLoadFees } from "../dashboard/useFeesStore"; // Updated path to match the correct location
 import Image from "next/image";
@@ -230,13 +233,15 @@ export default function Page() {
       },
       tooltip: {
         callbacks: {
-          label: function(context: any) {
+          // Use TooltipItem type for the context parameter
+          label: function(context: TooltipItem<'pie'>) {
             let label = context.label || '';
             if (label) {
               label += ': ';
             }
             if (context.parsed !== null) {
               // You can format the value, e.g., to currency
+              // The parsed value for a pie chart is the numerical value of the slice
               label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed);
             }
             return label;
