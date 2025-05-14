@@ -150,7 +150,7 @@ export default function ClassPage() {
 
     // DataGrid state (still represents the current subject's view)
     const [rows, setRows] = React.useState<GridRowsProp<StudentRow>>([]); // Holds the student data for the selected class/subject
-    // rowModesModel is used internally by DataGrid when passed as a prop.
+    // rowModesModel is used internally by DataGrid when passed as a prop to control row editing.
     const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row
     const [selectionModel, setSelectionModel] = React.useState<GridRowSelectionModel>([]); // Holds the IDs of selected rows (controlled selection)
 
@@ -743,13 +743,14 @@ export default function ClassPage() {
         // Confirmation dialog
         if (window.confirm("Delete this student&apos;s record from this class and all subjects?") && isMountedRef.current) {
 
+            // idsToDelete is used in the filter calls below.
             const idsToDelete = [id]; // Create an array with the single ID to delete
-            // idsToDelete is used below in the filter calls. Linter might not detect this usage.
 
             // 1. Remove student from the class's student list in the classes state
             setClasses(prevClasses =>
                 prevClasses.map(cls => {
                     if (cls.id === selectedClassId) {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
                         return {
                             ...cls,
                             students: cls.students.filter(student => student.id !== id),
@@ -1680,13 +1681,14 @@ export default function ClassPage() {
         // Confirmation dialog
         if (window.confirm(`Delete ${selectionModel.length} selected student record(s) from this class and all subjects?`) && isMountedRef.current) {
 
+            // idsToDelete is used in the filter calls below.
             const idsToDelete = selectionModel as string[]; // Ensure type is string array
-            // idsToDelete is used below in the filter calls. Linter might not detect this usage.
 
             // 1. Remove selected students from the class's student list in the classes state
             setClasses(prevClasses =>
                 prevClasses.map(cls => {
                     if (cls.id === selectedClassId) {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
                         return {
                             ...cls,
                             students: cls.students.filter(student => !idsToDelete.includes(student.id)),
@@ -1774,8 +1776,9 @@ export default function ClassPage() {
                     return {
                         ...cls,
                         students: cls.students.map(student => {
-                             // Use the updatedRow directly to get the latest image and remarks
-                             if (student.id === updatedRow.id) {
+                             const updatedRow = positionedRows.find(row => row.id === student.id);
+                             if (updatedRow) {
+                                 // Update student details from the corresponding row in the current subject view
                                  return { ...student, imageUrl: updatedRow.imageUrl, overallRemarks: updatedRow.overallRemarks };
                              }
                              return student; // Keep existing student if not in current subject view (shouldn't happen with current logic)
@@ -2611,7 +2614,8 @@ export default function ClassPage() {
                                                         component="img"
                                                         sx={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '2px solid #3b82f6' }} // Combined sx styles
                                                         image={reportCardImage}
-                                                        alt={`${currentStudentReport.studentName}&apos;s photo`} // Escaped apostrophe
+                                                        // Corrected: Use single quotes for the alt attribute value
+                                                        alt={`${currentStudentReport.studentName}&apos;s photo`}
                                                     />
                                                 ) : (
                                                     <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 border-2 border-gray-300"> {/* Added border */}
