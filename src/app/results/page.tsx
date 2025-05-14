@@ -21,6 +21,8 @@ import SaveIcon from "@mui/icons-material/Save";
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from '@mui/icons-material/Visibility'; // Icon for viewing report card
 import PrintIcon from '@mui/icons-material/Print'; // Icon for printing
+import ClearIcon from '@mui/icons-material/Clear'; // Icon for clearing results
+
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -1424,7 +1426,7 @@ export default function ClassPage() {
         setYear(subjectEditData.year);
         setSubjectTeacher(subjectEditData.subjectTeacher);
 
-        handleCloseEditSubjectDialog(); // Close the dialog
+        handleCloseEditDialog(); // Close the dialog
         toast.success("Subject details updated");
     };
 
@@ -1891,6 +1893,56 @@ export default function ClassPage() {
         toast.success("Results saved, positions and remarks updated.");
     };
 
+    /**
+     * Clears all results (scores, position, remarks) for the currently selected subject.
+     * Resets the `rows` state for the current subject and removes the data from localStorage.
+     */
+    const handleClearResults = () => {
+        if (!isMountedRef.current) return; // Ensure component is mounted
+        if (!selectedClassId || !selectedSubjectId) {
+            toast.error("Cannot clear results without selecting a class and subject.");
+            return;
+        }
+
+        // Confirmation dialog
+        if (window.confirm(`ARE YOU SURE?\n\nThis will permanently clear ALL results (scores, positions, remarks) for the subject "${subjectName}" in class "${className}".\n\nThis action cannot be undone.`) && isMountedRef.current) {
+
+            // 1. Find the current class to get the list of students
+            const currentClass = classes.find(c => c.id === selectedClassId);
+            if (!currentClass) {
+                toast.error("Could not find the selected class.");
+                return;
+            }
+
+            // 2. Create a new array of rows with subject-specific fields cleared
+            const clearedRows: StudentRow[] = currentClass.students.map(student => ({
+                ...student, // Keep student details (id, name, imageUrl, overallRemarks)
+                cat1: undefined,
+                cat2: undefined,
+                projectWork: undefined,
+                exams: undefined,
+                total: undefined,
+                position: undefined,
+                remarks: undefined,
+                isNew: false, // Not new after clearing
+            }));
+
+            // 3. Update the `rows` state with the cleared data
+            setRows(clearedRows);
+
+            // 4. Recalculate and set the overall class average (should be 0)
+            calculateAndSetAverage(clearedRows);
+
+            // 5. Remove the subject-specific student data from localStorage
+            const subjectStudentDataKey = getSubjectStudentDataKey(selectedClassId, selectedSubjectId);
+            if (subjectStudentDataKey && typeof window !== "undefined") {
+                localStorage.removeItem(subjectStudentDataKey);
+            }
+
+            toast.success(`Results for subject "${subjectName}" in class "${className}" cleared.`);
+        }
+    };
+
 
     // --- Excel Export Handler (Subject Specific) ---
     /** Exports the current student data grid (subject-specific) to an Excel (.xlsx) file.
@@ -1906,7 +1958,7 @@ export default function ClassPage() {
             toast.error("Please select a class and subject before exporting.");
             return;
         }
-        // Ensure running client-side and libraries are available
+        // Ensure running client-side
         if (typeof window === 'undefined') {
              toast.error("Exporting to Excel is not supported in this environment.");
              return;
@@ -1956,7 +2008,7 @@ export default function ClassPage() {
             toast.success("Subject results exported to Excel successfully.");
         } catch (error) {
             console.error("Excel export failed:", error);
-            toast.error("Failed to export data to Excel.");
+            toast.error(`Failed to export data to Excel: ${error instanceof Error ? error.message : String(error)}`);
         }
     };
 
@@ -1974,7 +2026,7 @@ export default function ClassPage() {
             toast.error("Please select a class before exporting overall results.");
             return;
         }
-        // Ensure running client-side and libraries are available
+        // Ensure running client-side
         if (typeof window === 'undefined') {
              toast.error("Exporting to Excel is not supported in this environment.");
              return;
@@ -2028,7 +2080,7 @@ export default function ClassPage() {
             toast.success("Overall ranking exported to Excel successfully.");
         } catch (error) {
             console.error("Overall ranking Excel export failed:", error);
-            toast.error("Failed to export overall ranking data to Excel.");
+            toast.error(`Failed to export overall ranking data to Excel: ${error instanceof Error ? error.message : String(error)}`);
         }
     };
 
@@ -2305,6 +2357,13 @@ export default function ClassPage() {
                                         onClick={handleDeleteSelected} disabled={selectionModel.length === 0} // Disable if no rows selected
                                     >
                                         Delete Selected
+                                    </Button>
+                                     {/* Clear Results Button */}
+                                    <Button
+                                        variant="outlined" color="warning" startIcon={<ClearIcon />}
+                                        onClick={handleClearResults} disabled={rows.length === 0} // Disable if no rows
+                                    >
+                                        Clear Results
                                     </Button>
                                     {/* Save Results Button (Saves subject-specific data) */}
                                     <Button
