@@ -90,14 +90,11 @@ export default function FeesPage() {
 
   // Handler for processing updates to a row
   const processRowUpdate = (newRow: GridRowModel) => {
-    // Cast newRow to FeeRow to satisfy TypeScript, assuming it has all properties
-    const updatedRow = newRow as FeeRow;
-
-    // Create an updated row object, ensuring paid and due are numbers and including other properties
+    // Create an updated row object, ensuring paid and due are numbers
     const updated: FeeRow = {
-      ...updatedRow, // Spread all properties from the row
-      paid: Number(updatedRow.paid), // Ensure paid is a number
-      due: Number(updatedRow.due),   // Ensure due is a number
+      ...newRow,
+      paid: Number(newRow.paid),
+      due: Number(newRow.due),
       isNew: false, // Mark as not new after saving
     };
     // Update the rows state with the modified row
@@ -169,9 +166,9 @@ export default function FeesPage() {
       headerName: "Status",
       width: 120,
       // Value getter to determine status based on paid vs due
-      valueGetter: (params: GridValueGetterParams) => {
-        const paid = Number(params.row?.paid ?? 0);
-        const due = Number(params.row?.due ?? 0);
+      valueGetter: (params) => {
+        const paid = Number(params?.row?.paid ?? 0);
+        const due = Number(params?.row?.due ?? 0);
         return paid >= due ? "Paid" : "Unpaid";
       },
       // Custom render cell to display status with icons and colors
