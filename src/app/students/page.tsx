@@ -210,8 +210,7 @@ export default function ClassesPage() {
 
   // State to manage which table is visible
   const [showStudentsTable, setShowStudentsTable] = React.useState(false);
-  // selectedClassId is used to filter students and identify the current class context
-  const [selectedClassId, setSelectedClassId] = React.useState<string | null>(null);
+  // selectedClassId was unused, removed. selectedClassName is used for filtering students.
   const [selectedClassName, setSelectedClassName] = React.useState<string | null>(null);
 
   // State for copy feedback Snackbar
@@ -319,7 +318,7 @@ export default function ClassesPage() {
     },
     // Action to view students for a specific class (switches to student table view)
     viewStudents: (id: GridRowId, className: string) => () => {
-        setSelectedClassId(id as string);
+        // Removed setSelectedClassId as it was unused
         setSelectedClassName(className);
         setShowStudentsTable(true);
     },
@@ -621,7 +620,8 @@ export default function ClassesPage() {
       width: 170, // Increased width to accommodate the new action
       getActions: ({ id, row }) => {
         const isEdit = studentRowModesModel[id]?.mode === GridRowModes.Edit;
-         const studentRow = row as StudentRow; // Cast row to StudentRow
+         // studentRow was unused, removed.
+        // const studentRow = row as StudentRow; // Cast row to StudentRow
 
         // Render different actions based on whether the row is in edit mode
         return isEdit
