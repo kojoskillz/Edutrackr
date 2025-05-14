@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+// Removed the useRouter import as it was not used in the component logic
+// import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useStudent } from "@/context/StudentContext";
@@ -22,28 +23,75 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
+// Define the structure for student data by class
+interface StudentData {
+  [className: string]: {
+    male: number;
+    female: number;
+  };
+}
+
 export default function Page() {
+  // State for Admin Profile
   const [name, setName] = useState("");
   const [image, setImage] = useState<string | null>(null);
+
+  // State for Teacher Counts
   const [maleTeachers, setMaleTeachers] = useState(0);
   const [femaleTeachers, setFemaleTeachers] = useState(0);
+
+  // State for overall Student Counts (These seem separate from the class-specific counts below)
   const [maleStudent, setMaleStudent] = useState(0);
   const [femaleStudent, setFemaleStudent] = useState(0);
-  const [paid, setPaid] = useState(70);
-  const [unpaid, setUnpaid] = useState(30);
-  const router = useRouter();
+
+  // State for Fees
+  const [paid, setPaid] = useState(70); // Initial value set to 70
+  const [unpaid, setUnpaid] = useState(30); // Initial value set to 30
+
+  // Removed the unused router variable
+  // const router = useRouter();
+
+  // Accessing fees store and student context
   const { updateFees } = useFeesStore();
   const { studentData, setStudentData } = useStudent();
-  const [currentClass, setCurrentClass] = useState("Class A");
-  const [newClassName, setNewClassName] = useState("");
 
+  // State for managing classes and student data within classes
+  const [currentClass, setCurrentClass] = useState("Class A"); // Default class
+  const [newClassName, setNewClassName] = useState(""); // State for adding a new class name
+
+  // Effect to load saved student data from localStorage on component mount
   useEffect(() => {
     const savedStudentData = localStorage.getItem("studentData");
     if (savedStudentData) {
-      setStudentData(JSON.parse(savedStudentData));
-    }
-  }, []);
+      try {
+        // Attempt to parse the saved data
+        const parsedData: StudentData = JSON.parse(savedStudentData);
+        setStudentData(parsedData);
 
+        // Set the current class to the first one found in saved data, or default
+        const firstClass = Object.keys(parsedData)[0];
+        if (firstClass) {
+          setCurrentClass(firstClass);
+        } else {
+          // If no classes saved, initialize with a default
+          setStudentData({ "Class A": { male: 0, female: 0 } });
+          setCurrentClass("Class A");
+        }
+      } catch (error) {
+        console.error("Failed to parse student data from localStorage:", error);
+        // Handle potential parsing errors, maybe clear invalid data
+        localStorage.removeItem("studentData");
+        setStudentData({ "Class A": { male: 0, female: 0 } });
+        setCurrentClass("Class A");
+      }
+    } else {
+      // If no data in localStorage, initialize with a default class
+      setStudentData({ "Class A": { male: 0, female: 0 } });
+      setCurrentClass("Class A");
+    }
+  }, [setStudentData]); // Dependency array includes setStudentData
+
+  // Handler for admin profile image change
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     const reader = new FileReader();
@@ -53,13 +101,15 @@ export default function Page() {
     if (file) reader.readAsDataURL(file);
   };
 
+  // Handler for submitting admin profile updates
   const handleSubmit1 = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     localStorage.setItem("adminName", name);
     localStorage.setItem("adminImage", image || "");
-    toast.success("Profile updated successfully", { position: "top-right" });
+    toast.success("Admin Profile updated successfully", { position: "top-right" });
   };
 
+  // Handler for submitting teacher count updates
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     localStorage.setItem("maleTeachers", maleTeachers.toString());
@@ -69,45 +119,69 @@ export default function Page() {
     });
   };
 
+  // Handler for submitting overall student count updates
   const handleSubmit2 = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     localStorage.setItem("maleStudent", maleStudent.toString());
     localStorage.setItem("femaleStudent", femaleStudent.toString());
-    toast.success("Student counts updated successfully", {
+    toast.success("Overall Student counts updated successfully", {
       position: "top-right",
     });
   };
 
+  // Handler for updating fees
   const handleUpdate = () => {
     updateFees(paid, unpaid);
     toast.success("Fees updated successfully!", { position: "top-right" });
   };
 
+  // Handler for creating a new class
   const createClass = () => {
-    if (newClassName.trim() === "" || studentData[newClassName]) return;
+    // Prevent creating empty or duplicate class names
+    if (newClassName.trim() === "" || studentData[newClassName]) {
+      if (newClassName.trim() !== "" && studentData[newClassName]) {
+        toast.error(`${newClassName} already exists!`, { position: "top-right" });
+      }
+      return;
+    }
     const updatedStudentData = {
       ...studentData,
-      [newClassName]: { male: 0, female: 0 },
+      [newClassName]: { male: 0, female: 0 }, // Initialize new class with 0 students
     };
     setStudentData(updatedStudentData);
     localStorage.setItem("studentData", JSON.stringify(updatedStudentData));
-    setNewClassName("");
+    setNewClassName(""); // Clear the input field
+    toast.success(`${newClassName} created successfully!`, { position: "top-right" });
   };
 
+  // Handler for deleting a class
   const deleteClass = (className: string) => {
+    // Prevent deleting if it's the only class
+    if (Object.keys(studentData).length <= 1) {
+      toast.error("Cannot delete the last class!", { position: "top-right" });
+      return;
+    }
     const updatedData = { ...studentData };
     delete updatedData[className];
     setStudentData(updatedData);
     localStorage.setItem("studentData", JSON.stringify(updatedData));
+    // Set current class to the first remaining class after deletion
+    const remainingClasses = Object.keys(updatedData);
+    if (remainingClasses.length > 0) {
+      setCurrentClass(remainingClasses[0]);
+    }
     toast.success(`${className} has been deleted!`, { position: "top-right" });
   };
 
+  // Handler for updating male/female student counts for the currently selected class
   const updateData = (gender: "male" | "female", value: number) => {
+    // Ensure the value is not negative
+    const safeValue = Math.max(0, value);
     const updatedData = { ...studentData };
     if (updatedData[currentClass]) {
       updatedData[currentClass] = {
         ...updatedData[currentClass],
-        [gender]: value,
+        [gender]: safeValue,
       };
       setStudentData(updatedData);
       localStorage.setItem("studentData", JSON.stringify(updatedData));
@@ -210,10 +284,10 @@ export default function Page() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 w-full max-w-4xl"> {/* Use max-w-4xl for better control on large screens */}
-            {/* Update Student Counts */}
+            {/* Update Overall Student Counts (Note: These seem separate from class-specific counts) */}
             <div className="bg-white p-6 rounded-lg shadow-lg hover:scale-105 duration-300 flex flex-col"> {/* Use flex-col for internal stacking */}
               <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center"> {/* Center heading */}
-                Update Student Counts
+                Update Overall Student Counts
               </h2>
               <form onSubmit={handleSubmit2} className="space-y-4 flex-grow flex flex-col justify-center"> {/* Center form content */}
                 <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
@@ -238,7 +312,7 @@ export default function Page() {
                   type="submit"
                   className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600"
                 >
-                  Save Student Counts
+                  Save Overall Student Counts
                 </button>
               </form>
             </div>
@@ -250,21 +324,25 @@ export default function Page() {
               </h2>
               <div className="flex-grow flex flex-col justify-center space-y-4"> {/* Center content and add space-y */}
                 <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
-                  <label className="font-medium">Paid Fees</label>
+                  <label className="font-medium">Paid Fees (%)</label>
                   <input
                     type="number"
                     value={paid}
                     onChange={(e) => setPaid(Number(e.target.value))}
                     className="p-1 bg-slate-100 border rounded-md w-1/2"
+                    min="0" // Add min and max for percentage
+                    max="100"
                   />
                 </div>
                 <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
-                  <label className="font-medium">Unpaid Fees</label>
+                  <label className="font-medium">Unpaid Fees (%)</label>
                   <input
                     type="number"
                     value={unpaid}
                     onChange={(e) => setUnpaid(Number(e.target.value))}
                     className="p-1 bg-slate-100 border rounded-md w-1/2"
+                    min="0" // Add min and max for percentage
+                    max="100"
                   />
                 </div>
                 <button
@@ -277,55 +355,71 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Create or Delete Class */}
+          {/* Create or Delete Class and Update Class-Specific Student Counts */}
           <div className="bg-white p-6 rounded-lg shadow-lg mt-6 w-full max-w-md mx-auto hover:scale-105 duration-300 flex flex-col"> {/* Use max-w-md and mx-auto for centering */}
             <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center"> {/* Center heading */}
-              Create or Delete Class
+              Manage Classes and Students
             </h2>
             <div className="flex-grow flex flex-col justify-center space-y-4"> {/* Center content and add space-y */}
-              <input
-                type="text"
-                value={newClassName}
-                onChange={(e) => setNewClassName(e.target.value)}
-                placeholder="New Class Name"
-                className="w-full p-2 bg-slate-100 border rounded-md"
-              />
-              <button
-                onClick={createClass}
-                className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600"
-              >
-                Add Class
-              </button>
+              {/* Input and button for creating a new class */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  placeholder="New Class Name"
+                  className="flex-grow p-2 bg-slate-100 border rounded-md"
+                />
+                <button
+                  onClick={createClass}
+                  className="bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600"
+                >
+                  Add Class
+                </button>
+              </div>
+
+              {/* Dropdown to select the current class */}
+              <label className="font-medium">Select Class:</label>
               <select
                 value={currentClass}
                 onChange={(e) => setCurrentClass(e.target.value)}
                 className="w-full p-2 bg-slate-100 border rounded-md"
               >
+                {/* Map over the class names from studentData to create options */}
                 {Object.keys(studentData).map((className) => (
                   <option key={className} value={className}>
                     {className}
                   </option>
                 ))}
               </select>
+
+              {/* Inputs to update student counts for the selected class */}
+              <label className="font-medium">Students in {currentClass}:</label>
               <input
                 type="number"
+                // Display the current male student count for the selected class, default to 0 if class data is missing
                 value={studentData[currentClass]?.male || 0}
                 onChange={(e) => updateData("male", Number(e.target.value))}
                 className="w-full p-2 bg-slate-100 border rounded-md"
                 placeholder="Male Students"
+                min="0" // Ensure student counts are not negative
               />
               <input
                 type="number"
+                // Display the current female student count for the selected class, default to 0 if class data is missing
                 value={studentData[currentClass]?.female || 0}
                 onChange={(e) => updateData("female", Number(e.target.value))}
                 className="w-full p-2 bg-slate-100 border rounded-md"
                 placeholder="Female Students"
+                min="0" // Ensure student counts are not negative
               />
+
+              {/* Button to delete the currently selected class */}
               <button
                 onClick={() => deleteClass(currentClass)}
                 className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600"
               >
-                Delete Class
+                Delete Selected Class ({currentClass})
               </button>
             </div>
           </div>
