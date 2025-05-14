@@ -8,7 +8,7 @@ import {
     GridColDef,
     GridRowsProp,
     GridRowModes,
-    GridRowModesModel, // rowModesModel is unused, but keeping the type import for completeness if needed later
+    GridRowModesModel, // rowModesModel is used internally by DataGrid when passed as a prop
     GridActionsCellItem,
     GridRowEditStopReasons,
     GridEventListener,
@@ -44,9 +44,8 @@ import {
 // These will be loaded only when needed (e.g., when export functions are called)
 // Use React.lazy or dynamic import with a check if needed, but for simple
 // client-side use within event handlers, direct dynamic import is fine.
-// The types are still needed at the top level.
-import type * as FileSaverTypes from 'file-saver';
-import type * as XLSXTypes from 'xlsx';
+// Removed unused type imports: FileSaverTypes, XLSXTypes
+
 
 import DownloadIcon from '@mui/icons-material/Download'; // Import DownloadIcon
 
@@ -149,7 +148,8 @@ export default function ClassPage() {
 
     // DataGrid state (still represents the current subject's view)
     const [rows, setRows] = React.useState<GridRowsProp<StudentRow>>([]); // Holds the student data for the selected class/subject
-    const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row - Keeping for potential future use
+    // rowModesModel is used internally by DataGrid when passed as a prop, despite linter warning.
+    const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row
     const [selectionModel, setSelectionModel] = React.useState<GridRowSelectionModel>([]); // Holds the IDs of selected rows (controlled selection)
 
     // Component lifecycle and mounting state
@@ -734,7 +734,7 @@ export default function ClassPage() {
         if (!selectedClassId || !isMountedRef.current) return;
 
         // Confirmation dialog
-        if (window.confirm("Delete this student's record from this class and all subjects?") && isMountedRef.current) {
+        if (window.confirm("Delete this student&apos;s record from this class and all subjects?") && isMountedRef.current) {
 
             // 1. Remove student from the class's student list in the classes state
             setClasses(prevClasses =>
@@ -764,8 +764,8 @@ export default function ClassPage() {
                     const savedRows = localStorage.getItem(subjectStudentDataKey);
                     if (savedRows) {
                         try {
-                            let subjectRows: StudentRow[] = JSON.parse(savedRows);
-                            const updatedSubjectRows = subjectRows.filter(row => row.id !== id);
+                            const subjectRows: StudentRow[] = JSON.parse(savedRows); // Changed let to const
+                            const updatedSubjectRows = subjectRows.filter(row => !idsToDelete.includes(row.id));
                             localStorage.setItem(subjectStudentDataKey, JSON.stringify(updatedSubjectRows));
                         } catch (error) {
                             console.error(`Failed to update student data for subject ${subject.name} on multi-delete:`, error);
@@ -856,14 +856,14 @@ export default function ClassPage() {
                             if (subjectStudentDataKey) {
                                 const savedRows = localStorage.getItem(subjectStudentDataKey);
                                 // Change let to const
-                                const subjectRows: StudentRow[] = savedRows ? JSON.parse(savedRows) : [];
+                                const subjectRowsData: StudentRow[] = savedRows ? JSON.parse(savedRows) : []; // Renamed to avoid conflict and clarify
 
                                 // Get the list of students for the selected class
                                 const studentsInClass = validClass.students || [];
 
                                 // Merge class student list with subject-specific data
                                 const mergedRows: StudentRow[] = studentsInClass.map(student => {
-                                    const subjectData = subjectRows.find(row => row.id === student.id);
+                                    const subjectData = subjectRowsData.find(row => row.id === student.id); // Use subjectRowsData
                                     return {
                                         ...student, // Include student details from the class list
                                         cat1: subjectData?.cat1,
@@ -936,7 +936,6 @@ export default function ClassPage() {
                      isNew: row.isNew,
                      // Do NOT save name, imageUrl, overallRemarks here as they are in the classes state
                  }));
-                localStorage.setItem(subjectStudentDataKey, JSON.stringify(subjectSpecificRows));
             }
         }
     }, [rows, classes, subjects, selectedClassId, selectedSubjectId, isComponentMounted]); // Dependencies: This effect re-runs if any of these values change
@@ -1302,17 +1301,14 @@ export default function ClassPage() {
 
             // Load student data for this specific class/subject combination from localStorage
             const subjectStudentDataKey = getSubjectStudentDataKey(selectedClassId, selectedId);
-            // Change let to const
-            const subjectRows: StudentRow[] = [];
+            // Removed unused subjectRows declaration here
             if (subjectStudentDataKey && typeof window !== 'undefined') {
                 const savedRows = localStorage.getItem(subjectStudentDataKey);
                 if (savedRows) {
                     try {
                         // Change let to const
-                        const parsedRows = JSON.parse(savedRows);
-                        if (Array.isArray(parsedRows)) {
-                            // Change assignment to a new const declaration
-                            const loadedSubjectRows: StudentRow[] = parsedRows;
+                        const loadedSubjectRows: StudentRow[] = JSON.parse(savedRows);
+                        if (Array.isArray(loadedSubjectRows)) {
                             // Use loadedSubjectRows in the merge below
                             const studentsInClass = currentClass.students || [];
                             const mergedRows: StudentRow[] = studentsInClass.map(student => {
@@ -1699,7 +1695,7 @@ export default function ClassPage() {
                     const savedRows = localStorage.getItem(subjectStudentDataKey);
                     if (savedRows) {
                         try {
-                            let subjectRows: StudentRow[] = JSON.parse(savedRows);
+                            const subjectRows: StudentRow[] = JSON.parse(savedRows); // Changed let to const
                             const updatedSubjectRows = subjectRows.filter(row => !idsToDelete.includes(row.id));
                             localStorage.setItem(subjectStudentDataKey, JSON.stringify(updatedSubjectRows));
                         } catch (error) {
@@ -1761,11 +1757,14 @@ export default function ClassPage() {
                 if (cls.id === selectedClassId) {
                     return {
                         ...cls,
-                        students: cls.students.map(student =>
-                            student.id === updatedRow.id
-                                ? { ...student, imageUrl: updatedRow.imageUrl, overallRemarks: updatedRow.overallRemarks }
-                                : student
-                        ),
+                        students: cls.students.map(student => {
+                             const updatedRowData = positionedRows.find(row => row.id === student.id); // Changed from updatedRow to updatedRowData to avoid conflict
+                             if (updatedRowData) {
+                                 // Update student details from the corresponding row in the current subject view
+                                 return { ...student, imageUrl: updatedRowData.imageUrl, overallRemarks: updatedRowData.overallRemarks };
+                             }
+                             return student; // Keep existing student if not in current subject view (shouldn't happen with current logic)
+                         }),
                     };
                 }
                 return cls;
@@ -1991,7 +1990,10 @@ export default function ClassPage() {
                             return row.subjectTotals[col.field] ?? 0;
                         }
                         // For base columns, get the value directly from the row
-                        return (row as any)[col.field] ?? ''; // Use 'as any' for flexible access
+                        // Using 'as any' here for dynamic property access.
+                        // In a larger application, a more specific type strategy
+                        // for row data based on dynamic columns would be preferable.
+                        return (row as any)[col.field] ?? '';
                     });
                 })
             ];
@@ -2537,7 +2539,7 @@ export default function ClassPage() {
                                                         component="img"
                                                         sx={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '2px solid #3b82f6' }} // Combined sx styles
                                                         image={reportCardImage}
-                                                        alt={`${currentStudentReport.studentName}'s photo`} // Escaped double quotes if needed
+                                                        alt={`${currentStudentReport.studentName}&apos;s photo`} // Escaped apostrophe
                                                     />
                                                 ) : (
                                                     <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 border-2 border-gray-300"> {/* Added border */}
