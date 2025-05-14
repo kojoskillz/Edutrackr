@@ -90,11 +90,14 @@ export default function FeesPage() {
 
   // Handler for processing updates to a row
   const processRowUpdate = (newRow: GridRowModel) => {
-    // Create an updated row object, ensuring paid and due are numbers
+    // Cast newRow to FeeRow to satisfy TypeScript, assuming it has all properties
+    const updatedRow = newRow as FeeRow;
+
+    // Create an updated row object, ensuring paid and due are numbers and including other properties
     const updated: FeeRow = {
-      ...newRow,
-      paid: Number(newRow.paid),
-      due: Number(newRow.due),
+      ...updatedRow, // Spread all properties from the row
+      paid: Number(updatedRow.paid), // Ensure paid is a number
+      due: Number(updatedRow.due),   // Ensure due is a number
       isNew: false, // Mark as not new after saving
     };
     // Update the rows state with the modified row
