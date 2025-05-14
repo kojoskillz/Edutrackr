@@ -169,9 +169,9 @@ export default function FeesPage() {
       headerName: "Status",
       width: 120,
       // Value getter to determine status based on paid vs due
-      valueGetter: (params) => {
-        const paid = Number(params?.row?.paid ?? 0);
-        const due = Number(params?.row?.due ?? 0);
+      valueGetter: (params: GridValueGetterParams) => {
+        const paid = Number(params.row?.paid ?? 0);
+        const due = Number(params.row?.due ?? 0);
         return paid >= due ? "Paid" : "Unpaid";
       },
       // Custom render cell to display status with icons and colors
