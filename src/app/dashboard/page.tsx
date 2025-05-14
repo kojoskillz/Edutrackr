@@ -17,7 +17,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"; // Assuming this path is correct
 
-// import Tooltip from "@mui/material/Tooltip"; // Still used for StatCard (though a custom tooltip might be better with Tailwind)
+
 
 
 // These imports are not used in the current component and can be removed
@@ -260,15 +260,8 @@ export default function Page() {
 
   // Authentication check
   // Safely access the user property using optional chaining
-  // Define the expected type for the auth object
-  interface AuthContextType {
-    user: { id: string; name: string; email: string } | null; // Adjust fields as per your actual user object
-  }
-  
   const auth = useAuth();
-  // const typedAuth = auth ? (auth as AuthContextType) : null; // Safely cast only if auth is not null
   const user = auth?.user; // Safely access the user property
-  // const user = auth?.user;
 
   const router = useRouter();
 
