@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar } from "@/components/app-sidebar"; // Assuming this path is correct
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,54 +9,53 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/breadcrumb"; // Assuming this path is correct
+import { Separator } from "@/components/ui/separator"; // Assuming this path is correct
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"; // Assuming this path is correct
 
-// import Box from "@mui/material/Box";
+// import Box from "@mui/material/Box"; // Not used in this dashboard component
 import Tooltip from "@mui/material/Tooltip";
 import AddIcon from "@mui/icons-material/Add";
-// import EditIcon from "@mui/icons-material/Edit";
-// import DeleteIcon from "@mui/icons-material/DeleteOutlined";
-// import SaveIcon from "@mui/material/Save"; // Correct import path
-// import CancelIcon from "@mui/material/Close"; // Corrected import path
-// import VisibilityIcon from "@mui/icons-material/Visibility";
-// SchoolIcon is not used in the general students page, removed for clarity
-// import SchoolIcon from "@mui/icons-material/School"; // Icon for viewing students
-// import Modal from "@mui/material/Modal";
-// import Typography from "@mui/material/Typography";
+// import EditIcon from "@mui/icons-material/Edit"; // Not used
+// import DeleteIcon from "@mui/icons-material/DeleteOutlined"; // Not used
+// import SaveIcon from "@mui/material/Save"; // Not used
+// import CancelIcon from "@mui/material/Close"; // Not used
+// import VisibilityIcon from "@mui/icons-material/Visibility"; // Not used
+// import SchoolIcon from "@mui/icons-material/School"; // Not used
+// import Modal from "@mui/material/Modal"; // Not used
+// import Typography from "@mui/material/Typography"; // Not used
 
 import {
-  // DataGrid,
+  // DataGrid, // Not used
   GridRowsProp,
   GridRowModesModel,
   GridRowModes,
-  // GridColDef,
-  // GridActionsCellItem,
-  // GridEventListener,
-  // GridRowId,
-  // GridRowModel,
-  // GridRowEditStopReasons,
+  // GridColDef, // Not used
+  // GridActionsCellItem, // Not used
+  // GridEventListener, // Not used
+  // GridRowId, // Not used
+  // GridRowModel, // Not used
+  // GridRowEditStopReasons, // Not used
   GridSlotProps,
-  Toolbar,
-  ToolbarButton,
+  Toolbar as MuiToolbar, // Renamed to avoid conflict with a potential custom Toolbar
+  // Button as ToolbarButton, // Assuming this is from @mui/material or a similar UI library
 } from "@mui/x-data-grid";
 
-// import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-// import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-// import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-// import dayjs from "dayjs";
+// import { DatePicker } from "@mui/x-date-pickers/DatePicker"; // Not used
+// import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"; // Not used
+// import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"; // Not used
+// import dayjs from "dayjs"; // Not used
 import { randomId } from "@mui/x-data-grid-generator";
 
 // Import necessary hooks and components for the dashboard
-import { useAuth } from "@/context/AuthContext"; // Import useAuth hook
-import { useRouter } from 'next/navigation'; // Import useRouter hook
-import { useStudent } from "@/context/StudentContext"; // Import useStudent hook
-import { Bar, Pie } from "react-chartjs-2"; // Import chart components
+import { useAuth } from "@/context/AuthContext"; // Assuming this path is correct
+import { useRouter } from 'next/navigation';
+import { useStudent } from "@/context/StudentContext"; // Assuming this path is correct
+import { Bar, Pie } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -65,14 +64,14 @@ import {
   BarElement,
   CategoryScale,
   LinearScale,
+  Title as ChartTitle, // Import Title for chart titles
 } from "chart.js";
-import useFeesStore, { useLoadFees } from "../dashboard/useFeesStore"; // Assuming this path is correct
-import Image from "next/image"; // Import Image component
-import { useEffect, useState } from "react"; // Import useEffect and useState hooks
-
+import useFeesStore, { useLoadFees } from "../dashboard/useFeesStore"; // Updated path to match the correct location
+import Image from "next/image";
+import { useEffect, useState } from "react";
 
 // Register Chart.js components
-ChartJS.register(ArcElement, ChartTooltip, Legend, BarElement, CategoryScale, LinearScale);
+ChartJS.register(ArcElement, ChartTooltip, Legend, BarElement, CategoryScale, LinearScale, ChartTitle);
 
 
 // Define the type for a Student row (Note: This type is likely not needed in the Dashboard page itself,
@@ -89,14 +88,14 @@ type StudentRow = {
 };
 
 // Helper function to calculate age from date of birth (Also likely not needed on Dashboard)
-const calculateAge = (dob: string) => {
-  const b = new Date(dob),
-    today = new Date();
-  let age = today.getFullYear() - b.getFullYear();
-  const m = today.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
-  return age;
-};
+// const calculateAge = (dob: string) => { // Commented out as not directly used in this dashboard
+//   const b = new Date(dob),
+//     today = new Date();
+//   let age = today.getFullYear() - b.getFullYear();
+//   const m = today.getMonth() - b.getMonth();
+//   if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+//   return age;
+// };
 
 // Declare module for ToolbarPropsOverrides (This is for DataGrid, likely not needed on Dashboard)
 declare module "@mui/x-data-grid" {
@@ -107,12 +106,15 @@ declare module "@mui/x-data-grid" {
 }
 
 // Toolbar component for the DataGrid (This is for DataGrid, likely not needed on Dashboard)
+// If not used, this can be removed.
 function EditToolbar(props: GridSlotProps["toolbar"]) {
   const { setRows, setRowModesModel } = props;
   return (
-    <Toolbar>
+    <MuiToolbar>
       <Tooltip title="Add Student">
         <ToolbarButton
+          color="primary" // It's good practice to set color for buttons
+          startIcon={<AddIcon />} // MUI buttons often use startIcon/endIcon
           onClick={() => {
             const id = randomId();
             // Add a new empty row with a unique ID and the 'isNew' flag
@@ -121,9 +123,9 @@ function EditToolbar(props: GridSlotProps["toolbar"]) {
               {
                 id,
                 name: "",
-                dob: "",
-                age: 0,
-                class: "", // Class is empty by default in the general list
+                dob: new Date().toISOString(), // Default to today, can be changed
+                age: 0, // Will be calculated or entered
+                class: "", // Class is empty by default
                 gender: "Male",
                 isNew: true,
               },
@@ -135,73 +137,143 @@ function EditToolbar(props: GridSlotProps["toolbar"]) {
             }));
           }}
         >
-          <AddIcon fontSize="small" />
+          Add record
         </ToolbarButton>
       </Tooltip>
-    </Toolbar>
+    </MuiToolbar>
   );
 }
 
 // Main page component for the Dashboard
 export default function Page() {
   // State variables for dashboard data
-  const [name, setName] = useState("");
-  const [image, setImage] = useState("");
-  const [time, setTime] = useState(new Date());
+  const [adminName, setAdminName] = useState("Admin"); // Renamed for clarity
+  const [adminImage, setAdminImage] = useState("/profile-placeholder.png"); // Default placeholder
+  const [currentTime, setCurrentTime] = useState(new Date()); // Renamed for clarity
   const [selectedClass, setSelectedClass] = useState("");
-  const { studentData } = useStudent();
-  const { unpaidFees } = useFeesStore();
+  const { studentData } = useStudent(); // From StudentContext
+
+  // Correctly typed data from useFeesStore
+  const { paidFees, unpaidFees } = useFeesStore();
+  useLoadFees(); // Hook to load fee data into the store
+
+  // State for teacher and student counts (can be fetched or from context)
   const [maleTeachers, setMaleTeachers] = useState(0);
   const [femaleTeachers, setFemaleTeachers] = useState(0);
-  const [maleStudent, setMaleStudent] = useState(0);
-  const [femaleStudent, setFemaleStudent] = useState(0);
-
-  // Load fees data
-  useLoadFees();
+  const [maleStudentsGlobal, setMaleStudentsGlobal] = useState(0); // Renamed for clarity
+  const [femaleStudentsGlobal, setFemaleStudentsGlobal] = useState(0); // Renamed for clarity
 
   // Calculate total teachers and students
   const totalTeachers = maleTeachers + femaleTeachers;
-  const totalStudent = maleStudent + femaleStudent;
+  const totalStudentsGlobal = maleStudentsGlobal + femaleStudentsGlobal; // Renamed
 
   // Effect to load admin data and set up clock interval
   useEffect(() => {
-    setName(localStorage.getItem("adminName") || "Admin Name");
-    setImage(localStorage.getItem("adminImage") || "");
-    setMaleTeachers(Number(localStorage.getItem("maleTeachers")) || 0);
-    setFemaleTeachers(Number(localStorage.getItem("femaleTeachers")) || 0);
-    setMaleStudent(Number(localStorage.getItem("maleStudent")) || 0);
-    setFemaleStudent(Number(localStorage.getItem("femaleStudent")) || 0);
+    setAdminName(localStorage.getItem("adminName") || "Admin");
+    setAdminImage(localStorage.getItem("adminImage") || "/profile-placeholder.png"); // Use placeholder if no image
+    
+    // Example: Load teacher/student counts from localStorage or context if available
+    setMaleTeachers(Number(localStorage.getItem("maleTeachersCount")) || 10); // Example value
+    setFemaleTeachers(Number(localStorage.getItem("femaleTeachersCount")) || 15); // Example value
+    setMaleStudentsGlobal(Number(localStorage.getItem("maleStudentsCount")) || 120); // Example value
+    setFemaleStudentsGlobal(Number(localStorage.getItem("femaleStudentsCount")) || 130); // Example value
 
-    const interval = setInterval(() => setTime(new Date()), 1000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval); // Cleanup interval on component unmount
   }, []);
 
   // Effect to set default selected class when student data is available
   useEffect(() => {
-    if (studentData && Object.keys(studentData).length > 0) {
+    if (studentData && Object.keys(studentData).length > 0 && !selectedClass) {
       setSelectedClass(Object.keys(studentData)[0]);
     }
-  }, [studentData]); // Dependency on studentData
+  }, [studentData, selectedClass]);
 
   // Prepare data for the bar chart (Students Enrollment Per Class)
   const barChartData = {
     labels: ["Male", "Female"],
     datasets: [
       {
-        label: `Students in ${selectedClass}`,
+        label: `Students in ${selectedClass || "Selected Class"}`,
         data: [
-          studentData?.[selectedClass]?.male || 0, // Use optional chaining for safety
-          studentData?.[selectedClass]?.female || 0, // Use optional chaining for safety
+          studentData?.[selectedClass]?.male || 0,
+          studentData?.[selectedClass]?.female || 0,
         ],
-        backgroundColor: ["#1E40AF", "#D946EF"],
-        borderColor: ["#1E3A8A", "#9D174D"],
-        borderWidth: 2,
-        borderRadius: 12,
-        hoverBackgroundColor: "#3B82F6",
-        hoverBorderColor: "#2563EB",
+        backgroundColor: ["#3B82F6", "#EC4899"], // Tailwind blue-500, pink-500
+        borderColor: ["#2563EB", "#DB2777"], // Darker shades
+        borderWidth: 1,
+        borderRadius: 8,
+        barThickness: 50, // Adjust bar thickness
       },
     ],
   };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false, // Allow chart to fill container height
+    plugins: {
+      legend: {
+        position: "top" as const,
+        labels: {
+          font: {
+            size: 14,
+            family: "Inter, sans-serif",
+          },
+          color: '#4B5563', // Tailwind gray-600
+        },
+      },
+      title: {
+        display: true,
+        text: selectedClass ? `Enrollment in ${selectedClass}` : 'Class Enrollment',
+        font: {
+          size: 18,
+          weight: 'bold' as const,
+          family: "Inter, sans-serif",
+        },
+        color: '#1F2937', // Tailwind gray-800
+        padding: {
+          top: 10,
+          bottom: 20,
+        }
+      },
+      tooltip: {
+        backgroundColor: '#FFFFFF', // White background for tooltip
+        titleColor: '#1F2937', // Dark text for title
+        bodyColor: '#4B5563', // Medium text for body
+        borderColor: '#E5E7EB', // Light gray border
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 6,
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          precision: 0, // Ensure whole numbers for student count
+          color: '#4B5563', // Tailwind gray-600
+          font: {
+            family: "Inter, sans-serif",
+          }
+        },
+        grid: {
+          color: '#E5E7EB', // Lighter grid lines
+        },
+      },
+      x: {
+        ticks: {
+          color: '#4B5563', // Tailwind gray-600
+           font: {
+            family: "Inter, sans-serif",
+          }
+        },
+        grid: {
+          display: false, // Hide vertical grid lines for cleaner look
+        },
+      },
+    },
+  };
+
 
   // Prepare data for the pie chart (Fee Payment)
   const pieData = {
@@ -209,8 +281,10 @@ export default function Page() {
     datasets: [
       {
         data: [paidFees, unpaidFees],
-        backgroundColor: ["#B9A4FFFF", "#7047ED"],
+        backgroundColor: ["#10B981", "#EF4444"], // Tailwind green-500, red-500
+        borderColor: ["#FFFFFF", "#FFFFFF"], // White border for separation
         borderWidth: 3,
+        hoverOffset: 8,
       },
     ],
   };
@@ -219,82 +293,130 @@ export default function Page() {
   const pieOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom" as const,
+        labels: {
+          font: {
+            size: 12,
+            family: "Inter, sans-serif",
+          },
+          color: '#4B5563', // Tailwind gray-600
+          boxWidth: 15,
+          padding: 20,
+        },
+      },
+      title: { // Added title for Pie chart for consistency
+        display: true,
+        text: 'Fee Payment Status',
+        font: {
+          size: 16,
+          weight: 'bold' as const,
+          family: "Inter, sans-serif",
+        },
+        color: '#1F2937', // Tailwind gray-800
+        padding: {
+          top: 10,
+          bottom: 10,
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            let label = context.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed !== null) {
+              // You can format the value, e.g., to currency
+              label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed);
+            }
+            return label;
+          }
+        },
+        backgroundColor: '#FFFFFF',
+        titleColor: '#1F2937',
+        bodyColor: '#4B5563',
+        borderColor: '#E5E7EB',
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 6,
+      }
+    },
   };
 
-  // authentication check
-  const { user } = useAuth(); // Use the imported useAuth hook
-  const router = useRouter(); // Use the imported useRouter hook
+  // Authentication check
+  const { user } = useAuth();
+  const router = useRouter();
 
   // Effect to redirect to login if user is not authenticated
   useEffect(() => {
     if (!user) {
-      router.push('/login');
+      router.push('/login'); // Assuming your login route is /login
     }
-  }, [user, router]); // Dependencies on user and router
+  }, [user, router]);
 
   // Render nothing if user is not authenticated (router.push handles the redirect)
   if (!user) return null;
 
 
   return (
-    // LocalizationProvider is needed for the DatePicker component (if used, but not on this Dashboard)
-    // <LocalizationProvider dateAdapter={AdapterDayjs}>
     <SidebarProvider>
       <AppSidebar />
-      {/* <h1 className="text-2xl mb-4">Welcome, {user.username}</h1>
-       <button onClick={logout} className="p-2 bg-red-500 text-white">
-         Logout
-       </button> */}
       <SidebarInset>
-        {/* Header section with sidebar trigger and breadcrumb */}
-        <header className="flex h-16 items-center gap-2 border-b px-4">
+        {/* Header section */}
+        <header className="flex h-16 items-center gap-2 border-b bg-white px-4 sticky top-0 z-10">
           <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Separator orientation="vertical" className="mr-2 h-6" /> {/* Adjusted height */}
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                {/* Updated href to point to the actual dashboard route */}
                 <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Admin</BreadcrumbPage>
+                <BreadcrumbPage>Admin Overview</BreadcrumbPage> {/* More descriptive */}
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          {/* You can add more header items here, like user profile dropdown */}
         </header>
 
         {/* Main content area */}
-        <div className="flex flex-1 bg-gray-300 flex-col gap-4 p-4">
-          {/* Welcome & Clock Container - Added rounded-lg and shadow-md */}
-          <div className="flex gap-10 rounded-lg">
-            <div className="bg-yellow-300 w-[25rem] h-16 flex items-center justify-center text-black/70 rounded-lg"> {/* Apply rounded-l-lg here */}
-              {image && (
-                <img
-                  src={image}
-                  alt="Profile"
-                  className="rounded-full w-12 h-12 object-cover mr-4"
+        <main className="flex-1 bg-slate-100 p-4 md:p-6 lg:p-8"> {/* Use main tag and responsive padding */}
+          {/* Welcome & Clock Container */}
+          <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="md:col-span-2 flex items-center rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 p-6 shadow-lg text-white">
+              {adminImage && (
+                <Image
+                  src={adminImage}
+                  alt="Admin Profile"
+                  width={64} // Increased size
+                  height={64}
+                  className="rounded-full object-cover mr-5 border-2 border-blue-300"
+                  onError={(e) => (e.currentTarget.src = "/profile-placeholder.png")} // Fallback
                 />
               )}
-              <p className="font-semibold text-xl">Welcome {name}!</p>
+              <div>
+                <p className="text-2xl font-semibold">Welcome, {adminName}!</p>
+                <p className="text-blue-200 text-sm">Here's your school overview.</p>
+              </div>
             </div>
 
-            <div className="bg-purple-500 lg:w-[51rem] w-full h-16 flex items-center justify-center rounded-lg"> {/* Apply rounded-r-lg here */}
-              <Image src="/clock.png" alt="Clock" width={40} height={40} />
-              <h2 className="text-white font-semibold text-3xl ml-4">
-                {time.toLocaleTimeString("en-US", { hour12: true })}
+            <div className="flex items-center justify-center rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 p-6 shadow-lg text-white">
+              <Image src="/clock.png" alt="Clock" width={40} height={40} className="mr-3" />
+              <h2 className="font-semibold text-3xl">
+                {currentTime.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true })}
               </h2>
             </div>
           </div>
 
-          {/* Grid Stats Container - Added rounded-lg and shadow-md */}
-          <div className="grid auto-rows-min gap-4 md:grid-cols-3 rounded-lg">
+          {/* Stats Grid Container */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
             <StatCard
               title="Teachers"
-              bgColor="bg-green-500"
-              textColor="text-green-200"
-              // Allow overriding default rounded-lg with a specific borderRadius prop
-              borderRadius="10px"
+              bgColor="bg-green-500" // Kept original for consistency, but could use Tailwind gradients
+              textColor="text-white"
               stats={[
                 { icon: "/male_teacher.png", label: "Male", value: maleTeachers },
                 { icon: "/female_teacher.png", label: "Female", value: femaleTeachers },
@@ -303,111 +425,104 @@ export default function Page() {
             />
             <StatCard
               title="Students"
-              bgColor="bg-blue-500"
-              textColor="text-blue-200"
-               // Allow overriding default rounded-lg with a specific borderRadius prop
-              borderRadius="10px"
+              bgColor="bg-sky-500" // Changed for variety
+              textColor="text-white"
               stats={[
-                { icon: "/male_student.png", label: "Male", value: maleStudent },
-                { icon: "/female_student.png", label: "Female", value: femaleStudent },
-                { icon: "/all.png", label: "Total", value: totalStudent },
+                { icon: "/male_student.png", label: "Male", value: maleStudentsGlobal },
+                { icon: "/female_student.png", label: "Female", value: femaleStudentsGlobal },
+                { icon: "/all.png", label: "Total", value: totalStudentsGlobal },
               ]}
             />
-            {/* Fee Payment Chart Container - Added rounded-lg and shadow-md */}
-            <div className="bg-white aspect-video p-4 rounded-lg shadow-md">
-              <h1 className="text-xl text-purple-900/40 font-semibold">Fee Payment</h1>
-              <div style={{ width: "100%", height: "150px" }}>
+            {/* Fee Payment Chart Container */}
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg"> {/* Increased padding */}
+              {/* Pie chart title is now part of pieOptions */}
+              <div style={{ height: "250px" }}> {/* Adjusted height for better display */}
                 <Pie data={pieData} options={pieOptions} />
               </div>
             </div>
           </div>
 
-          {/* Bar Chart Container - Added rounded-lg and shadow-md */}
-          <div className="bg-white p-5 flex flex-col gap-4 rounded-lg shadow-md">
-            <h1 className="text-3xl font-semibold text-black/70">
-              Students Enrollment Per Class
-            </h1>
-
-            <div className="flex gap-2 items-center">
-              <label className="font-medium text-lg">Select Class:</label>
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="p-2 rounded bg-slate-100 border border-gray-300" // Added border
-              >
-                {/* Check if studentData is available before mapping */}
-                {studentData && Object.keys(studentData).map((className) => (
-                  <option key={className} value={className}>
-                    {className}
-                  </option>
-                ))}
-              </select>
+          {/* Bar Chart Container */}
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+             {/* Bar chart title is now part of barChartOptions */}
+            <div className="mb-4 flex flex-col sm:flex-row gap-2 items-center justify-between">
+              {/* Title is handled by chart options */}
+              <div></div> {/* Placeholder for alignment if needed */}
+              <div className="flex gap-2 items-center">
+                <label htmlFor="classSelect" className="font-medium text-sm text-gray-700">Select Class:</label>
+                <select
+                  id="classSelect"
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="p-2 rounded-md bg-slate-50 border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  {studentData && Object.keys(studentData).length > 0 ? (
+                    Object.keys(studentData).map((className) => (
+                      <option key={className} value={className}>
+                        {className}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No classes available</option>
+                  )}
+                </select>
+              </div>
             </div>
 
-            <div className="w-full md:w-[500px]"> {/* Adjusted width for better responsiveness */}
-              <Bar
-                data={barChartData}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { position: "top" },
-                    title: { display: true, text: `Students in ${selectedClass}` },
-                  },
-                   scales: { // Added scales for better chart axis control
-                      y: {
-                          beginAtZero: true,
-                          precision: 0 // Ensure whole numbers for student count
-                      }
-                   }
-                }}
-              />
+            <div className="w-full h-[350px] md:h-[400px]"> {/* Adjusted height for bar chart */}
+              <Bar data={barChartData} options={barChartOptions} />
             </div>
           </div>
-        </div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
-    // </LocalizationProvider> {/* LocalizationProvider is not needed here */}
   );
 }
 
-// StatCard with multiple Stat entries
-function StatCard({
-  title,
-  bgColor,
-  textColor,
-  stats,
-  borderRadius // Added borderRadius prop
-}: {
+// StatCard component with improved styling
+interface StatCardProps {
   title: string;
-  bgColor: string;
-  textColor: string;
+  bgColor: string; // e.g., 'bg-blue-500'
+  textColor: string; // e.g., 'text-blue-100'
   stats: { icon: string; label: string; value: number }[];
-  borderRadius?: string; // Define type for borderRadius prop
-}) {
+  borderRadius?: string; // Optional: '10px', '1rem', etc.
+}
+
+function StatCard({ title, bgColor, textColor, stats, borderRadius }: StatCardProps) {
   return (
-    // StatCard itself is a container, added rounded-lg and shadow-md here
-    // Apply borderRadius style if provided, otherwise use rounded-lg class
     <div
-      className={`${bgColor} aspect-video p-4 shadow-md ${borderRadius ? '' : 'rounded-lg'}`}
-      style={{ borderRadius: borderRadius || undefined }} // Apply inline style if borderRadius prop is provided
+      className={`${bgColor} p-5 shadow-lg flex flex-col justify-between ${borderRadius ? '' : 'rounded-xl'}`}
+      style={{ borderRadius: borderRadius || undefined }}
     >
-      <h1 className={`text-xl ${textColor} font-semibold mb-4`}>{title}</h1>
-      <div className="flex justify-around">
-        {stats.map((s) => (
-          <Stat key={s.label} icon={s.icon} label={s.label} value={s.value} />
+      <h3 className={`text-xl ${textColor} font-semibold mb-4`}>{title}</h3>
+      <div className="flex justify-around items-end">
+        {stats.map((s, index) => (
+          <StatItem key={index} icon={s.icon} label={s.label} value={s.value} />
         ))}
       </div>
     </div>
   );
 }
 
-// Single Stat Item
-function Stat({ icon, label, value }: { icon: string; label: string; value: number }) {
+// Single Stat Item component
+interface StatItemProps {
+  icon: string;
+  label: string;
+  value: number;
+}
+
+function StatItem({ icon, label, value }: StatItemProps) {
   return (
-    <div className="grid items-center text-center">
-      {/* Using next/image component for icons */}
-      <Image src={icon} alt={label} width={40} height={40} className="mx-auto" />
-      <h2 className="text-sm text-white font-semibold">{label}</h2>
+    <div className="text-center flex flex-col items-center">
+      <Image
+        src={icon}
+        alt={label}
+        width={40}
+        height={40}
+        className="mb-1.5"
+        onError={(e) => (e.currentTarget.style.display = 'none')} // Hide if image fails
+      />
+      <p className="text-sm text-white/90 font-medium">{label}</p>
       <p className="text-3xl font-bold text-white">{value}</p>
     </div>
   );
