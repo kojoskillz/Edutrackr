@@ -17,7 +17,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-import Box from "@mui/material/Box";
 import {
   DataGrid,
   GridRowsProp,
