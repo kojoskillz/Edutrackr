@@ -90,13 +90,22 @@ export default function FeesPage() {
 
   // Handler for processing updates to a row
   const processRowUpdate = (newRow: GridRowModel) => {
-    // Create an updated row object, ensuring paid and due are numbers
+    // Find the row from the existing rows to retain all properties
+    const existingRow = rows.find((row) => row.id === newRow.id);
+    
+    if (!existingRow) {
+      return newRow; // If no existing row, return as is
+    }
+
+    // Ensure that all properties are included in the updated row
     const updated: FeeRow = {
-      ...newRow,
+      ...existingRow, // Spread the existing row to retain its properties
+      ...newRow, // Override the changed fields
       paid: Number(newRow.paid),
       due: Number(newRow.due),
       isNew: false, // Mark as not new after saving
     };
+
     // Update the rows state with the modified row
     setRows((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
     return updated; // Return the updated row
@@ -289,59 +298,48 @@ export default function FeesPage() {
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)} // Open if anchorEl is not null
-              onClose={() => setAnchorEl(null)} // Close when clicking outside
+              onClose={() => setAnchorEl(null)}
             >
-              <MenuItem onClick={() => handleCurrencyMenuClose("₦")}>Naira (₦)</MenuItem>
-              <MenuItem onClick={() => handleCurrencyMenuClose("GH₵")}>Ghana Cedi (GH₵)</MenuItem>
-              <MenuItem onClick={() => handleCurrencyMenuClose("$")}>Dollar ($)</MenuItem>
+              {["₦", "GH₵", "$"].map((curr) => (
+                <MenuItem key={curr} onClick={() => handleCurrencyMenuClose(curr)}>
+                  {curr}
+                </MenuItem>
+              ))}
             </Menu>
           </div>
 
-          {/* Data Table (DataGrid) */}
-          <Box sx={{ height: 500, width: "100%" }}>
+          {/* DataGrid component */}
+          <div style={{ height: 400, width: "100%" }}>
             <DataGrid
-              rows={filteredRows} // Use filtered rows for display
+              rows={filteredRows}
               columns={columns}
+              pageSize={5}
+              disableSelectionOnClick
               editMode="row"
               rowModesModel={rowModesModel}
+              onProcessRowUpdate={processRowUpdate}
               onRowEditStop={handleRowEditStop}
-              processRowUpdate={processRowUpdate}
-              onRowModesModelChange={setRowModesModel}
-              // Function to determine row class name based on payment status
-              getRowClassName={(params) =>
-                Number(params.row.paid ?? 0) >= Number(params.row.due ?? 0)
-                  ? "bg-green-200" // Green background for paid
-                  : "bg-red-200" // Red background for unpaid
-              }
-              disableRowSelectionOnClick // Disable row selection on click
+              autoHeight
             />
-          </Box>
+          </div>
 
-          {/* Unpaid Section - Only show if there are unpaid students */}
-          {unpaidRows.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold mb-3 text-red-600">
-                Unpaid Students ({unpaidRows.length})
-              </h2>
-              <ul className="space-y-2">
-                {/* Map over unpaidRows to display each unpaid student */}
-                {unpaidRows.map((student) => (
-                  // Added the unique key prop using student.id
-                  <li
-                    key={student.id}
-                    className="p-4 bg-white rounded border-l-4 border-red-600 shadow-sm"
-                  >
-                    <p><strong>Name:</strong> {student.name}</p>
-                    <p><strong>Class:</strong> {student.class}</p>
-                    <p><strong>Contact:</strong> {student.contact}</p>
-                    <p>
-                      <strong>Paid:</strong> {currency}{student.paid} / <strong>Due:</strong> {currency}{student.due}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+          {/* Unpaid students section */}
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold mb-4">Unpaid Students</h2>
+            <div style={{ height: 200, width: "100%" }}>
+              <DataGrid
+                rows={unpaidRows}
+                columns={columns}
+                pageSize={5}
+                disableSelectionOnClick
+                editMode="row"
+                rowModesModel={rowModesModel}
+                onProcessRowUpdate={processRowUpdate}
+                onRowEditStop={handleRowEditStop}
+                autoHeight
+              />
             </div>
-          )}
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
