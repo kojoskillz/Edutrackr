@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+// Removed unused useRouter import
+// import { useRouter } from "next/navigation";
 import {
     DataGrid,
     GridColDef,
     GridRowsProp,
     GridRowModes,
-    GridRowModesModel,
+    GridRowModesModel, // rowModesModel is unused, but keeping the type import for completeness if needed later
     GridActionsCellItem,
     GridRowEditStopReasons,
     GridEventListener,
@@ -38,9 +39,17 @@ import {
     Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
     Select, MenuItem, InputLabel, FormControl, SelectChangeEvent, Card, CardContent, Typography, CardMedia, TextareaAutosize
 } from "@mui/material";
-// Dynamically import excel libraries only on the client-side
-const FileSaver = typeof window !== 'undefined' ? require('file-saver') : null;
-const XLSX = typeof window !== 'undefined' ? require('xlsx') : null;
+
+// Dynamically import excel libraries using standard import() syntax
+// These will be loaded only when needed (e.g., when export functions are called)
+// Use React.lazy or dynamic import with a check if needed, but for simple
+// client-side use within event handlers, direct dynamic import is fine.
+// The types are still needed at the top level.
+import type * as FileSaverTypes from 'file-saver';
+import type * as XLSXTypes from 'xlsx';
+
+import DownloadIcon from '@mui/icons-material/Download'; // Import DownloadIcon
+
 
 // --- Type Definitions ---
 
@@ -93,6 +102,15 @@ type StudentReportCardData = {
     year: string;
     imageUrl?: string;
     overallRemarks?: string;
+    attendance?: string; // Added for report card
+    overallPosition?: string; // Added for report card
+    positionInClass?: string; // Added for report card
+    house?: string; // Added for report card
+    formMistressReport?: string; // Added for report card
+    conduct?: string; // Added for report card
+    interest?: string; // Added for report card
+    housemistressReport?: string; // Added for report card
+    headmasterReport?: string; // Added for report card
     subjectResults: {
         subjectId: string;
         subjectName: string;
@@ -103,8 +121,12 @@ type StudentReportCardData = {
         exams?: number;
         total?: number;
         position?: string;
+        grade?: string; // Added for report card
+        remarks?: string; // Added for report card
     }[];
     // Could add overall total, average, position across all subjects here if needed
+     studentOverallPercentage?: number; // Added for report card
+    studentOverallGrade?: string; // Added for report card
 };
 
 // Define a type for the overall student result row (for overall ranking view)
@@ -122,11 +144,12 @@ type OverallStudentRow = {
 
 export default function ClassPage() {
     // --- State Variables ---
-    const router = useRouter(); // Hook for navigation (if using Next.js)
+    // Removed unused useRouter import
+    // const router = useRouter(); // Hook for navigation (if using Next.js)
 
     // DataGrid state (still represents the current subject's view)
     const [rows, setRows] = React.useState<GridRowsProp<StudentRow>>([]); // Holds the student data for the selected class/subject
-    const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row
+    const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row - Keeping for potential future use
     const [selectionModel, setSelectionModel] = React.useState<GridRowSelectionModel>([]); // Holds the IDs of selected rows (controlled selection)
 
     // Component lifecycle and mounting state
@@ -405,7 +428,7 @@ export default function ClassPage() {
                 const savedRows = localStorage.getItem(subjectStudentDataKey);
                 if (savedRows) {
                     try {
-                        const subjectRows: StudentRow[] = JSON.parse(savedRows);
+                        const subjectRows: StudentRow[] = JSON.parse(savedRows); // Assuming StudentRow structure
                         // Find the student's data in this specific subject's rows
                         const studentSubjectRow = subjectRows.find(row => row.id === studentId);
 
@@ -421,6 +444,9 @@ export default function ClassPage() {
                                 exams: studentSubjectRow.exams,
                                 total: studentSubjectRow.total,
                                 position: studentSubjectRow.position,
+                                // Assuming grade and remarks are stored per subject
+                                grade: studentSubjectRow.grade,
+                                remarks: studentSubjectRow.remarks,
                             });
                         }
                     } catch (error) {
@@ -438,6 +464,10 @@ export default function ClassPage() {
         const term = anySubjectInClass?.term || "N/A";
         const year = anySubjectInClass?.year || "N/A";
 
+        // For the report card, we might need overall percentage and grade.
+        // These are calculated in calculateOverallResults, but we need to find the specific student's overall data.
+        const studentOverallData = overallResults.find(result => result.id === studentId);
+
 
         // Construct the aggregated report card data
         const reportData: StudentReportCardData = {
@@ -449,6 +479,9 @@ export default function ClassPage() {
             imageUrl: studentImageUrl, // Use the image URL from the student details in classes state
             overallRemarks: studentOverallRemarks, // Use overall remarks from the student details in classes state
             subjectResults: aggregatedSubjectResults,
+            // Include overall percentage and grade from the calculated overall results
+            studentOverallPercentage: studentOverallData?.overallAverage,
+            studentOverallGrade: undefined, // You would need logic to derive overall grade from overall average
         };
 
         setCurrentStudentReport(reportData); // Set the aggregated report data
@@ -456,7 +489,7 @@ export default function ClassPage() {
         setReportCardOverallRemarks(reportData.overallRemarks || ""); // Set the remarks state for the dialog
         setOpenReportCardDialog(true); // Open the dialog
 
-    }, [selectedClassId, rows, subjects, classes, isComponentMounted]); // Dependencies
+    }, [selectedClassId, rows, subjects, classes, isComponentMounted, overallResults]); // Dependencies now include overallResults
 
 
     /** Closes the Report Card dialog and resets related state.
@@ -537,8 +570,7 @@ export default function ClassPage() {
 
 
                     toast.success("Report card details saved.");
-                    handleCloseReportCardDialog(); // Close the dialog
-
+                    // handleCloseReportCardDialog(); // Optionally close the dialog
                 } else {
                     toast.error("Could not find student in class data to save.");
                 }
@@ -561,12 +593,11 @@ export default function ClassPage() {
 
             // Temporarily replace the body's content with the report card content for printing
             document.body.innerHTML = printContent;
-            // Set a print-friendly title
-            document.title = `Report Card - ${currentStudentReport?.studentName || 'Student'}`;
+            // Set a print-friendly title, escaping double quotes
+            document.title = `Report Card - ${currentStudentReport?.studentName || '&quot;Student&quot;'}`;
 
 
-            // Add a style block to hide elements not needed for printing (like the dialog overlay, buttons etc.)
-            // Also, add styles for the report card itself to ensure it lays out well in print
+            // Add a style block to hide elements not needed for printing and style the content
             const printStyles = `
                 <style>
                     @media print {
@@ -608,9 +639,10 @@ export default function ClassPage() {
                         .grid { display: grid !important; }
                         .flex-col { flex-direction: column !important; }
                          .md\\:flex-row { flex-direction: row !important; }
+                         .items-start { align-items: flex-start !important; } /* Align items to start */
                          .items-center { align-items: center !important; }
-                         .gap-4 { gap: 1rem !important; }
-                         .mb-4 { margin-bottom: 1rem !important; }
+                         .gap-6 { gap: 1.5rem !important; } /* Tailwind gap-6 */
+                         .mb-6 { margin-bottom: 1.5rem !important; } /* Tailwind mb-6 */
                          .p-4 { padding: 1rem !important; }
                          .p-3 { padding: 0.75rem !important; }
                          .p-2 { padding: 0.5rem !important; }
@@ -736,7 +768,7 @@ export default function ClassPage() {
                             const updatedSubjectRows = subjectRows.filter(row => row.id !== id);
                             localStorage.setItem(subjectStudentDataKey, JSON.stringify(updatedSubjectRows));
                         } catch (error) {
-                            console.error(`Failed to update student data for subject ${subject.name} on delete:`, error);
+                            console.error(`Failed to update student data for subject ${subject.name} on multi-delete:`, error);
                         }
                     }
                  }
@@ -791,7 +823,7 @@ export default function ClassPage() {
                 } catch (error) {
                     console.error("Failed to parse saved subjects:", error);
                     localStorage.removeItem("subjects"); // Clear invalid data
-                    toast.error("Invalid subject data found. Cleared.");
+                    toast.error("Invalid subject data found. Clear ed.");
                 }
             }
 
@@ -823,7 +855,8 @@ export default function ClassPage() {
                             const subjectStudentDataKey = getSubjectStudentDataKey(savedSelectedClassId, savedSelectedSubjectId);
                             if (subjectStudentDataKey) {
                                 const savedRows = localStorage.getItem(subjectStudentDataKey);
-                                let subjectRows: StudentRow[] = savedRows ? JSON.parse(savedRows) : [];
+                                // Change let to const
+                                const subjectRows: StudentRow[] = savedRows ? JSON.parse(savedRows) : [];
 
                                 // Get the list of students for the selected class
                                 const studentsInClass = validClass.students || [];
@@ -906,8 +939,7 @@ export default function ClassPage() {
                 localStorage.setItem(subjectStudentDataKey, JSON.stringify(subjectSpecificRows));
             }
         }
-        // Dependencies: This effect re-runs if any of these values change
-    }, [rows, classes, subjects, selectedClassId, selectedSubjectId, isComponentMounted]);
+    }, [rows, classes, subjects, selectedClassId, selectedSubjectId, isComponentMounted]); // Dependencies: This effect re-runs if any of these values change
 
 
     // --- Effect to Calculate Overall Results ---
@@ -922,7 +954,7 @@ export default function ClassPage() {
             setOverallResults([]); // Clear overall results if no class is selected
             setDynamicOverallColumns([]); // Clear dynamic columns
         }
-    }, [selectedClassId, subjects, classes, isComponentMounted]); // Dependencies now include 'classes'
+    }, [selectedClassId, subjects, classes, isComponentMounted, calculateOverallResults]); // Added calculateOverallResults to dependencies
 
 
     // --- DataGrid Column Definitions ---
@@ -977,22 +1009,14 @@ export default function ClassPage() {
         { field: "position", headerName: "Position", width: 100, sortable: true, editable: false },
         // Remarks Column (Calculated, but Editable)
         { field: "remarks", headerName: "Remarks", width: 120, editable: true },
-        // Actions Column (View Report Card, Delete)
+        // Actions Column (Only Delete here now)
         {
             field: "actions",
             type: "actions",
-            headerName: "Actions",
-            width: 150, // Increased width to accommodate two icons
+            headerName: "Delete",
+            width: 100, // Adjusted width since View Report Card is moved
             // Defines the actions available for each row
             getActions: ({ id }) => [
-                // View Report Card Action
-                <GridActionsCellItem
-                    key={`view-${id}`}
-                    icon={<VisibilityIcon />}
-                    label="View Report Card"
-                    onClick={handleViewReportCard(id as string)} // Calls the handler to open report card
-                    color="primary" // Use primary color for view action
-                />,
                 // Delete Action
                 <GridActionsCellItem
                     key={`delete-${id}`}
@@ -1003,7 +1027,7 @@ export default function ClassPage() {
                 />,
             ],
         },
-    ], [handleViewReportCard, handleDeleteSingle]); // Dependencies include handlers used in getActions
+    ], [handleDeleteSingle]); // Dependencies include handlers used in getActions
 
     // --- DataGrid Column Definitions for Overall Ranking ---
     const overallColumns: GridColDef<OverallStudentRow>[] = React.useMemo(() => {
@@ -1014,6 +1038,24 @@ export default function ClassPage() {
             { field: "overallTotalScore", headerName: "Overall Total", width: 150, type: "number" },
             { field: "overallAverage", headerName: "Overall Average (%)", width: 150, type: "number" },
             { field: "overallRank", headerName: "Overall Rank", width: 120 },
+            // Actions Column (View Report Card here now)
+            {
+                field: "actions",
+                type: "actions",
+                headerName: "Results",
+                width: 100, // Adjusted width
+                // Defines the actions available for each row
+                getActions: ({ id }) => [
+                    // View Report Card Action
+                    <GridActionsCellItem
+                        key={`view-${id}`}
+                        icon={<VisibilityIcon />}
+                        label="View Report Card"
+                        onClick={handleViewReportCard(id as string)} // Calls the handler to open report card
+                        color="primary" // Use primary color for view action
+                    />,
+                ],
+            },
         ];
 
         // Combine dynamic subject columns with base columns
@@ -1021,11 +1063,11 @@ export default function ClassPage() {
         const combinedColumns: GridColDef<OverallStudentRow>[] = [
             ...baseColumns.slice(0, 1), // 'Student Name' column
             ...dynamicOverallColumns, // Dynamically generated subject columns
-            ...baseColumns.slice(1), // Remaining base columns (Overall Total, Average, Rank)
+            ...baseColumns.slice(1), // Remaining base columns (Overall Total, Average, Rank, Actions)
         ];
 
         return combinedColumns;
-    }, [dynamicOverallColumns]); // Recalculate columns when dynamicOverallColumns changes
+    }, [dynamicOverallColumns, handleViewReportCard]); // Dependencies now include handleViewReportCard
 
 
     // --- Event Handlers & Logic ---
@@ -1175,7 +1217,6 @@ export default function ClassPage() {
             toast.error("Please select a class first before adding a subject.");
             return;
         }
-        // Reset the form fields for the new subject dialog
         setNewSubjectData({ name: "", subjectTeacher: "", term: "", year: "" });
         setOpenAddSubjectDialog(true);
     };
@@ -1217,6 +1258,7 @@ export default function ClassPage() {
             setOverallClassAverage(0); // Reset average
             setShowOverallResults(false); // Hide overall results view when subject changes
             // Overall results and dynamic columns will be calculated by the effect hook
+            // based on the updated subjects state, which triggers the effect.
 
             handleCloseAddSubjectDialog(); // Close the dialog
             toast.success(`Subject "${newSubject.name}" added to class "${className}".`);
@@ -1260,12 +1302,38 @@ export default function ClassPage() {
 
             // Load student data for this specific class/subject combination from localStorage
             const subjectStudentDataKey = getSubjectStudentDataKey(selectedClassId, selectedId);
-            let subjectRows: StudentRow[] = [];
+            // Change let to const
+            const subjectRows: StudentRow[] = [];
             if (subjectStudentDataKey && typeof window !== 'undefined') {
                 const savedRows = localStorage.getItem(subjectStudentDataKey);
                 if (savedRows) {
                     try {
-                        subjectRows = JSON.parse(savedRows);
+                        // Change let to const
+                        const parsedRows = JSON.parse(savedRows);
+                        if (Array.isArray(parsedRows)) {
+                            // Change assignment to a new const declaration
+                            const loadedSubjectRows: StudentRow[] = parsedRows;
+                            // Use loadedSubjectRows in the merge below
+                            const studentsInClass = currentClass.students || [];
+                            const mergedRows: StudentRow[] = studentsInClass.map(student => {
+                                const subjectData = loadedSubjectRows.find(row => row.id === student.id);
+                                return {
+                                    ...student, // Include student details from the class list (id, name, imageUrl, overallRemarks)
+                                    cat1: subjectData?.cat1,
+                                    cat2: subjectData?.cat2,
+                                    projectWork: subjectData?.projectWork,
+                                    exams: subjectData?.exams,
+                                    total: subjectData?.total,
+                                    position: subjectData?.position,
+                                    remarks: subjectData?.remarks,
+                                    isNew: subjectData?.isNew, // Preserve isNew flag if it existed
+                                };
+                            });
+
+                            setRows(mergedRows);
+                            calculateAndSetAverage(mergedRows); // Calculate average for the loaded data
+                            return; // Exit the function after successfully loading and merging
+                        }
                     } catch (error) {
                         console.error("Failed to parse subject student data on subject selection:", error);
                         toast.error("Could not load student data for this subject.");
@@ -1273,27 +1341,23 @@ export default function ClassPage() {
                 }
             }
 
-            // Get the list of students for the selected class
+            // If data wasn't loaded from localStorage or parsing failed,
+            // use the student list from the class and initialize subject-specific fields
             const studentsInClass = currentClass.students || [];
+            const initialRows: StudentRow[] = studentsInClass.map(student => ({
+                ...student, // Include student details from the class list
+                cat1: undefined,
+                cat2: undefined,
+                projectWork: undefined,
+                exams: undefined,
+                total: undefined,
+                position: undefined,
+                remarks: undefined,
+                isNew: false, // Not new when initially loading from class list
+            }));
+            setRows(initialRows);
+            calculateAndSetAverage(initialRows); // Calculate average for the initial rows
 
-            // Merge class student list with subject-specific data
-            const mergedRows: StudentRow[] = studentsInClass.map(student => {
-                const subjectData = subjectRows.find(row => row.id === student.id);
-                return {
-                    ...student, // Include student details from the class list (id, name, imageUrl, overallRemarks)
-                    cat1: subjectData?.cat1,
-                    cat2: subjectData?.cat2,
-                    projectWork: subjectData?.projectWork,
-                    exams: subjectData?.exams,
-                    total: subjectData?.total,
-                    position: subjectData?.position,
-                    remarks: subjectData?.remarks,
-                    isNew: subjectData?.isNew, // Preserve isNew flag if it existed
-                };
-            });
-
-            setRows(mergedRows);
-            calculateAndSetAverage(mergedRows); // Calculate average for the loaded data
 
         } else {
             // Subject or Class not found (e.g., if data is inconsistent)
@@ -1820,9 +1884,8 @@ export default function ClassPage() {
     };
 
 
-    // --- Excel Export Handler ---
-
-    /** Exports the current student data grid to an Excel (.xlsx) file.
+    // --- Excel Export Handler (Subject Specific) ---
+    /** Exports the current student data grid (subject-specific) to an Excel (.xlsx) file.
      */
     const exportToExcel = async () => {
         // Check if there's data to export
@@ -1836,12 +1899,16 @@ export default function ClassPage() {
             return;
         }
         // Ensure running client-side and libraries are available
-        if (typeof window === 'undefined' || !FileSaver || !XLSX) {
-            toast.error("Exporting to Excel is not supported or libraries not loaded.");
-            return;
+        if (typeof window === 'undefined') {
+             toast.error("Exporting to Excel is not supported in this environment.");
+             return;
         }
 
         try {
+            // Dynamically import the libraries
+            const FileSaver = await import('file-saver');
+            const XLSX = await import('xlsx');
+
             // Prepare data for the worksheet
             const worksheetData = [
                 // Header row matching the grid columns (excluding image and overall remarks for Excel)
@@ -1863,7 +1930,7 @@ export default function ClassPage() {
             // Create worksheet and workbook
             const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Student Results"); // Sheet name
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Subject Results"); // Sheet name
 
             // Generate Excel file buffer
             const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -1878,12 +1945,83 @@ export default function ClassPage() {
             // Use FileSaver to trigger download
             FileSaver.saveAs(dataBlob, filename);
 
-            toast.success("Data exported to Excel successfully.");
+            toast.success("Subject results exported to Excel successfully.");
         } catch (error) {
             console.error("Excel export failed:", error);
             toast.error("Failed to export data to Excel.");
         }
     };
+
+    // --- Excel Export Handler (Overall Ranking) ---
+    /** Exports the overall class ranking results to an Excel (.xlsx) file.
+     */
+    const handleExportOverallToExcel = async () => {
+        // Check if there's data to export
+        if (overallResults.length === 0) {
+            toast.info("No overall ranking data to export.");
+            return;
+        }
+         // Ensure class is selected
+        if (!selectedClassId) {
+            toast.error("Please select a class before exporting overall results.");
+            return;
+        }
+        // Ensure running client-side and libraries are available
+        if (typeof window === 'undefined') {
+             toast.error("Exporting to Excel is not supported in this environment.");
+             return;
+        }
+
+        try {
+             // Dynamically import the libraries
+            const FileSaver = await import('file-saver');
+            const XLSX = await import('xlsx');
+
+             // Dynamically build the header row based on the dynamicOverallColumns
+            const headers = overallColumns.map(col => col.headerName);
+
+            // Map each overall result row to an array of values
+            const worksheetData = [
+                headers, // Header row
+                ...overallResults.map(row => {
+                    // Map values based on the overallColumns definition
+                    return overallColumns.map(col => {
+                        // For dynamic subject columns, get the value from subjectTotals
+                        if (row.subjectTotals.hasOwnProperty(col.field)) {
+                            return row.subjectTotals[col.field] ?? 0;
+                        }
+                        // For base columns, get the value directly from the row
+                        return (row as any)[col.field] ?? ''; // Use 'as any' for flexible access
+                    });
+                })
+            ];
+
+
+            // Create worksheet and workbook
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Overall Ranking"); // Sheet name
+
+            // Generate Excel file buffer
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            // Create a Blob from the buffer
+            const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+
+            // Get current class name for the filename
+            const currentClassName = classes.find(c => c.id === selectedClassId)?.name || "Class";
+            const filename = `${currentClassName}_Overall_Ranking.xlsx`;
+
+            // Use FileSaver to trigger download
+            FileSaver.saveAs(dataBlob, filename);
+
+            toast.success("Overall ranking exported to Excel successfully.");
+        } catch (error) {
+            console.error("Overall ranking Excel export failed:", error);
+            toast.error("Failed to export overall ranking data to Excel.");
+        }
+    };
+
+
 
     // --- Print Handler for Overall Results ---
     const handlePrintOverallResults = () => {
@@ -2164,10 +2302,11 @@ export default function ClassPage() {
                                     >
                                         Save Results
                                     </Button>
-                                    {/* Export to Excel Button */}
+                                    {/* Export to Excel Button (Subject Specific) */}
                                     <Button
                                         variant="contained" color="secondary" onClick={exportToExcel}
                                         disabled={rows.length === 0} // Disable if no rows exist
+                                        startIcon={<DownloadIcon />} // Added DownloadIcon
                                     >
                                         Export to Excel
                                     </Button>
@@ -2204,15 +2343,26 @@ export default function ClassPage() {
                                     <Typography variant="h6">
                                         Overall Class Ranking for {className}
                                     </Typography>
-                                    {/* Add a print button for the overall results */}
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<PrintIcon />}
-                                        onClick={handlePrintOverallResults}
-                                        disabled={overallResults.length === 0}
-                                    >
-                                        Print Overall Ranking
-                                    </Button>
+                                    {/* Action buttons for Overall Ranking */}
+                                     <div className="flex flex-wrap gap-2">
+                                         {/* Print button for the overall results */}
+                                         <Button
+                                             variant="outlined"
+                                             startIcon={<PrintIcon />}
+                                             onClick={handlePrintOverallResults}
+                                             disabled={overallResults.length === 0}
+                                         >
+                                             Print Ranking
+                                         </Button>
+                                          {/* Export to Excel Button (Overall Ranking) */}
+                                         <Button
+                                             variant="contained" color="secondary" onClick={handleExportOverallToExcel}
+                                             disabled={overallResults.length === 0} // Disable if no overall results exist
+                                             startIcon={<DownloadIcon />} // Added DownloadIcon
+                                         >
+                                             Export to Excel
+                                         </Button>
+                                     </div>
                                 </div>
                                 {/* Print-only title for the overall ranking */}
                                 <Typography variant="h6" className="print-only text-center mb-4">
@@ -2387,7 +2537,7 @@ export default function ClassPage() {
                                                         component="img"
                                                         sx={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '2px solid #3b82f6' }} // Combined sx styles
                                                         image={reportCardImage}
-                                                        alt={`${currentStudentReport.studentName}'s photo`}
+                                                        alt={`${currentStudentReport.studentName}'s photo`} // Escaped double quotes if needed
                                                     />
                                                 ) : (
                                                     <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 border-2 border-gray-300"> {/* Added border */}
