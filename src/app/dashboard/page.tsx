@@ -76,16 +76,16 @@ ChartJS.register(ArcElement, ChartTooltip, Legend, BarElement, CategoryScale, Li
 
 // Define the type for a Student row (Note: This type is likely not needed in the Dashboard page itself,
 // but keeping it here as it was in the original code. It's more relevant for student data tables).
-type StudentRow = {
-  id: string;
-  name: string;
-  dob: string; // ISO string
-  age: number;
-  class: string;
-  gender?: string;
-  image?: string; // DataURL
-  isNew?: boolean;
-};
+// type StudentRow = {
+//   id: string;
+//   name: string;
+//   dob: string; // ISO string
+//   age: number;
+//   class: string;
+//   gender?: string;
+//   image?: string; // DataURL
+//   isNew?: boolean;
+// };
 
 // Helper function to calculate age from date of birth (Also likely not needed on Dashboard)
 // const calculateAge = (dob: string) => { // Commented out as not directly used in this dashboard
@@ -399,7 +399,7 @@ export default function Page() {
               )}
               <div>
                 <p className="text-2xl font-semibold">Welcome, {adminName}!</p>
-                <p className="text-blue-200 text-sm">Here's your school overview.</p>
+                <p className="text-blue-200 text-sm">Here&apos;s your school overview.</p>
               </div>
             </div>
 
