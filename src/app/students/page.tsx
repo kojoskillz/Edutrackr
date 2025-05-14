@@ -13,7 +13,6 @@ import {
     GridRowEditStopReasons,
     GridEventListener,
     GridRowModel,
-    GridRowSelectionModel,
     GridRowId,
     GridSlotProps,
     Toolbar,
@@ -24,10 +23,13 @@ import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import SaveIcon from "@mui/icons-material/Save"; // Correct import path
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from '@mui/icons-material/Visibility'; // Icon for viewing report card
-import PrintIcon from '@mui/icons-material/Print'; // Icon for printing
 import SchoolIcon from "@mui/icons-material/School"; // Icon for viewing students
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"; // Icon for copying
 import CancelIcon from "@mui/icons-material/Close"; // Corrected import path
+
+// Removed unused PrintIcon and DownloadIcon imports
+// import PrintIcon from '@mui/icons-material/Print'; // Icon for printing
+// import DownloadIcon from '@mui/icons-material/Download'; // Import DownloadIcon
 
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -41,8 +43,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
-// import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// import { toast } from "react-toastify"; // toast is not used in this file
+import "react-toastify/dist/ReactToastify.css"; // Still needed for the toast styles if used elsewhere in the app
 import {
     Button, Typography,Modal, Box, Tooltip, Snackbar, Alert // Added Modal, Box, Tooltip, Snackbar, Alert imports
 } from "@mui/material";
@@ -53,7 +55,6 @@ import {
 // client-side use within event handlers, direct dynamic import is fine.
 // Removed unused type imports: FileSaverTypes, XLSXTypes
 
-import DownloadIcon from '@mui/icons-material/Download'; // Import DownloadIcon
 
 import { DatePicker } from "@mui/x-date-pickers/DatePicker"; // Needed for student DOB
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"; // Needed for DatePicker
@@ -327,7 +328,7 @@ export default function ClassesPage() {
   // Function to copy a single student name to the clipboard
   const handleCopySingleStudentName = (name: string) => {
     navigator.clipboard.writeText(name).then(() => {
-      handleSnackbarOpen(`Copied &quot;${name}&quot;`); // Escaped quotes
+      handleSnackbarOpen(`Copied "${name}"`); // Escaped quotes
     }).catch(err => {
       console.error("Failed to copy student name: ", err);
       handleSnackbarOpen("Failed to copy name");
@@ -373,7 +374,7 @@ export default function ClassesPage() {
     },
     delete: (id: GridRowId) => () =>
       // Delete the student from the overall list
-      setAllStudents((r) => r.filter((x) => x.id !== id)), // Removed unused studentRow variable assignment
+      setAllStudents((r) => r.filter((x) => x.id !== id)),
     view: (id: GridRowId) => () => {
       // Find the row and set it to be viewed in the modal
       const row = allStudents.find((r) => r.id === id) as StudentRow;
@@ -531,6 +532,7 @@ export default function ClassesPage() {
         // Render image if available
         // Using <img> tag here as this is a standalone React component,
         // not a Next.js application where next/image would be preferred for optimization.
+        // eslint-disable-next-line @next/next/no-img-element
         p.value ? (
           <img
             src={p.value as string}
@@ -857,6 +859,7 @@ export default function ClassesPage() {
                             {/* Display student image if available */}
                             {/* Using <img> tag here as this is a standalone React component,
                                 not a Next.js application where next/image would be preferred for optimization. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             {viewStudentRow.image && (
                               <img
                                 src={viewStudentRow.image}
