@@ -9,7 +9,7 @@ export default function LoginPage() {
   if (!auth) {
     throw new Error('AuthContext is not initialized. Ensure you are wrapping your component tree with AuthProvider.')
   }
-  const { login } = auth
+  const { login } = auth as { login: (username: string, password: string) => boolean };
   const router = useRouter()
   const [form, setForm] = useState({ username: '', password: '' })
 
