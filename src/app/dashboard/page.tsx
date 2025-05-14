@@ -17,8 +17,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"; // Assuming this path is correct
 
-// import Tooltip from "@mui/material/Tooltip"; // Still used for StatCard (though a custom tooltip might be better with Tailwind)
-
 
 // These imports are not used in the current component and can be removed
 // import AddIcon from "@mui/icons-material/Add";
@@ -259,7 +257,10 @@ export default function Page() {
   };
 
   // Authentication check
-  const { user } = useAuth();
+  // Safely access the user property using optional chaining
+  const auth = useAuth();
+  const user = auth?.user;
+
   const router = useRouter();
 
   // Effect to redirect to login if user is not authenticated
