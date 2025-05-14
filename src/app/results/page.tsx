@@ -2474,7 +2474,7 @@ export default function ClassPage() {
                     {/* Message shown if class is selected but no subject is selected AND NOT showing overall results */}
                     {selectedClassId && !selectedSubjectId && !showOverallResults && (
                         <div className="text-center p-6 bg-white rounded shadow text-gray-600">
-                            Please select or add a subject for the class "{className}" to view or manage student results.
+                            Please select or add a subject for the class &quot;{className}&quot; to view or manage student results.
                             You can also view the <Button variant="text" onClick={() => setShowOverallResults(true)}>Overall Class Ranking</Button> if subjects and results are available.
                         </div>
                     )}
@@ -2575,7 +2575,7 @@ export default function ClassPage() {
 
                 {/* Add Subject Dialog */}
                 <Dialog open={openAddSubjectDialog} onClose={handleCloseAddSubjectDialog} maxWidth="sm" fullWidth>
-                    <DialogTitle>Add New Subject to "{className}"</DialogTitle>
+                    <DialogTitle>Add New Subject to &quot;{className}&quot;</DialogTitle>
                     <DialogContent>
                         {/* Subject Name Field */}
                         <TextField autoFocus margin="dense" id="add-newSubjectName" label="Subject Name" type="text" fullWidth variant="outlined"
