@@ -744,7 +744,7 @@ export default function ClassPage() {
         if (window.confirm("Delete this student&apos;s record from this class and all subjects?") && isMountedRef.current) {
 
             // idsToDelete is used in the filter calls below.
-            const idsToDelete = [id]; // Create an array with the single ID to delete
+            // const idsToDelete = [id]; // Create an array with the single ID to delete
 
             // 1. Remove student from the class's student list in the classes state
             setClasses(prevClasses =>
