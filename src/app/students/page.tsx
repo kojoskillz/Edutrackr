@@ -618,10 +618,10 @@ export default function ClassesPage() {
       type: "actions",
       headerName: "Actions",
       width: 170, // Increased width to accommodate the new action
-      getActions: ({ id, row }) => {
+      getActions: ({ id }) => { // Removed 'row' parameter
         const isEdit = studentRowModesModel[id]?.mode === GridRowModes.Edit;
          // studentRow was unused, removed.
-        // const studentRow = row as StudentRow; // Cast row to StudentRow
+        // const studentRow = allStudents.find((r) => r.id === id) as StudentRow; // Moved lookup inside specific action handlers if needed
 
         // Render different actions based on whether the row is in edit mode
         return isEdit
