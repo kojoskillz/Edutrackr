@@ -2454,11 +2454,11 @@ export default function ClassPage() {
                                             columns={overallColumns} // Use the combined columns
                                             getRowId={(row) => row.id}
                                             // Add other DataGrid props as needed (no editing usually for overall view)
-                                            disableRowSelectionOnClick
+                                            disableRowSelectionOnClick // Keep the correct prop
                                             hideFooter // Hide footer for a ranking view
                                             // Disable selection for overall ranking view
                                             checkboxSelection={false}
-                                            disableRowSelectionOnClick={true}
+                                            // Removed the duplicate prop: disableRowSelectionOnClick1={true}
                                         />
                                     </div>
                                 ) : (
