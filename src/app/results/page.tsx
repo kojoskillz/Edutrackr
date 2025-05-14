@@ -224,25 +224,26 @@ export default function ClassPage() {
      * @param subjectId The ID of the selected subject.
      * @returns A string key or null if IDs are missing.
      */
-    const getSubjectStudentDataKey = (classId: string | null, subjectId: string | null): string | null => {
+    const getSubjectStudentDataKey = React.useCallback((classId: string | null, subjectId: string | null): string | null => {
         if (!classId || !subjectId) return null;
         return `subjectStudentData-${classId}-${subjectId}`;
-    };
+    }, []); // No dependencies, so this function reference is stable
 
      /**
      * Generates a unique localStorage key for storing the classes data (including students).
      */
-    const getClassesDataKey = (): string => {
+    const getClassesDataKey = React.useCallback((): string => {
         return "classesData"; // Using a single key for all classes and their students
-    };
+    }, []); // No dependencies, stable function reference
 
 
     /**
      * Calculates the average 'total' score from the provided rows
      * and updates the `overallClassAverage` state (per subject).
+     * Wrapped in useCallback to provide a stable function reference.
      * @param currentRows An array of StudentRow objects.
      */
-    const calculateAndSetAverage = (currentRows: StudentRow[]) => {
+    const calculateAndSetAverage = React.useCallback((currentRows: StudentRow[]) => {
         if (!currentRows || currentRows.length === 0) {
             setOverallClassAverage(0); // Set average to 0 if no rows
             return;
@@ -262,14 +263,15 @@ export default function ClassPage() {
         // Calculate average and format to 2 decimal places
         const calculatedAverage = (totalOfTotals / currentRows.length).toFixed(2);
         setOverallClassAverage(calculatedAverage);
-    };
+    }, [setOverallClassAverage]); // Dependency on setOverallClassAverage
+
 
     /**
      * Generates the correct ordinal suffix (ST, ND, RD, TH) for a given position number.
      * @param position The position number.
      * @returns The ordinal suffix string.
      */
-    const getOrdinalSuffix = (position: number): string => {
+    const getOrdinalSuffix = React.useCallback((position: number): string => {
         // Handle special cases for 11th, 12th, 13th
         if (position % 100 >= 11 && position % 100 <= 13) {
             return "TH";
@@ -281,7 +283,7 @@ export default function ClassPage() {
             case 3: return "RD";
             default: return "TH";
         }
-    };
+    }, []); // No dependencies, stable function reference
 
 
     // --- Helper Function for Overall Ranking ---
@@ -289,13 +291,14 @@ export default function ClassPage() {
      * Aggregates student data from all subjects for a given class
      * and calculates overall total, average, and rank.
      * Also generates dynamic columns for each subject.
+     * Wrapped in useCallback to provide a stable function reference.
      * @param classId The ID of the class to process.
      * @param allSubjects Array of all subjects.
      * @param classesData Array of all classes (to get student list).
      * @param getSubjectStudentDataKey Function to get localStorage key for subject data.
      * @returns An object containing rankedResults (OverallStudentRow[]) and subjectColumns (GridColDef[]).
      */
-    const calculateOverallResults = (classId: string, allSubjects: SubjectInfo[], classesData: ClassData[], getSubjectStudentDataKey: (classId: string, subjectId: string) => string | null): { rankedResults: OverallStudentRow[], subjectColumns: GridColDef<OverallStudentRow>[] } => {
+    const calculateOverallResults = React.useCallback((classId: string, allSubjects: SubjectInfo[], classesData: ClassData[], getSubjectStudentDataKey: (classId: string, subjectId: string) => string | null): { rankedResults: OverallStudentRow[], subjectColumns: GridColDef<OverallStudentRow>[] } => {
         const studentsOverallData: { [studentId: string]: { name: string; totalScores: number[]; subjectCount: number; subjectTotals: { [subjectId: string]: number } } } = {};
 
         // Find the selected class to get its student list
@@ -391,12 +394,13 @@ export default function ClassPage() {
 
 
         return { rankedResults, subjectColumns };
-    };
+    }, [getOrdinalSuffix, getSubjectStudentDataKey]); // Dependencies on helper functions
 
 
     // --- Report Card Handlers ---
 
     /** Returns a handler function to open the report card for a specific student ID.
+     * Wrapped in useCallback to provide a stable function reference.
      */
     const handleViewReportCard = React.useCallback((studentId: string) => () => {
         if (!selectedClassId || !isComponentMounted) {
@@ -489,7 +493,7 @@ export default function ClassPage() {
         setReportCardOverallRemarks(reportData.overallRemarks || ""); // Set the remarks state for the dialog
         setOpenReportCardDialog(true); // Open the dialog
 
-    }, [selectedClassId, rows, subjects, classes, isComponentMounted, overallResults]); // Dependencies now include overallResults
+    }, [selectedClassId, subjects, classes, isComponentMounted, overallResults, getSubjectStudentDataKey]); // Dependencies updated
 
 
     /** Closes the Report Card dialog and resets related state.
@@ -777,7 +781,7 @@ export default function ClassPage() {
 
             toast.success("Student record deleted from class and all subjects.");
         }
-    }, [selectedClassId, subjects, calculateAndSetAverage]); // Dependencies
+    }, [selectedClassId, subjects, calculateAndSetAverage, getSubjectStudentDataKey]); // Dependencies updated
 
 
     // --- Effects ---
@@ -902,8 +906,8 @@ export default function ClassPage() {
         return () => {
             isMountedRef.current = false;
         };
-        // Empty dependency array ensures this effect runs only once on mount
-    }, []);
+        // Dependencies: These are stable or part of the initial load
+    }, [getClassesDataKey, getSubjectStudentDataKey, calculateAndSetAverage]);
 
 
     /**
@@ -936,9 +940,11 @@ export default function ClassPage() {
                      isNew: row.isNew,
                      // Do NOT save name, imageUrl, overallRemarks here as they are in the classes state
                  }));
+                // Use subjectSpecificRows to save to localStorage
+                localStorage.setItem(subjectStudentDataKey, JSON.stringify(subjectSpecificRows));
             }
         }
-    }, [rows, classes, subjects, selectedClassId, selectedSubjectId, isComponentMounted]); // Dependencies: This effect re-runs if any of these values change
+    }, [rows, classes, subjects, selectedClassId, selectedSubjectId, isComponentMounted, getClassesDataKey, getSubjectStudentDataKey]); // Dependencies: This effect re-runs if any of these values change
 
 
     // --- Effect to Calculate Overall Results ---
@@ -953,7 +959,7 @@ export default function ClassPage() {
             setOverallResults([]); // Clear overall results if no class is selected
             setDynamicOverallColumns([]); // Clear dynamic columns
         }
-    }, [selectedClassId, subjects, classes, isComponentMounted, calculateOverallResults]); // Added calculateOverallResults to dependencies
+    }, [selectedClassId, subjects, classes, isComponentMounted, calculateOverallResults, getSubjectStudentDataKey]); // Dependencies updated
 
 
     // --- DataGrid Column Definitions ---
@@ -1876,6 +1882,7 @@ export default function ClassPage() {
                  isNew: row.isNew,
                  // Do NOT save name, imageUrl, overallRemarks here as they are in the classes state
              }));
+            // Use subjectSpecificRows to save to localStorage
             localStorage.setItem(subjectStudentDataKey, JSON.stringify(subjectSpecificRows));
         }
 
