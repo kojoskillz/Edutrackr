@@ -13,9 +13,14 @@ export default function LoginPage() {
   const router = useRouter()
   const [form, setForm] = useState({ username: '', password: '' })
 
-  const handleSubmit = (e) => {
+  interface LoginForm {
+    username: string
+    password: string
+  }
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const success = login(form.username, form.password)
+    const success: boolean = login(form.username, form.password)
     if (success) {
       router.push('/dashboard')
     } else {
