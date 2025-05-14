@@ -746,7 +746,7 @@ export default function ClassPage() {
 
             // idsToDelete is used in the filter calls below.
             // Uncommented the declaration of idsToDelete as it is used below.
-            const idsToDelete = [id]; // Create an array with the single ID to delete
+            // const idsToDelete = [id]; // Create an array with the single ID to delete
 
             // 1. Remove student from the class's student list in the classes state
             setClasses(prevClasses =>
