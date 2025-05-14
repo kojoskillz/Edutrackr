@@ -260,22 +260,24 @@ export default function Page() {
 
   // Authentication check
   // Safely access the user property using optional chaining
-  const auth = useAuth();
-  const user = auth?.user; // Safely access the user property
+  interface AuthContextType {
+  user: { id: string; name: string; email: string } | null; // Adjust fields as per your actual user object
+}
 
-  const router = useRouter();
+const auth = useAuth() as AuthContextType | null; // Explicitly type the auth object
+const user = auth?.user; // Safely access the user property
 
-  // Effect to redirect to login if user is not authenticated
-  useEffect(() => {
-    // Explicitly check if user is null or undefined
-    if (user == null) {
-      router.push('/login'); // Assuming your login route is /login
-    }
-  }, [user, router]);
+const router = useRouter();
 
-  // Render nothing if user is not authenticated (router.push handles the redirect)
-  if (user == null) return null;
+// Effect to redirect to login if user is not authenticated
+useEffect(() => {
+  if (user == null) {
+    router.push('/login'); // Assuming your login route is /login
+  }
+}, [user, router]);
 
+// Render nothing if user is not authenticated
+if (user == null) return null;
 
   return (
     <SidebarProvider>
