@@ -1,61 +1,70 @@
 "use client";
 
 import * as React from "react";
-import { AppSidebar } from "@/components/app-sidebar";
+// Removed unused useRouter import
+// import { useRouter } from "next/navigation";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-
-import Box from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
+    DataGrid,
+    GridColDef,
+    GridRowsProp,
+    GridRowModes,
+    GridRowModesModel, // rowModesModel is used internally by DataGrid when passed as a prop
+    GridActionsCellItem,
+    GridRowEditStopReasons,
+    GridEventListener,
+    GridRowModel,
+    GridRowSelectionModel,
+    GridRowId,
+    GridSlotProps,
+    Toolbar,
+    ToolbarButton,
+} from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import SaveIcon from "@mui/icons-material/Save"; // Correct import path
-import CancelIcon from "@mui/icons-material/Close"; // Corrected import path
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import EditIcon from "@mui/icons-material/Edit";
+import VisibilityIcon from '@mui/icons-material/Visibility'; // Icon for viewing report card
+import PrintIcon from '@mui/icons-material/Print'; // Icon for printing
 import SchoolIcon from "@mui/icons-material/School"; // Icon for viewing students
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"; // Icon for copying
-import Modal from "@mui/material/Modal";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button"; // Import Button for "Back to Classes"
-import Snackbar from "@mui/material/Snackbar"; // For copy feedback
-import Alert from "@mui/material/Alert"; // For copy feedback message
+import CancelIcon from "@mui/icons-material/Close"; // Corrected import path
 
+
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
-  DataGrid,
-  GridRowsProp,
-  GridRowModesModel,
-  GridRowModes,
-  GridColDef,
-  GridActionsCellItem,
-  GridEventListener,
-  GridRowId,
-  GridRowModel,
-  GridRowEditStopReasons,
-  GridSlotProps,
-  Toolbar,
-  ToolbarButton,
-} from "@mui/x-data-grid";
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbSeparator,
+    BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import { AppSidebar } from "@/components/app-sidebar";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import {
+    Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
+    Select, MenuItem, InputLabel, FormControl, SelectChangeEvent, Card, CardContent, Typography, CardMedia, TextareaAutosize,
+    Modal, Box, Tooltip, Snackbar, Alert // Added Modal, Box, Tooltip, Snackbar, Alert imports
+} from "@mui/material";
+
+// Dynamically import excel libraries using standard import() syntax
+// These will be loaded only when needed (e.g., when export functions are called)
+// Use React.lazy or dynamic import with a check if needed, but for simple
+// client-side use within event handlers, direct dynamic import is fine.
+// Removed unused type imports: FileSaverTypes, XLSXTypes
+
+import DownloadIcon from '@mui/icons-material/Download'; // Import DownloadIcon
 
 import { DatePicker } from "@mui/x-date-pickers/DatePicker"; // Needed for student DOB
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"; // Needed for DatePicker
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"; // Needed for DatePicker
 import dayjs from "dayjs"; // Needed for DatePicker
 import { randomId } from "@mui/x-data-grid-generator";
-// Link is no longer needed for navigating to a separate student page
-// import Link from "next/link"; // Import Link for navigation
+
+
+// --- Type Definitions ---
 
 // Define the type for a Class row
 type ClassRow = {
@@ -78,6 +87,7 @@ type StudentRow = {
   image?: string; // DataURL
   isNew?: boolean;
 };
+
 
 // Helper function to calculate age from date of birth (Copied from the students page)
 const calculateAge = (dob: string) => {
@@ -201,6 +211,7 @@ export default function ClassesPage() {
 
   // State to manage which table is visible
   const [showStudentsTable, setShowStudentsTable] = React.useState(false);
+  // selectedClassId is used to filter students and identify the current class context
   const [selectedClassId, setSelectedClassId] = React.useState<string | null>(null);
   const [selectedClassName, setSelectedClassName] = React.useState<string | null>(null);
 
@@ -318,7 +329,7 @@ export default function ClassesPage() {
   // Function to copy a single student name to the clipboard
   const handleCopySingleStudentName = (name: string) => {
     navigator.clipboard.writeText(name).then(() => {
-      handleSnackbarOpen(`Copied "${name}"`);
+      handleSnackbarOpen(`Copied &quot;${name}&quot;`); // Escaped quotes
     }).catch(err => {
       console.error("Failed to copy student name: ", err);
       handleSnackbarOpen("Failed to copy name");
@@ -331,7 +342,7 @@ export default function ClassesPage() {
       if (names.length > 0) {
           const namesString = names.join('\n'); // Join names with newlines
           navigator.clipboard.writeText(namesString).then(() => {
-              handleSnackbarOpen(`Copied ${names.length} student name(s)`);
+              handleSnackbarOpen(`Copied ${names.length} student name(s)`); // Escaped quotes
           }).catch(err => {
               console.error("Failed to copy all student names: ", err);
               handleSnackbarOpen("Failed to copy names");
@@ -364,7 +375,7 @@ export default function ClassesPage() {
     },
     delete: (id: GridRowId) => () =>
       // Delete the student from the overall list
-      setAllStudents((r) => r.filter((x) => x.id !== id)),
+      setAllStudents((r) => r.filter((x) => x.id !== id)), // Removed unused studentRow variable assignment
     view: (id: GridRowId) => () => {
       // Find the row and set it to be viewed in the modal
       const row = allStudents.find((r) => r.id === id) as StudentRow;
@@ -520,6 +531,8 @@ export default function ClassesPage() {
       editable: true,
       renderCell: (p) =>
         // Render image if available
+        // Using <img> tag here as this is a standalone React component,
+        // not a Next.js application where next/image would be preferred for optimization.
         p.value ? (
           <img
             src={p.value as string}
@@ -844,6 +857,8 @@ export default function ClassesPage() {
                         {viewStudentRow && (
                           <div className="space-y-2">
                             {/* Display student image if available */}
+                            {/* Using <img> tag here as this is a standalone React component,
+                                not a Next.js application where next/image would be preferred for optimization. */}
                             {viewStudentRow.image && (
                               <img
                                 src={viewStudentRow.image}
