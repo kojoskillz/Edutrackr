@@ -1,22 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { AppSidebar } from "@/components/app-sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-
 import {
   DataGrid,
   GridRowsProp,
@@ -30,6 +14,22 @@ import {
   GridRowModel,
 } from "@mui/x-data-grid";
 
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { AppSidebar } from "@/components/app-sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
@@ -37,9 +37,9 @@ import CancelIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIconOutlined from "@mui/icons-material/Cancel";
-import { Menu, MenuItem, Button } from "@mui/material";
+import { Button, Menu, MenuItem } from "@mui/material";
 
-// Define the type for a single fee row
+// --- FeeRow Type ---
 type FeeRow = {
   id: string;
   name: string;
@@ -51,17 +51,19 @@ type FeeRow = {
 };
 
 export default function FeesPage() {
-  const [rows, setRows] = React.useState<GridRowsProp>([]);
+  const [rows, setRows] = React.useState<GridRowsProp<FeeRow>>([]);
   const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({});
   const [searchText, setSearchText] = React.useState("");
   const [currency, setCurrency] = React.useState<"₦" | "GH₵" | "$">("₦");
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
+  // Load from localStorage on mount
   React.useEffect(() => {
     const saved = localStorage.getItem("feeRows");
     if (saved) setRows(JSON.parse(saved));
   }, []);
 
+  // Save to localStorage on change
   React.useEffect(() => {
     localStorage.setItem("feeRows", JSON.stringify(rows));
   }, [rows]);
@@ -72,15 +74,22 @@ export default function FeesPage() {
     }
   };
 
-  const processRowUpdate = (newRow: GridRowModel) => {
+  const processRowUpdate = (newRow: GridRowModel): FeeRow => {
     const existingRow = rows.find((row) => row.id === newRow.id);
+
+    if (!existingRow) {
+      console.warn("Trying to update a row that doesn't exist:", newRow);
+      return newRow as FeeRow; // fallback, cast to FeeRow
+    }
+
     const updated: FeeRow = {
-      ...existingRow!,
+      ...existingRow,
       ...newRow,
       paid: Number(newRow.paid),
       due: Number(newRow.due),
       isNew: false,
     };
+
     setRows((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
     return updated;
   };
@@ -139,8 +148,8 @@ export default function FeesPage() {
       headerName: "Status",
       width: 120,
       valueGetter: (params) => {
-        const paid = Number(params?.row?.paid ?? 0);
-        const due = Number(params?.row?.due ?? 0);
+        const paid = Number(params.row.paid || 0);
+        const due = Number(params.row.due || 0);
         return paid >= due ? "Paid" : "Unpaid";
       },
       renderCell: (params) =>
@@ -244,7 +253,7 @@ export default function FeesPage() {
             </Button>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
               {["₦", "GH₵", "$"].map((curr) => (
-                <MenuItem key={curr} onClick={() => handleCurrencyMenuClose(curr as any)}>
+                <MenuItem key={curr} onClick={() => handleCurrencyMenuClose(curr as "₦" | "GH₵" | "$")}>
                   {curr}
                 </MenuItem>
               ))}
@@ -259,7 +268,7 @@ export default function FeesPage() {
               disableSelectionOnClick
               editMode="row"
               rowModesModel={rowModesModel}
-              processRowUpdate={processRowUpdate} // ✅ Fixed
+              processRowUpdate={processRowUpdate}
               onRowEditStop={handleRowEditStop}
               autoHeight
             />
@@ -275,7 +284,7 @@ export default function FeesPage() {
                 disableSelectionOnClick
                 editMode="row"
                 rowModesModel={rowModesModel}
-                processRowUpdate={processRowUpdate} // ✅ Fixed
+                processRowUpdate={processRowUpdate}
                 onRowEditStop={handleRowEditStop}
                 autoHeight
               />
