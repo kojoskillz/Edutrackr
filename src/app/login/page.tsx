@@ -15,6 +15,8 @@ export default function LoginPage() {
     if (success) {
       router.push('/dashboard')
     } else {
+      // In a real application, you'd want a more user-friendly error display
+      // than alert(), like a state variable that shows an error message on the page.
       alert('Invalid credentials')
     }
   }
@@ -22,53 +24,92 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-800 via-blue-700 to-blue-600 px-4 relative">
       {/* Background with Animated Education Icons */}
+      {/* Added Tailwind keyframes for floating icons */}
+      <style jsx>{`
+        @keyframes floating-icons {
+          0% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-20px);
+          }
+          100% {
+            transform: translateY(0);
+          }
+        }
+        .animate-floating-icons {
+          animation: floating-icons 6s ease-in-out infinite;
+        }
+      `}</style>
       <div className="absolute top-0 left-0 w-full h-full opacity-30">
         {/* Pencil Icon */}
-        <div className="absolute top-1/4 left-1/4 animate-floating-icons">
+        <div className="absolute top-1/4 left-1/4 animate-floating-icons" style={{ animationDelay: '0s' }}>
+          {/* Replaced placeholder SVG paths with actual pencil icon path */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className="text-white w-12 h-12 animate-bounce"
           >
-            <path d="M12 0C8.686 0 6 2.686 6 6c0 3.313 2.686 6 6 6s6-2.687 6-6c0-3.314-2.686-6-6-6zM12 10c-2.211 0-4-1.79-4-4 0-2.209 1.789-4 4-4s4 1.791 4 4c0 2.21-1.789 4-4 4z" />
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
         </div>
         {/* Book Icon */}
-        <div className="absolute top-1/2 right-1/4 animate-floating-icons">
+        <div className="absolute top-1/2 right-1/4 animate-floating-icons" style={{ animationDelay: '2s' }}>
+          {/* Replaced placeholder SVG paths with actual book icon path */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className="text-white w-12 h-12 animate-ping"
           >
-            <path d="M12 0C8.686 0 6 2.686 6 6c0 3.313 2.686 6 6 6s6-2.687 6-6c0-3.314-2.686-6-6-6zM12 10c-2.211 0-4-1.79-4-4 0-2.209 1.789-4 4-4s4 1.791 4 4c0 2.21-1.789 4-4 4z" />
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
           </svg>
         </div>
         {/* Graduation Cap Icon */}
-        <div className="absolute bottom-1/4 left-1/4 animate-floating-icons">
+        <div className="absolute bottom-1/4 left-1/4 animate-floating-icons" style={{ animationDelay: '4s' }}>
+           {/* Replaced placeholder SVG paths with actual graduation cap icon path */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className="text-white w-12 h-12 animate-bounce"
           >
-            <path d="M22 9.172l-10-5.86-10 5.86V20h4v-6h12v6h4V9.172z" />
+            <path d="M21.42 10.98l-6.17-6.17a6.41 6.41 0 0 0-9.09 0L2.58 10.98A6.41 6.41 0 0 0 0 15.58v.84a2.5 2.5 0 0 0 2.5 2.5h19a2.5 2.5 0 0 0 2.5-2.5v-.84a6.41 6.41 0 0 0-2.58-4.6z" />
+            <path d="M10 12.5v6" />
+             <path d="M14 12.5v6" />
+             <path d="M12 18.5v1.5" />
           </svg>
         </div>
-        {/* Pencil Icon */}
-        <div className="absolute bottom-1/2 right-1/4 animate-floating-icons">
+        {/* Another Pencil Icon */}
+        <div className="absolute bottom-1/2 right-1/4 animate-floating-icons" style={{ animationDelay: '6s' }}>
+           {/* Replaced placeholder SVG paths with actual pencil icon path */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className="text-white w-12 h-12 animate-ping"
           >
-            <path d="M21 11V3a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v3.172l1.586-1.586a2 2 0 1 1 2.828 2.828L12.828 8H19a1 1 0 0 0 1-1V3h-7v7h7a1 1 0 0 0 1-1V8h-2.828L12 6l-5.828 5.828L7 12h7z" />
+             <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
         </div>
       </div>
@@ -108,10 +149,10 @@ export default function LoginPage() {
         </button>
 
         <p className="text-center text-sm text-gray-500">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '} {/* Corrected: Escaped the apostrophe */}
           <span
             onClick={() => router.push('/signup')}
-            className="text-blue-200 underline cursor-pointer"
+            className="text-blue-700 hover:underline cursor-pointer" // Changed text color for better contrast
           >
             Sign Up
           </span>
