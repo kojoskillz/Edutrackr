@@ -151,7 +151,8 @@ export default function ClassPage() {
     // DataGrid state (still represents the current subject's view)
     const [rows, setRows] = React.useState<GridRowsProp<StudentRow>>([]); // Holds the student data for the selected class/subject
     // rowModesModel is used internally by DataGrid when passed as a prop to control row editing.
-    const [setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row
+    // Removed unused state setter 'setRowModesModel' as it was not being called.
+    const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row
     const [selectionModel, setSelectionModel] = React.useState<GridRowSelectionModel>([]); // Holds the IDs of selected rows (controlled selection)
 
     // Component lifecycle and mounting state
@@ -744,7 +745,8 @@ export default function ClassPage() {
         if (window.confirm("Delete this student&apos;s record from this class and all subjects?") && isMountedRef.current) {
 
             // idsToDelete is used in the filter calls below.
-            // const idsToDelete = [id]; // Create an array with the single ID to delete
+            // Uncommented the declaration of idsToDelete as it is used below.
+            const idsToDelete = [id]; // Create an array with the single ID to delete
 
             // 1. Remove student from the class's student list in the classes state
             setClasses(prevClasses =>
@@ -1470,6 +1472,7 @@ export default function ClassPage() {
             setOverallClassAverage(0);
             setShowOverallResults(false); // Hide overall results view
             // Overall results and dynamic columns will be recalculated by the effect hook
+            // based on the updated subjects state, which triggers the effect.
 
             toast.success(`Subject "${subjectToDelete.name}" and its data deleted.`);
         }
@@ -1776,10 +1779,11 @@ export default function ClassPage() {
                     return {
                         ...cls,
                         students: cls.students.map(student => {
-                             const updatedRow = positionedRows.find(row => row.id === student.id);
-                             if (updatedRow) {
+                             // Find the updated row in the current subject view to get latest image/remarks
+                             const updatedRowInCurrentView = rows.find(row => row.id === student.id); // Use 'rows' state which includes the updated row
+                             if (updatedRowInCurrentView) {
                                  // Update student details from the corresponding row in the current subject view
-                                 return { ...student, imageUrl: updatedRow.imageUrl, overallRemarks: updatedRow.overallRemarks };
+                                 return { ...student, imageUrl: updatedRowInCurrentView.imageUrl, overallRemarks: updatedRowInCurrentView.overallRemarks };
                              }
                              return student; // Keep existing student if not in current subject view (shouldn't happen with current logic)
                          }),
@@ -2405,7 +2409,10 @@ export default function ClassPage() {
                                         processRowUpdate={processRowUpdate} // Handle row updates
                                         onRowEditStop={handleRowEditStop} // Handle edit stop events
                                         disableRowSelectionOnClick // Prevent row selection when clicking anywhere on the row
-                                    // Add any other necessary DataGrid props here
+                                        // Pass rowModesModel and setRowModesModel to enable editing features
+                                        rowModesModel={rowModesModel}
+                                        onRowModesModelChange={setRowModesModel}
+                                        // Add any other necessary DataGrid props here
                                     />
                                 </div>
                             )}
@@ -2725,3 +2732,4 @@ export default function ClassPage() {
         </SidebarProvider> // End Sidebar context
     ); // End ClassPage component
 }
+
