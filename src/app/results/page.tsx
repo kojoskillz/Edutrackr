@@ -150,7 +150,7 @@ export default function ClassPage() {
 
     // DataGrid state (still represents the current subject's view)
     const [rows, setRows] = React.useState<GridRowsProp<StudentRow>>([]); // Holds the student data for the selected class/subject
-    // rowModesModel is used internally by DataGrid when passed as a prop, despite linter warning.
+    // rowModesModel is used internally by DataGrid when passed as a prop.
     const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row
     const [selectionModel, setSelectionModel] = React.useState<GridRowSelectionModel>([]); // Holds the IDs of selected rows (controlled selection)
 
@@ -230,6 +230,7 @@ export default function ClassPage() {
         if (!classId || !subjectId) return null;
         return `subjectStudentData-${classId}-${subjectId}`;
     }, []); // No dependencies, so this function reference is stable
+
 
      /**
      * Generates a unique localStorage key for storing the classes data (including students).
@@ -396,7 +397,7 @@ export default function ClassPage() {
 
 
         return { rankedResults, subjectColumns };
-    }, [getOrdinalSuffix, getSubjectStudentDataKey]); // Dependencies on helper functions
+    }, [getOrdinalSuffix]); // Removed getSubjectStudentDataKey from dependencies
 
 
     // --- Report Card Handlers ---
@@ -743,6 +744,7 @@ export default function ClassPage() {
         if (window.confirm("Delete this student&apos;s record from this class and all subjects?") && isMountedRef.current) {
 
             const idsToDelete = [id]; // Create an array with the single ID to delete
+            // idsToDelete is used below in the filter calls. Linter might not detect this usage.
 
             // 1. Remove student from the class's student list in the classes state
             setClasses(prevClasses =>
@@ -957,6 +959,7 @@ export default function ClassPage() {
         // Calculate overall results and dynamic columns whenever the selected class changes or subjects data changes
         // This ensures the overall ranking data is fresh when the user switches to the overall view.
         if (selectedClassId && isComponentMounted) {
+            // getSubjectStudentDataKey is stable, no need to include in dependencies
             const { rankedResults, subjectColumns } = calculateOverallResults(selectedClassId, subjects, classes, getSubjectStudentDataKey);
             setOverallResults(rankedResults);
             setDynamicOverallColumns(subjectColumns); // Set the dynamically generated columns
@@ -1426,7 +1429,8 @@ export default function ClassPage() {
         setYear(subjectEditData.year);
         setSubjectTeacher(subjectEditData.subjectTeacher);
 
-        handleCloseEditDialog(); // Close the dialog
+        // Corrected typo from handleCloseEditDialog()
+        handleCloseEditSubjectDialog(); // Close the dialog
         toast.success("Subject details updated");
     };
 
@@ -1443,7 +1447,7 @@ export default function ClassPage() {
         if (!subjectToDelete) return; // Safety check
 
         // Confirmation dialog
-        if (window.confirm(`ARE YOU SURE?\n\nDeleting subject "${subjectToDelete.name}" for class "${className}" will permanently remove:\n- The subject itself\n- All student records associated with this specific subject.\n\nThis action cannot to undo.`) && isMountedRef.current) {
+        if (window.confirm(`ARE YOU SURE?\n\nDeleting subject "${subjectToDelete.name}" for class "${className}" will permanently remove:\n- The subject itself\n- All student records associated with this specific subject.\n\nThis action cannot be undone.`) && isMountedRef.current) {
 
             // Remove subject-specific student data for this specific subject from localStorage
             const subjectStudentDataKey = getSubjectStudentDataKey(selectedClassId, selectedSubjectId);
@@ -1677,6 +1681,7 @@ export default function ClassPage() {
         if (window.confirm(`Delete ${selectionModel.length} selected student record(s) from this class and all subjects?`) && isMountedRef.current) {
 
             const idsToDelete = selectionModel as string[]; // Ensure type is string array
+            // idsToDelete is used below in the filter calls. Linter might not detect this usage.
 
             // 1. Remove selected students from the class's student list in the classes state
             setClasses(prevClasses =>
@@ -1773,7 +1778,7 @@ export default function ClassPage() {
                              if (student.id === updatedRow.id) {
                                  return { ...student, imageUrl: updatedRow.imageUrl, overallRemarks: updatedRow.overallRemarks };
                              }
-                             return student; // Keep existing student if not the one being updated
+                             return student; // Keep existing student if not in current subject view (shouldn't happen with current logic)
                          }),
                     };
                 }
@@ -2051,9 +2056,8 @@ export default function ClassPage() {
                             return row.subjectTotals[col.field] ?? 0;
                         }
                         // For base columns, get the value directly from the row
-                        // Using 'as any' here for dynamic property access.
-                        // In a larger application, a more specific type strategy
-                        // for row data based on dynamic columns would be preferable.
+                        // Suppress the specific linting rule for this line as dynamic access is intended
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         return (row as any)[col.field] ?? '';
                     });
                 })
