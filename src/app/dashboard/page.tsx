@@ -17,39 +17,18 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"; // Assuming this path is correct
 
-// import Box from "@mui/material/Box"; // Not used in this dashboard component
-import Tooltip from "@mui/material/Tooltip";
-import AddIcon from "@mui/icons-material/Add";
-// import EditIcon from "@mui/icons-material/Edit"; // Not used
-// import DeleteIcon from "@mui/icons-material/DeleteOutlined"; // Not used
-// import SaveIcon from "@mui/material/Save"; // Not used
-// import CancelIcon from "@mui/material/Close"; // Not used
-// import VisibilityIcon from "@mui/icons-material/Visibility"; // Not used
-// import SchoolIcon from "@mui/icons-material/School"; // Not used
-// import Modal from "@mui/material/Modal"; // Not used
-// import Typography from "@mui/material/Typography"; // Not used
+import Tooltip from "@mui/material/Tooltip"; // Still used for StatCard (though a custom tooltip might be better with Tailwind)
+import AddIcon from "@mui/icons-material/Add"; // Not used in the final component, can be removed
 
 import {
-  // DataGrid, // Not used
   GridRowsProp,
   GridRowModesModel,
   GridRowModes,
-  // GridColDef, // Not used
-  // GridActionsCellItem, // Not used
-  // GridEventListener, // Not used
-  // GridRowId, // Not used
-  // GridRowModel, // Not used
-  // GridRowEditStopReasons, // Not used
   GridSlotProps,
-  Toolbar as MuiToolbar, // Renamed to avoid conflict with a potential custom Toolbar
-  // Button as ToolbarButton, // Assuming this is from @mui/material or a similar UI library
-} from "@mui/x-data-grid";
+  Toolbar as MuiToolbar, // Not used in the final component, can be removed
+} from "@mui/x-data-grid"; // Only GridSlotProps, GridRowsProp, GridRowModesModel, GridRowModes are used for type hints, consider if needed
 
-// import { DatePicker } from "@mui/x-date-pickers/DatePicker"; // Not used
-// import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"; // Not used
-// import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"; // Not used
-// import dayjs from "dayjs"; // Not used
-import { randomId } from "@mui/x-data-grid-generator";
+import { randomId } from "@mui/x-data-grid-generator"; // Not used in the final component, can be removed
 
 // Import necessary hooks and components for the dashboard
 import { useAuth } from "@/context/AuthContext"; // Assuming this path is correct
@@ -72,77 +51,6 @@ import { useEffect, useState } from "react";
 
 // Register Chart.js components
 ChartJS.register(ArcElement, ChartTooltip, Legend, BarElement, CategoryScale, LinearScale, ChartTitle);
-
-
-// Define the type for a Student row (Note: This type is likely not needed in the Dashboard page itself,
-// but keeping it here as it was in the original code. It's more relevant for student data tables).
-// type StudentRow = {
-//   id: string;
-//   name: string;
-//   dob: string; // ISO string
-//   age: number;
-//   class: string;
-//   gender?: string;
-//   image?: string; // DataURL
-//   isNew?: boolean;
-// };
-
-// Helper function to calculate age from date of birth (Also likely not needed on Dashboard)
-// const calculateAge = (dob: string) => { // Commented out as not directly used in this dashboard
-//   const b = new Date(dob),
-//     today = new Date();
-//   let age = today.getFullYear() - b.getFullYear();
-//   const m = today.getMonth() - b.getMonth();
-//   if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
-//   return age;
-// };
-
-// Declare module for ToolbarPropsOverrides (This is for DataGrid, likely not needed on Dashboard)
-declare module "@mui/x-data-grid" {
-  interface ToolbarPropsOverrides {
-    setRows: React.Dispatch<React.SetStateAction<GridRowsProp>>;
-    setRowModesModel: React.Dispatch<React.SetStateAction<GridRowModesModel>>;
-  }
-}
-
-// Toolbar component for the DataGrid (This is for DataGrid, likely not needed on Dashboard)
-// If not used, this can be removed.
-function EditToolbar(props: GridSlotProps["toolbar"]) {
-  const { setRows, setRowModesModel } = props;
-  return (
-    <MuiToolbar>
-      <Tooltip title="Add Student">
-        <ToolbarButton
-          color="primary" // It's good practice to set color for buttons
-          startIcon={<AddIcon />} // MUI buttons often use startIcon/endIcon
-          onClick={() => {
-            const id = randomId();
-            // Add a new empty row with a unique ID and the 'isNew' flag
-            setRows((r) => [
-              ...r,
-              {
-                id,
-                name: "",
-                dob: new Date().toISOString(), // Default to today, can be changed
-                age: 0, // Will be calculated or entered
-                class: "", // Class is empty by default
-                gender: "Male",
-                isNew: true,
-              },
-            ]);
-            // Set the new row to edit mode and focus on the 'name' field
-            setRowModesModel((m) => ({
-              ...m,
-              [id]: { mode: GridRowModes.Edit, fieldToFocus: "name" },
-            }));
-          }}
-        >
-          Add record
-        </ToolbarButton>
-      </Tooltip>
-    </MuiToolbar>
-  );
-}
 
 // Main page component for the Dashboard
 export default function Page() {
@@ -171,7 +79,7 @@ export default function Page() {
   useEffect(() => {
     setAdminName(localStorage.getItem("adminName") || "Admin");
     setAdminImage(localStorage.getItem("adminImage") || "/profile-placeholder.png"); // Use placeholder if no image
-    
+
     // Example: Load teacher/student counts from localStorage or context if available
     setMaleTeachers(Number(localStorage.getItem("maleTeachersCount")) || 10); // Example value
     setFemaleTeachers(Number(localStorage.getItem("femaleTeachersCount")) || 15); // Example value
