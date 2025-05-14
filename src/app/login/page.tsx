@@ -5,7 +5,11 @@ import { useAuth } from '@/context/AuthContext'
 import { useState } from 'react'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const auth = useAuth()
+  if (!auth) {
+    throw new Error('AuthContext is not initialized. Ensure you are wrapping your component tree with AuthProvider.')
+  }
+  const { login } = auth
   const router = useRouter()
   const [form, setForm] = useState({ username: '', password: '' })
 
