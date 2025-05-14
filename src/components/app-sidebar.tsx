@@ -47,10 +47,10 @@ const data = {
           title: "Results",
           url: "/results",
         },
-        // {
-        //   title: "View Previous Results",
-        //   url: "/previous_results",
-        // },
+        {
+          title: "View Previous Results",
+          url: "/previous_results",
+        },
         {
           title: "Sign Out",
           url: "./",
