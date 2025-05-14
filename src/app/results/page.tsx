@@ -740,6 +740,8 @@ export default function ClassPage() {
         // Confirmation dialog
         if (window.confirm("Delete this student&apos;s record from this class and all subjects?") && isMountedRef.current) {
 
+            const idsToDelete = [id]; // Create an array with the single ID to delete
+
             // 1. Remove student from the class's student list in the classes state
             setClasses(prevClasses =>
                 prevClasses.map(cls => {
@@ -769,10 +771,11 @@ export default function ClassPage() {
                     if (savedRows) {
                         try {
                             const subjectRows: StudentRow[] = JSON.parse(savedRows); // Changed let to const
-                            const updatedSubjectRows = subjectRows.filter(row => !idsToDelete.includes(row.id));
+                            // Filter out the single student ID
+                            const updatedSubjectRows = subjectRows.filter(row => row.id !== id);
                             localStorage.setItem(subjectStudentDataKey, JSON.stringify(updatedSubjectRows));
                         } catch (error) {
-                            console.error(`Failed to update student data for subject ${subject.name} on multi-delete:`, error);
+                            console.error(`Failed to update student data for subject ${subject.name} on single delete:`, error);
                         }
                     }
                  }
@@ -1333,7 +1336,7 @@ export default function ClassPage() {
                             });
 
                             setRows(mergedRows);
-                            calculateAndSetAverage(mergedRows); // Calculate average for the loaded data
+                            calculateAndSetAverage(mergedRows); // Calculate average for loaded data
                             return; // Exit the function after successfully loading and merging
                         }
                     } catch (error) {
@@ -1764,12 +1767,11 @@ export default function ClassPage() {
                     return {
                         ...cls,
                         students: cls.students.map(student => {
-                             const updatedRowData = positionedRows.find(row => row.id === student.id); // Changed from updatedRow to updatedRowData to avoid conflict
-                             if (updatedRowData) {
-                                 // Update student details from the corresponding row in the current subject view
-                                 return { ...student, imageUrl: updatedRowData.imageUrl, overallRemarks: updatedRowData.overallRemarks };
+                             // Use the updatedRow directly to get the latest image and remarks
+                             if (student.id === updatedRow.id) {
+                                 return { ...student, imageUrl: updatedRow.imageUrl, overallRemarks: updatedRow.overallRemarks };
                              }
-                             return student; // Keep existing student if not in current subject view (shouldn't happen with current logic)
+                             return student; // Keep existing student if not the one being updated
                          }),
                     };
                 }
@@ -2087,7 +2089,7 @@ export default function ClassPage() {
                         }
                         .MuiDataGrid-columnHeaders, .MuiDataGrid-row {
                              border-bottom: 1px solid #eee !important; /* Add row separators */
-                        }
+                         }
                         .MuiDataGrid-cell, .MuiDataGrid-columnHeaderTitleContainer {
                             padding: 8px !important; /* Adjust cell padding */
                         }
