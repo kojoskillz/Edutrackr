@@ -48,7 +48,7 @@ export default function Page() {
   // const router = useRouter();
 
   // Accessing fees store and student context
-  const { paidFees: paid, unpaidFees: unpaid, setPaidFees, setUnpaidFees } = useFeesStore();
+  const { paidFees: paid, unpaidFees: unpaid } = useFeesStore();
   const { studentData, setStudentData } = useStudent();
 
   // State for managing classes and student data within classes
@@ -223,8 +223,11 @@ export default function Page() {
                 Update Admin Profile
               </h2>
               <form onSubmit={handleSubmit1} className="space-y-4 flex-grow flex flex-col justify-center"> {/* Center form content */}
+                <label htmlFor="adminName" className="block text-sm font-medium text-gray-700">Admin Name:</label>
                 <input
                   type="text"
+                  id="adminName"
+                  title="Admin Name"
                   placeholder="Enter your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
