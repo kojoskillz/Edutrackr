@@ -48,7 +48,7 @@ export default function Page() {
   // const router = useRouter();
 
   // Accessing fees store and student context
-  const { paidFees: paid, unpaidFees: unpaid } = useFeesStore();
+  const { paidFees: paid, unpaidFees: unpaid, setPaidFees, setUnpaidFees } = useFeesStore();
   const { studentData, setStudentData } = useStudent();
 
   // State for managing classes and student data within classes
@@ -424,3 +424,7 @@ export default function Page() {
     </SidebarProvider>
   );
 }
+function updateFees(paid: number, unpaid: number) {
+  throw new Error("Function not implemented.");
+}
+
