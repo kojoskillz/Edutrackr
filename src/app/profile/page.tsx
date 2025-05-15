@@ -44,15 +44,11 @@ export default function Page() {
   const [maleStudent, setMaleStudent] = useState(0);
   const [femaleStudent, setFemaleStudent] = useState(0);
 
-  // State for Fees
-  const [paid, setPaid] = useState(70); // Initial value set to 70
-  const [unpaid, setUnpaid] = useState(30); // Initial value set to 30
-
   // Removed the unused router variable
   // const router = useRouter();
 
   // Accessing fees store and student context
-  const { updateFees } = useFeesStore();
+  const { paidFees: paid, unpaidFees: unpaid } = useFeesStore();
   const { studentData, setStudentData } = useStudent();
 
   // State for managing classes and student data within classes
