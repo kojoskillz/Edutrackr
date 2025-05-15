@@ -48,7 +48,7 @@ export default function Page() {
   // const router = useRouter();
 
   // Accessing fees store and student context
-  const { paidFees: paid, unpaidFees: unpaid } = useFeesStore();
+  const { paidFees: paid, unpaidFees: unpaid, setPaidFees: setPaid, setUnpaidFees: setUnpaid } = useFeesStore();
   const { studentData, setStudentData } = useStudent();
 
   // State for managing classes and student data within classes
@@ -230,6 +230,7 @@ export default function Page() {
                   title="Admin Name"
                   placeholder="Enter your name"
                   value={name}
+                  title="Admin Name"
                   onChange={(e) => setName(e.target.value)}
                   className="w-full p-2 bg-slate-100 border rounded-md"
                 />
@@ -380,6 +381,7 @@ export default function Page() {
               {/* Dropdown to select the current class */}
               <label className="font-medium">Select Class:</label>
               <select
+                title="Select Class"
                 value={currentClass}
                 onChange={(e) => setCurrentClass(e.target.value)}
                 className="w-full p-2 bg-slate-100 border rounded-md"
@@ -427,7 +429,8 @@ export default function Page() {
     </SidebarProvider>
   );
 }
-function updateFees(paid: number, unpaid: number) {
+function updateFees() {
+  // TODO: Implement the updateFees function
   throw new Error("Function not implemented.");
 }
 
