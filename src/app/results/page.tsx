@@ -74,6 +74,7 @@ type StudentRow = Student & { // Inherit properties from Student type
     total?: number; // Calculated total score for this subject
     position?: string; // Calculated position in this subject
     remarks?: string; // Calculated remarks for this subject
+    grade?: string; // Added grade property for subject-specific grade
     isNew?: boolean; // Flag to indicate if the row is newly added and needs initial editing (per subject view)
 };
 
