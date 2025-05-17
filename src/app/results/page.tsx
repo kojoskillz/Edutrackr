@@ -549,7 +549,7 @@ export default function ClassPage() {
                     const updatedStudent = {
                         ...classes[currentClassIndex].students[studentIndex],
                         overallRemarks: reportCardOverallRemarks,
-                        imageUrl: reportCardImage,
+                        imageUrl: reportCardImage === null ? undefined : reportCardImage,
                     };
 
                     // Create a new classes array with the updated student
