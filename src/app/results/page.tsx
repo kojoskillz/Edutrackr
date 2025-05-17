@@ -571,7 +571,7 @@ export default function ClassPage() {
                     setRows(prevRows =>
                         prevRows.map(row =>
                             row.id === currentStudentReport.studentId
-                                ? { ...row, overallRemarks: reportCardOverallRemarks, imageUrl: reportCardImage }
+                                ? { ...row, overallRemarks: reportCardOverallRemarks, imageUrl: reportCardImage ?? undefined }
                                 : row
                         )
                     );
