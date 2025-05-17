@@ -13,7 +13,6 @@ import {
     GridRowEditStopReasons,
     GridEventListener,
     GridRowModel,
-    GridRowSelectionModel,
 } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
