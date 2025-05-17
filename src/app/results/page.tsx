@@ -153,7 +153,7 @@ export default function ClassPage() {
     // rowModesModel is used internally by DataGrid when passed as a prop to control row editing.
     // Removed unused state setter 'setRowModesModel' as it was not being called.
     const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row
-    const [selectionModel, setSelectionModel] = React.useState<GridRowSelectionModel>([]); // Holds the IDs of selected rows (controlled selection)
+    const [selectionModel, setSelectionModel] = React.useState([]); // Holds the IDs of selected rows (controlled selection)
 
     // Component lifecycle and mounting state
     const [isComponentMounted, setIsComponentMounted] = React.useState(false); // Tracks if the component has mounted (for localStorage access)
