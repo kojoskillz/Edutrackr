@@ -2,18 +2,34 @@
 'use client'
 import { createContext, useContext, useState, useEffect } from "react";
 
-const AuthContext = createContext(null);
+interface AuthContextProps {
+  user: User | null;
+  login: (username: string, password: string) => boolean;
+  logout: () => void;
+  signup: (username: string, password: string) => boolean;
+}
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+const AuthContext = createContext<AuthContextProps | null>(null);
+
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+interface User {
+  username: string;
+  password: string;
+}
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
     if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
-  const login = (username, password) => {
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
+  const login = (username: string, password: string): boolean => {
+    const users: User[] = JSON.parse(localStorage.getItem("users") || "[]");
     const foundUser = users.find(
       (u) => u.username === username && u.password === password
     );
@@ -25,9 +41,9 @@ export const AuthProvider = ({ children }) => {
     return false;
   };
 
-  const signup = (username, password) => {
+  const signup = (username: string, password: string) => {
     const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const userExists = users.find((u) => u.username === username);
+    const userExists: User | undefined = users.find((u: User) => u.username === username);
     if (userExists) return false;
 
     const newUser = { username, password };
