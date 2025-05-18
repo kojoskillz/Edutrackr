@@ -30,7 +30,7 @@ export default function Page() {
             <BreadcrumbList>
               <BreadcrumbItem><BreadcrumbLink href="#">Dashboard</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator/>
-              <BreadcrumbItem><BreadcrumbPage>Previous Results</BreadcrumbPage></BreadcrumbItem>
+              <BreadcrumbItem><BreadcrumbPage>Fee Payment</BreadcrumbPage></BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </header>
