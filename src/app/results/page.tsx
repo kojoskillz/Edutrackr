@@ -547,7 +547,7 @@ export default function ClassPage() {
                     const updatedStudent = {
                         ...classes[currentClassIndex].students[studentIndex],
                         overallRemarks: reportCardOverallRemarks,
-                        imageUrl: reportCardImage,
+                        imageUrl: reportCardImage ?? undefined,
                     };
 
                     // Create a new classes array with the updated student
@@ -1776,13 +1776,12 @@ export default function ClassPage() {
                     return {
                         ...cls,
                         students: cls.students.map(student => {
-                             const updatedRow = positionedRows.find(row => row.id === student.id);
-                             if (updatedRow) {
-                                 // Update student details from the corresponding row in the current subject view
-                                 return { ...student, imageUrl: updatedRow.imageUrl, overallRemarks: updatedRow.overallRemarks };
-                             }
-                             return student; // Keep existing student if not in current subject view (shouldn't happen with current logic)
-                         }),
+                            if (student.id === updatedRow.id) {
+                                // Update student details from the updatedRow
+                                return { ...student, imageUrl: updatedRow.imageUrl, overallRemarks: updatedRow.overallRemarks };
+                            }
+                            return student; // Keep existing student if not the updated one
+                        }),
                     };
                 }
                 return cls;
