@@ -870,7 +870,6 @@ export default function ClassesPage() {
                                 className="h-16 w-16 rounded-full object-cover"
                               />
                             )}
-                            )}
                             {/* Display student details */}
                             <p>
                               <strong>Name:</strong> {viewStudentRow.name}
