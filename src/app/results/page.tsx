@@ -151,9 +151,10 @@ export default function ClassPage() {
 
     // DataGrid state (still represents the current subject's view)
     const [rows, setRows] = React.useState<GridRowsProp<StudentRow>>([]); // Holds the student data for the selected class/subject
-    // rowModesModel is used internally by DataGrid when passed as a prop to control row editing.
-    // Removed unused rowModesModel state
-    const [selectionModel, setSelectionModel] = React.useState([]); // Holds the IDs of selected rows (controlled selection)
+    const [selectionModel, setSelectionModel] = React.useState<string[]>([]); // <-- Explicitly type as string[]
+
+    // Add this state for rowModesModel (for editing rows in DataGrid)
+    const [rowModesModel, setRowModesModel] = React.useState<{ [key: string]: { mode: GridRowModes; fieldToFocus?: string } }>({});
 
     // Component lifecycle and mounting state
     const [isComponentMounted, setIsComponentMounted] = React.useState(false); // Tracks if the component has mounted (for localStorage access)
@@ -2401,6 +2402,8 @@ export default function ClassPage() {
                                         onRowSelectionModelChange={(newSelectionModel) => {
                                             setSelectionModel(newSelectionModel as string[]); // Ensure string[] type
                                         }}
+                                        rowModesModel={rowModesModel}
+                                        onRowModesModelChange={setRowModesModel}
                                         getRowId={(row) => row.id} // Ensure you have a unique 'id' field in your data
                                         processRowUpdate={processRowUpdate} // Handle row updates
                                         onRowEditStop={handleRowEditStop} // Handle edit stop events
