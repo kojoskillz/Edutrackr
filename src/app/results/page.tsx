@@ -8,12 +8,12 @@ import {
     GridColDef,
     GridRowsProp,
     GridRowModes,
-    GridRowModesModel, // rowModesModel is used internally by DataGrid when passed as a prop
+    // GridRowModesModel, // rowModesModel is used internally by DataGrid when passed as a prop
     GridActionsCellItem,
     GridRowEditStopReasons,
     GridEventListener,
     GridRowModel,
-    GridRowSelectionModel,
+    // GridRowSelectionModel,
 } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
@@ -74,6 +74,7 @@ type StudentRow = Student & { // Inherit properties from Student type
     total?: number; // Calculated total score for this subject
     position?: string; // Calculated position in this subject
     remarks?: string; // Calculated remarks for this subject
+    grade?: string; // Added grade property for subject-specific grade
     isNew?: boolean; // Flag to indicate if the row is newly added and needs initial editing (per subject view)
 };
 
@@ -151,8 +152,8 @@ export default function ClassPage() {
     // DataGrid state (still represents the current subject's view)
     const [rows, setRows] = React.useState<GridRowsProp<StudentRow>>([]); // Holds the student data for the selected class/subject
     // rowModesModel is used internally by DataGrid when passed as a prop to control row editing.
-    const [setRowModesModel] = React.useState<GridRowModesModel>({}); // Controls edit/view mode for each row
-    const [selectionModel, setSelectionModel] = React.useState<GridRowSelectionModel>([]); // Holds the IDs of selected rows (controlled selection)
+    // Removed unused rowModesModel state
+    const [selectionModel, setSelectionModel] = React.useState([]); // Holds the IDs of selected rows (controlled selection)
 
     // Component lifecycle and mounting state
     const [isComponentMounted, setIsComponentMounted] = React.useState(false); // Tracks if the component has mounted (for localStorage access)
@@ -2724,3 +2725,4 @@ export default function ClassPage() {
         </SidebarProvider> // End Sidebar context
     ); // End ClassPage component
 }
+
