@@ -61,6 +61,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"; // Needed for DatePicker
 import dayjs from "dayjs"; // Needed for DatePicker
 import { randomId } from "@mui/x-data-grid-generator";
+import Image from "next/image"; // Import Next.js Image component
 
 
 // --- Type Definitions ---
@@ -860,13 +861,15 @@ export default function ClassesPage() {
                             {/* Display student image if available */}
                             {/* Using <img> tag here as this is a standalone React component,
                                 not a Next.js application where next/image would be preferred for optimization. */}
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             {viewStudentRow.image && (
-                              <img
+                              <Image
                                 src={viewStudentRow.image}
                                 alt="student photo"
+                                width={64}
+                                height={64}
                                 className="h-16 w-16 rounded-full object-cover"
                               />
+                            )}
                             )}
                             {/* Display student details */}
                             <p>
