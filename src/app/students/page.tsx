@@ -546,6 +546,8 @@ export default function ClassesPage() {
           <input
             type="file"
             accept="image/*"
+            title="Upload student photo"
+            placeholder="Upload student photo"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (!file) return;
@@ -554,7 +556,7 @@ export default function ClassesPage() {
                 // Set the cell value to the data URL of the selected image
                 api.setEditCellValue(
                   { id, field, value: reader.result },
-                  reader.result
+                  undefined
                 );
               };
               reader.readAsDataURL(file); // Read the file as a data URL
@@ -582,7 +584,7 @@ export default function ClassesPage() {
               // Set the cell value to the ISO string of the selected date
               api.setEditCellValue(
                 { id, field, value: v?.toISOString() },
-                v
+                undefined
               );
             }}
             slotProps={{ textField: { variant: "standard", fullWidth: true } }}
@@ -747,7 +749,7 @@ export default function ClassesPage() {
                         onRowModesModelChange={setClassRowModesModel}
                         onRowEditStop={handleClassRowEditStop}
                         processRowUpdate={processClassRowUpdate} // Function to call after row update
-                        slots={{ toolbar: ClassEditToolbar as React.ElementType }} // Use custom toolbar (contains the Add Class button)
+                        slots={{ toolbar: ClassEditToolbar }} // Use custom toolbar (contains the Add Class button)
                         slotProps={{ toolbar: { setRows: setClassRows, setRowModesModel: setClassRowModesModel } }} // Pass props to toolbar
                         showToolbar // Display the toolbar
                       />
@@ -832,9 +834,8 @@ export default function ClassesPage() {
                         onRowModesModelChange={setStudentRowModesModel}
                         onRowEditStop={handleStudentRowEditStop}
                         processRowUpdate={processStudentRowUpdate} // Function to call after row update
-                        slots={{ toolbar: StudentEditToolbar as React.ElementType }} // Use custom toolbar (contains the Add Student and Copy All button)
+                        slots={{ toolbar: StudentEditToolbar }} // Use custom toolbar (contains the Add Student and Copy All button)
                         slotProps={{ toolbar: { setRows: setAllStudents, setRowModesModel: setStudentRowModesModel, className: selectedClassName || '', onCopyAllStudentNames: handleCopyAllStudentNames } }} // Pass props including className and copy handler
-                        showToolbar // Display the toolbar
                       />
                     </Box>
 
