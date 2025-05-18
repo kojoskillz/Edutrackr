@@ -530,13 +530,13 @@ export default function ClassesPage() {
       editable: true,
       renderCell: (p) =>
         // Render image if available
-        // Using <img> tag here as this is a standalone React component,
-        // not a Next.js application where next/image would be preferred for optimization.
-        // eslint-disable-next-line @next/next/no-img-element
+        // Using Next.js <Image /> for optimized image rendering.
         p.value ? (
-          <img
+          <Image
             src={p.value as string}
             alt="student photo"
+            width={32}
+            height={32}
             className="h-8 w-8 rounded-full object-cover"
           />
         ) : null,
