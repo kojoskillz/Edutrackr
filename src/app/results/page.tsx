@@ -58,7 +58,7 @@ import DownloadIcon from '@mui/icons-material/Download'; // Import DownloadIcon
 type Student = {
     id: string; // Unique identifier for the student
     name: string; // Student's name
-    imageUrl?: string; // Added field for student image (base64 or URL) - Stored per student
+    imageUrl?: string | null; // Added field for student image (base64 or URL) - Stored per student
     overallRemarks?: string; // Added field for overall remarks for the student in this class
 };
 
@@ -484,7 +484,7 @@ export default function ClassPage() {
             className: currentClassDetails?.name || "N/A",
             term: term,
             year: year,
-            imageUrl: studentImageUrl, // Use the image URL from the student details in classes state
+            imageUrl: studentImageUrl || "", // Use the image URL from the student details in classes state
             overallRemarks: studentOverallRemarks, // Use overall remarks from the student details in classes state
             subjectResults: aggregatedSubjectResults,
             // Include overall percentage and grade from the calculated overall results
