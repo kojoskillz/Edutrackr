@@ -1,5 +1,4 @@
 import * as React from "react"
-
 import { SearchForm } from "@/components/search-form"
 import { VersionSwitcher } from "@/components/version-switcher"
 import {
@@ -15,6 +14,16 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
+import {
+  Home,
+  User,
+  Users,
+  DollarSign,
+  FileText,
+  Clock,
+  LogOut,
+} from "lucide-react" // <== Icons from lucide-react
+
 // This is sample data.
 const data = {
   versions: ["1.0.1", "1.1.0-alpha", "2.0.0-beta1"],
@@ -23,38 +32,14 @@ const data = {
       title: "",
       url: "#",
       items: [
-        {
-          title: "Dashboard",
-          url: "/dashboard ",
-        },
-        {
-          title: "Profile",
-          url: "/profile ",
-        },
-        {
-          title: "Teachers",
-          url: "/teachers",
-        },
-        {
-          title: "Class/Students",
-          url: "/students",
-        },
-        {
-          title: "Fee payment",
-          url: "/fee_payment",
-        },
-        {
-          title: "Results",
-          url: "/results",
-        },
-        {
-          title: "View Previous Results",
-          url: "/previous_results",
-        },
-        {
-          title: "Sign Out",
-          url: "./",
-        },
+        { title: "Dashboard", url: "/dashboard", icon: <Home size={16} /> },
+        { title: "Profile", url: "/profile", icon: <User size={16} /> },
+        { title: "Teachers", url: "/teachers", icon: <Users size={16} /> },
+        { title: "Class/Students", url: "/students", icon: <Users size={16} /> },
+        { title: "Fee payment", url: "/fee_payment", icon: <DollarSign size={16} /> },
+        { title: "Results", url: "/results", icon: <FileText size={16} /> },
+        { title: "View Previous Results", url: "/previous_results", icon: <Clock size={16} /> },
+        { title: "Sign Out", url: "./", icon: <LogOut size={16} /> },
       ],
     },
   ],
@@ -66,21 +51,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="bg-blue-800 text-white">
         <VersionSwitcher
           versions={data.versions}
-          defaultVersion={data.versions[0]} 
+          defaultVersion={data.versions[0]}
         />
-        <SearchForm  />
+        <SearchForm />
       </SidebarHeader>
       <SidebarContent className="bg-blue-800 text-white">
-        {/* We create a SidebarGroup for each parent. */}
         {data.navMain.map((item) => (
           <SidebarGroup key={item.title}>
             <SidebarGroupLabel>{item.title}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {item.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={item.isActive}>
-                      <a href={item.url}>{item.title}</a>
+                {item.items.map((menuItem) => (
+                  <SidebarMenuItem key={menuItem.title}>
+                    <SidebarMenuButton asChild isActive={menuItem.isActive}>
+                      <a
+                        href={menuItem.url}
+                        className="flex items-center gap-2"
+                      >
+                        {menuItem.icon}
+                        {menuItem.title}
+                      </a>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
