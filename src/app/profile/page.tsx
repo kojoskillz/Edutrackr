@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -240,7 +241,15 @@ export default function Page() {
     }
   };
 
-  const { setPaidFees, setUnpaidFees } = useFeesStore();
+  const {  } = useFeesStore();
+
+  function setPaidFees(arg0: number): void {
+    throw new Error("Function not implemented.");
+  }
+
+  function setUnpaidFees(arg0: number): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <SidebarProvider>
