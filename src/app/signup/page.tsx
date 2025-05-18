@@ -6,12 +6,20 @@ import { useState } from 'react'
 
 export default function SignUpPage() {
   const router = useRouter()
-  const { signup } = useAuth()
+  type AuthContextType = {
+    signup: (username: string, password: string) => boolean
+    // add other properties/methods from your AuthContext if needed
+  }
+  const auth = useAuth() as AuthContextType | null
   const [form, setForm] = useState({ username: '', password: '' })
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const success = signup(form.username, form.password)
+    if (!auth || !auth.signup) {
+      alert('Authentication service unavailable.')
+      return
+    }
+    const success = auth.signup(form.username, form.password)
     if (success) {
       router.push('/dashboard')
     } else {
