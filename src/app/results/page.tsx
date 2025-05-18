@@ -393,7 +393,7 @@ export default function ClassPage() {
             editable: false, // Subject totals are calculated, not edited here
             sortable: true,
             // Value getter to display the total score for this subject from the subjectTotals object
-            valueGetter: (value, row) => row.subjectTotals[subject.id] ?? 0, // Default to 0 if no data for this subject
+            valueGetter: (_value, row) => row.subjectTotals[subject.id] ?? 0, // Default to 0 if no data for this subject
         }));
 
 
@@ -1010,7 +1010,7 @@ export default function ClassPage() {
             editable: false, // This column is calculated, so users cannot edit it directly
             sortable: true, // Allow sorting by total score
             // Dynamically calculates the total based on other scores in the row
-            valueGetter: (value, row) => {
+            valueGetter: (_value, row) => {
                 const cat1 = row.cat1 || 0;
                 const cat2 = row.cat2 || 0;
                 const projectWork = row.projectWork || 0;
@@ -1551,9 +1551,9 @@ export default function ClassPage() {
                      return updatedRows;
                 });
                 // Set the edit mode for the newly added row in the grid
-                setRowModesModel((prev) => ({
-                    ...prev,
-                    [newId]: { mode: GridRowModes.Edit, fieldToFocus: "name" }, // Focus name field
+                setRowModesModel((prev: { [key: string]: { mode: GridRowModes } }) => ({
+                     ...(prev || {}),
+                     [newId]: { mode: GridRowModes.Edit, fieldToFocus: "name" }, // Focus name field
                 }));
             } else {
                  // If no subject is selected, just show a success message about adding to the class
@@ -2724,5 +2724,10 @@ export default function ClassPage() {
             </SidebarInset> {/* End Main content area */}
         </SidebarProvider> // End Sidebar context
     ); // End ClassPage component
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function setRowModesModel(_arg0: (prev: never) => unknown) {
+    throw new Error("Function not implemented.");
 }
 
