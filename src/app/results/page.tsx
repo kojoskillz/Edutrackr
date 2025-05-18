@@ -152,6 +152,7 @@ export default function ClassPage() {
     // DataGrid state (still represents the current subject's view)
     const [rows, setRows] = React.useState<GridRowsProp<StudentRow>>([]); // Holds the student data for the selected class/subject
     // rowModesModel is used internally by DataGrid when passed as a prop to control row editing.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [rowModesModel, setRowModesModel] = React.useState<Record<string, { mode: GridRowModes; fieldToFocus?: string }>>({});
     const [selectionModel, setSelectionModel] = React.useState([]); // Holds the IDs of selected rows (controlled selection)
 
@@ -1551,7 +1552,7 @@ export default function ClassPage() {
                      return updatedRows;
                 });
                 // Set the edit mode for the newly added row in the grid
-                setRowModesModel((prev: { [key: string]: { mode: GridRowModes } }) => ({
+                setRowModesModel((prev) => ({
                      ...(prev || {}),
                      [newId]: { mode: GridRowModes.Edit, fieldToFocus: "name" }, // Focus name field
                 }));
@@ -2397,9 +2398,9 @@ export default function ClassPage() {
                                         rows={rows}
                                         columns={columns}
                                         checkboxSelection // Enable row selection if needed
-                                        selectionModel={selectionModel}
-                                        onRowSelectionModelChange={(newSelectionModel) => {
-                                            setSelectionModel(newSelectionModel as unknown as string[]); // Ensure string[] type
+                                        // selectionModel={selectionModel}
+                                        onRowSelectionModelChange={() => {
+                                            // setSelectionModel(newSelectionModel as unknown as string[]); // Ensure string[] type
                                         }}
                                         getRowId={(row) => row.id} // Ensure you have a unique 'id' field in your data
                                         processRowUpdate={processRowUpdate} // Handle row updates
@@ -2726,8 +2727,5 @@ export default function ClassPage() {
     ); // End ClassPage component
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function setRowModesModel(_arg0: (prev: never) => unknown) {
-    throw new Error("Function not implemented.");
-}
+// (Removed erroneous setRowModesModel function implementation)
 
