@@ -21,7 +21,8 @@ import Box from "@mui/material/Box";
 import Modal from "@mui/material/Modal";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
-import { Grid } from "@mui/material";
+import Grid from "@mui/material/Grid";
+
 // Removed unused Tooltip import
 // import Tooltip from "@mui/material/Tooltip";
 
@@ -262,8 +263,10 @@ export default function TeachersPage() {
 
         <div className="flex flex-1 flex-col bg-gray-100 p-4">
           <div className="mb-4 flex justify-between items-center">
+            <label htmlFor="search" className="sr-only">Search by name</label>
             <input
               type="text"
+              id="search"
               placeholder="Search by name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -317,101 +320,105 @@ export default function TeachersPage() {
               maxHeight: '90vh', overflowY: 'auto' // Add scrolling for smaller screens
             }}>
             <h2 className="text-xl font-semibold mb-4">Add New Teacher</h2>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
+            <Grid container spacing={2} className="p-10">
+              <div className="mb-4">
                 <TextField
                   fullWidth label="Teacher ID"
                   value={newTeacher.teacherId}
                   onChange={e => setNewTeacher(t => ({...t, teacherId: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={12}>
+              </div>
+              <div>
                 <TextField
                   fullWidth label="Name"
                   value={newTeacher.name}
                   onChange={e => setNewTeacher(t => ({...t, name: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </div>
+              <div>
                 <TextField
                   fullWidth label="Age" type="number"
                   value={newTeacher.age}
                   onChange={e => setNewTeacher(t => ({...t, age: Number(e.target.value)}))}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </div>
+              <div>
                 <TextField
                   fullWidth label="Subject"
                   value={newTeacher.subject}
                   onChange={e => setNewTeacher(t => ({...t, subject: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={12}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teacher Image</label> {/* Added label */}
+              </div>
+              <div className="mb-4">
+                <label htmlFor="teacherImage" className="block text-sm font-medium text-gray-700 mb-1">Teacher Image</label> {/* Added label */}
                 <input
-                  type="file" accept="image/*"
+                  type="file"
+                  id="teacherImage"
+                  accept="image/*"
                   onChange={handleImageChange}
                   className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" // Styled input
                 />
-              </Grid>
               {newTeacher.image && (
-                <Grid item xs={12}>
+                <div>
                   <img
                     src={newTeacher.image}
                     alt="Preview"
+                    width={96}
+                    height={96}
                     className="h-24 w-24 object-cover rounded"
                   />
-                </Grid>
+                </div>
               )}
-              <Grid item xs={6}>
+              </div>
+              <div>
                  <TextField
                   fullWidth label="DOB" type="date"
                   InputLabelProps={{ shrink: true }}
                   value={newTeacher.dob}
                   onChange={e => setNewTeacher(t => ({...t, dob: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </div>
+              <div>
                 <TextField
                   fullWidth label="Appointment Date" type="date"
                   InputLabelProps={{ shrink: true }}
                   value={newTeacher.appointmentLetter}
                   onChange={e => setNewTeacher(t => ({...t, appointmentLetter: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </div>
+              <div>
                 <TextField
                   fullWidth label="First Rank Date" type="date"
                   InputLabelProps={{ shrink: true }}
                   value={newTeacher.firstRankDate}
                   onChange={e => setNewTeacher(t => ({...t, firstRankDate: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </div>
+              <div >
                 <TextField
                   fullWidth label="SSNIT ID"
                   value={newTeacher.ssnitId}
                   onChange={e => setNewTeacher(t => ({...t, ssnitId: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </div>
+              <div>
                 <TextField
                   fullWidth label="Bank Account"
                   value={newTeacher.bankAccount}
                   onChange={e => setNewTeacher(t => ({...t, bankAccount: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </div>
+              <div >
                 <TextField
                   fullWidth label="Contact"
                   value={newTeacher.contact}
                   onChange={e => setNewTeacher(t => ({...t, contact: e.target.value}))}
                 />
-              </Grid>
-              <Grid item xs={12} className="flex justify-end gap-2">
+              </div>
+              <div className="flex justify-end gap-2">
                 <Button variant="outlined" onClick={() => setAddModalOpen(false)}>Cancel</Button>
                 <Button variant="contained" onClick={handleAddTeacher}>Add</Button>
-              </Grid>
+              </div>
             </Grid>
           </Box>
         </Modal>
@@ -428,37 +435,37 @@ export default function TeachersPage() {
             }}>
             <h2 className="text-xl font-semibold mb-4">Teacher Details</h2>
             {selectedTeacher ? (
-              <Grid container spacing={2}>
+              <div>
                  {/* Display Image */}
                  {selectedTeacher.image && (
-                  <Grid item xs={12} className="flex justify-center"> {/* Center the image */}
+                  <div  className="flex justify-center"> {/* Center the image */}
                     <img
                       src={selectedTeacher.image}
                       alt={`${selectedTeacher.name}'s image`}
                       className="h-32 w-32 object-cover rounded-full border-2 border-blue-500" // Make image round
                     />
-                  </Grid>
+                  </div>
                 )}
                 {/* Display other details */}
                 {Object.entries(selectedTeacher).map(([key, val]) =>
-                   // Exclude 'id', 'isNew', and 'image' keys from TextField rendering
+                  // Exclude 'id', 'isNew', and 'image' keys from TextField rendering
                   key !== "id" && key !== "isNew" && key !== "image" ? (
-                    <Grid item xs={12} key={key}>
+                    <div key={key}>
                       <TextField
                         fullWidth
                         label={key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')} // Capitalize and space out camelCase
                         value={String(val)}
                         InputProps={{ readOnly: true }}
                       />
-                    </Grid>
+                    </div>
                   ) : null
                 )}
-                <Grid item xs={12} className="text-right">
+                <div className="text-right">
                   <Button variant="contained" onClick={() => setDetailsModalOpen(false)}>
                     Close
                   </Button>
-                </Grid>
-              </Grid>
+                </div>
+              </div>
             ) : (
               <p>Loading...</p>
             )}
