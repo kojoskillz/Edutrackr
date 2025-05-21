@@ -141,7 +141,6 @@ function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
       <div>
         <Tooltip title={`Add Student to ${className}`}>
           <ToolbarButton
-            variant="contained"
             color="primary"
             size="small" // ADDED: Make the button smaller
             className=" hover:bg-blue-600 transition-colors duration-200"
@@ -173,38 +172,39 @@ function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
           </ToolbarButton>
         </Tooltip>
       </div>
-      <div className="flex gap-2"> {/* Group copy buttons */}
+      <div className="flex gap-2">
+        {/* Group copy buttons */}
         <Tooltip title={`Copy All Student Names in ${className}`}>
           <ToolbarButton
-            variant="text"
-            color="secondary"
+            color="primary"
             size="small" // ADDED: Make the button smaller
             className="rounded-lg hover:bg-gray-200 transition-colors duration-200"
             onClick={onCopyAllStudentNames}
           >
-            <ContentCopyIcon fontSize="small" /> Names
+            <ContentCopyIcon fontSize="small" />
+            Names
           </ToolbarButton>
         </Tooltip>
         <Tooltip title={`Copy Student Names, Phone Numbers, and Emails in ${className}`}>
           <ToolbarButton
-            variant="text"
-            color="secondary"
+            color="primary"
             size="small" // ADDED: Make the button smaller
             className="rounded-lg hover:bg-gray-200 transition-colors duration-200"
             onClick={onCopyStudentContactInfo}
           >
-            <ContentCopyIcon fontSize="small" /> Contact Info
+            <ContentCopyIcon fontSize="small" />
+            Contact Info
           </ToolbarButton>
         </Tooltip>
         <Tooltip title={`Copy Student Names, Class, Phone Numbers, and Emails in ${className}`}>
           <ToolbarButton
-            variant="text"
-            color="secondary"
+            color="primary"
             size="small" // ADDED: Make the button smaller
             className="rounded-lg hover:bg-gray-200 transition-colors duration-200"
             onClick={onCopyStudentNameClassContactInfo}
           >
-            <ContentCopyIcon fontSize="small" /> Names, Class & Contact
+            <ContentCopyIcon fontSize="small" />
+            Class Contact Info
           </ToolbarButton>
         </Tooltip>
       </div>
