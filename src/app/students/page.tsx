@@ -1,36 +1,29 @@
 "use client";
 
 import * as React from "react";
-// Removed unused useRouter import
-// import { useRouter } from "next/navigation";
 import {
     DataGrid,
     GridColDef,
     GridRowsProp,
     GridRowModes,
-    GridRowModesModel, // rowModesModel is used internally by DataGrid when passed as a prop
+    GridRowModesModel,
     GridActionsCellItem,
     GridRowEditStopReasons,
     GridEventListener,
     GridRowModel,
     GridRowId,
     GridSlotProps,
-    Toolbar,
     ToolbarButton,
+    GridToolbarContainer,
 } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
-import SaveIcon from "@mui/icons-material/Save"; // Correct import path
+import SaveIcon from "@mui/icons-material/Save";
 import EditIcon from "@mui/icons-material/Edit";
-import VisibilityIcon from '@mui/icons-material/Visibility'; // Icon for viewing report card
-import SchoolIcon from "@mui/icons-material/School"; // Icon for viewing students
-import ContentCopyIcon from "@mui/icons-material/ContentCopy"; // Icon for copying
-import CancelIcon from "@mui/icons-material/Close"; // Corrected import path
-
-// Removed unused PrintIcon and DownloadIcon imports
-// import PrintIcon from '@mui/icons-material/Print'; // Icon for printing
-// import DownloadIcon from '@mui/icons-material/Download'; // Import DownloadIcon
-
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import SchoolIcon from "@mui/icons-material/School";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CancelIcon from "@mui/icons-material/Close";
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -43,25 +36,17 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
-// import { toast } from "react-toastify"; // toast is not used in this file
-import "react-toastify/dist/ReactToastify.css"; // Still needed for the toast styles if used elsewhere in the app
+import "react-toastify/dist/ReactToastify.css";
 import {
-    Button, Typography,Modal, Box, Tooltip, Snackbar, Alert // Added Modal, Box, Tooltip, Snackbar, Alert imports
+    Button, Typography, Modal, Box, Tooltip, Snackbar, Alert
 } from "@mui/material";
 
-// Dynamically import excel libraries using standard import() syntax
-// These will be loaded only when needed (e.g., when export functions are called)
-// Use React.lazy or dynamic import with a check if needed, but for simple
-// client-side use within event handlers, direct dynamic import is fine.
-// Removed unused type imports: FileSaverTypes, XLSXTypes
-
-
-import { DatePicker } from "@mui/x-date-pickers/DatePicker"; // Needed for student DOB
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"; // Needed for DatePicker
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"; // Needed for DatePicker
-import dayjs from "dayjs"; // Needed for DatePicker
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import { randomId } from "@mui/x-data-grid-generator";
-import Image from "next/image"; // Import Next.js Image component
+import Image from "next/image";
 
 
 // --- Type Definitions ---
@@ -76,7 +61,7 @@ type ClassRow = {
   isNew?: boolean;
 };
 
-// Define the type for a Student row (Copied from the students page)
+// Define the type for a Student row, including new parent contact fields
 type StudentRow = {
   id: string;
   name: string;
@@ -85,11 +70,13 @@ type StudentRow = {
   class: string; // This will store the class name
   gender?: string;
   image?: string; // DataURL
+  parentPhoneNumber?: string; // New field for parent's phone number
+  parentEmail?: string; // New field for parent's email address
   isNew?: boolean;
 };
 
 
-// Helper function to calculate age from date of birth (Copied from the students page)
+// Helper function to calculate age from date of birth
 const calculateAge = (dob: string) => {
   const b = new Date(dob),
     today = new Date();
@@ -104,10 +91,10 @@ declare module "@mui/x-data-grid" {
   interface ToolbarPropsOverrides {
     setRows: React.Dispatch<React.SetStateAction<GridRowsProp>>;
     setRowModesModel: React.Dispatch<React.SetStateAction<GridRowModesModel>>;
-    // Add className for the student toolbar
-    className?: string; // Optional as it's only for student toolbar
-    // Add prop for copying all student names
+    className?: string;
     onCopyAllStudentNames: () => void;
+    onCopyStudentContactInfo: () => void;
+    onCopyStudentNameClassContactInfo: () => void; // New prop for copying name, class, phone, email
   }
 }
 
@@ -115,7 +102,7 @@ declare module "@mui/x-data-grid" {
 function ClassEditToolbar(props: GridSlotProps["toolbar"]) {
   const { setRows, setRowModesModel } = props;
   return (
-    <Toolbar>
+    <GridToolbarContainer>
       <Tooltip title="Add Class">
         <ToolbarButton
           onClick={() => {
@@ -142,18 +129,22 @@ function ClassEditToolbar(props: GridSlotProps["toolbar"]) {
           <AddIcon fontSize="small" />
         </ToolbarButton>
       </Tooltip>
-    </Toolbar>
+    </GridToolbarContainer>
   );
 }
 
-// Toolbar component for the Students DataGrid, includes an "Add Student" and "Copy All" button
+// Toolbar component for the Students DataGrid, includes "Add Student", "Copy All Names", and "Copy Contact Info" buttons
 function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
-  const { setRows, setRowModesModel, className, onCopyAllStudentNames } = props; // Receive className and onCopyAllStudentNames props
+  const { setRows, setRowModesModel, className, onCopyAllStudentNames, onCopyStudentContactInfo, onCopyStudentNameClassContactInfo } = props;
   return (
-    <Toolbar className="flex justify-between w-full">
+    <GridToolbarContainer className="flex justify-between w-full">
       <div>
         <Tooltip title={`Add Student to ${className}`}>
           <ToolbarButton
+            variant="contained"
+            color="primary"
+            size="small" // ADDED: Make the button smaller
+            className=" hover:bg-blue-600 transition-colors duration-200"
             onClick={() => {
               const id = randomId();
               // Add a new empty row, pre-filling the class with the current className
@@ -164,8 +155,10 @@ function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
                   name: "",
                   dob: "",
                   age: 0,
-                  class: className || "", // Set the class to the current class name, default to empty if not available
+                  class: className || "",
                   gender: "Male",
+                  parentPhoneNumber: "", // Initialize new fields
+                  parentEmail: "", // Initialize new fields
                   isNew: true,
                 },
               ]);
@@ -176,42 +169,69 @@ function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
               }));
             }}
           >
-            <AddIcon fontSize="small" />
+            <AddIcon fontSize="small" /> Add Student
           </ToolbarButton>
         </Tooltip>
       </div>
-      <div>
+      <div className="flex gap-2"> {/* Group copy buttons */}
         <Tooltip title={`Copy All Student Names in ${className}`}>
-          <ToolbarButton onClick={onCopyAllStudentNames}>
-            <ContentCopyIcon fontSize="small" />
+          <ToolbarButton
+            variant="text"
+            color="secondary"
+            size="small" // ADDED: Make the button smaller
+            className="rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            onClick={onCopyAllStudentNames}
+          >
+            <ContentCopyIcon fontSize="small" /> Names
+          </ToolbarButton>
+        </Tooltip>
+        <Tooltip title={`Copy Student Names, Phone Numbers, and Emails in ${className}`}>
+          <ToolbarButton
+            variant="text"
+            color="secondary"
+            size="small" // ADDED: Make the button smaller
+            className="rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            onClick={onCopyStudentContactInfo}
+          >
+            <ContentCopyIcon fontSize="small" /> Contact Info
+          </ToolbarButton>
+        </Tooltip>
+        <Tooltip title={`Copy Student Names, Class, Phone Numbers, and Emails in ${className}`}>
+          <ToolbarButton
+            variant="text"
+            color="secondary"
+            size="small" // ADDED: Make the button smaller
+            className="rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            onClick={onCopyStudentNameClassContactInfo}
+          >
+            <ContentCopyIcon fontSize="small" /> Names, Class & Contact
           </ToolbarButton>
         </Tooltip>
       </div>
-    </Toolbar>
+    </GridToolbarContainer>
   );
 }
 
 // Main page component for managing classes and students on one page
 export default function ClassesPage() {
   // State for Class DataGrid
-  const [classRows, setClassRows] = React.useState<GridRowsProp>([]); // State for DataGrid rows (classes)
+  const [classRows, setClassRows] = React.useState<GridRowsProp>([]);
   const [classRowModesModel, setClassRowModesModel] = React.useState<GridRowModesModel>(
     {}
-  ); // State for managing class row edit modes
-  const [classSearchText, setClassSearchText] = React.useState(""); // State for class search input
-  const [viewClassRow, setViewClassRow] = React.useState<ClassRow | null>(null); // State for the class row being viewed in the modal
+  );
+  const [classSearchText, setClassSearchText] = React.useState("");
+  const [viewClassRow, setViewClassRow] = React.useState<ClassRow | null>(null);
 
-  // State for Student DataGrid (Copied from the students page)
-  const [allStudents, setAllStudents] = React.useState<GridRowsProp>([]); // State for ALL student data
+  // State for Student DataGrid
+  const [allStudents, setAllStudents] = React.useState<GridRowsProp>([]);
   const [studentRowModesModel, setStudentRowModesModel] = React.useState<GridRowModesModel>(
     {}
-  ); // State for managing student row edit modes
-  const [studentSearchText, setStudentSearchText] = React.useState(""); // State for student search input
-  const [viewStudentRow, setViewStudentRow] = React.useState<StudentRow | null>(null); // State for the student row being viewed in the modal
+  );
+  const [studentSearchText, setStudentSearchText] = React.useState("");
+  const [viewStudentRow, setViewStudentRow] = React.useState<StudentRow | null>(null);
 
   // State to manage which table is visible
   const [showStudentsTable, setShowStudentsTable] = React.useState(false);
-  // selectedClassId was unused, removed. selectedClassName is used for filtering students.
   const [selectedClassName, setSelectedClassName] = React.useState<string | null>(null);
 
   // State for copy feedback Snackbar
@@ -246,17 +266,17 @@ export default function ClassesPage() {
         setAllStudents([]);
     }
 
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
   // Effect to persist class data to localStorage whenever the 'classRows' state changes
   React.useEffect(() => {
     localStorage.setItem("classes", JSON.stringify(classRows));
-  }, [classRows]); // Dependency array ensures this runs whenever 'classRows' changes
+  }, [classRows]);
 
     // Effect to persist ALL student data to localStorage whenever the 'allStudents' state changes
   React.useEffect(() => {
     localStorage.setItem("students", JSON.stringify(allStudents));
-  }, [allStudents]); // Dependency array ensures this runs whenever 'allStudents' changes
+  }, [allStudents]);
 
 
   // Handler for when class row editing stops
@@ -319,36 +339,79 @@ export default function ClassesPage() {
     },
     // Action to view students for a specific class (switches to student table view)
     viewStudents: (id: GridRowId, className: string) => () => {
-        // Removed setSelectedClassId as it was unused
         setSelectedClassName(className);
         setShowStudentsTable(true);
     },
   };
 
   // Function to copy a single student name to the clipboard
-  const handleCopySingleStudentName = (name: string) => {
-    navigator.clipboard.writeText(name).then(() => {
-      handleSnackbarOpen(`Copied "${name}"`); // Escaped quotes
-    }).catch(err => {
+  const handleCopySingleStudentName = async (name: string) => {
+    try {
+      await navigator.clipboard.writeText(name);
+      handleSnackbarOpen(`Copied "${name}"`);
+    } catch (err) {
       console.error("Failed to copy student name: ", err);
-      handleSnackbarOpen("Failed to copy name");
-    });
+      handleSnackbarOpen("Failed to copy name. Please try again.");
+    }
   };
 
     // Function to copy all visible student names to the clipboard
-  const handleCopyAllStudentNames = () => {
+  const handleCopyAllStudentNames = async () => {
       const names = studentsForSelectedClass.map(student => (student as StudentRow).name);
       if (names.length > 0) {
-          const namesString = names.join('\n'); // Join names with newlines
-          navigator.clipboard.writeText(namesString).then(() => {
-              handleSnackbarOpen(`Copied ${names.length} student name(s)`); // Escaped quotes
-          }).catch(err => {
+          const namesString = names.join('\n');
+          try {
+              await navigator.clipboard.writeText(namesString);
+              handleSnackbarOpen(`Copied ${names.length} student name(s)`);
+          } catch (err) {
               console.error("Failed to copy all student names: ", err);
-              handleSnackbarOpen("Failed to copy names");
-          });
+              handleSnackbarOpen("Failed to copy names. Please try again.");
+          }
       } else {
           handleSnackbarOpen("No students to copy");
       }
+  };
+
+  // Function to copy student names, phone numbers, and emails to the clipboard
+  const handleCopyStudentContactInfo = async () => {
+    const contactInfo = studentsForSelectedClass.map(student => {
+      const s = student as StudentRow;
+      return `${s.name} - Phone: ${s.parentPhoneNumber || 'N/A'}, Email: ${s.parentEmail || 'N/A'}`;
+    });
+
+    if (contactInfo.length > 0) {
+      const contactInfoString = contactInfo.join('\n');
+      try {
+          await navigator.clipboard.writeText(contactInfoString);
+          handleSnackbarOpen(`Copied contact info for ${contactInfo.length} student(s)`);
+      } catch (err) {
+          console.error("Failed to copy contact info: ", err);
+          handleSnackbarOpen("Failed to copy contact info. Please try again.");
+      }
+    } else {
+      handleSnackbarOpen("No student contact info to copy");
+    }
+  };
+
+  // Function to copy student names, class, phone numbers, and emails to the clipboard
+  const handleCopyStudentNameClassContactInfo = async () => {
+    const combinedInfo = studentsForSelectedClass.map(student => {
+      const s = student as StudentRow;
+      return `${s.name}, Class: ${s.class}, Phone: ${s.parentPhoneNumber || 'N/A'}, Email: ${s.parentEmail || 'N/A'}`;
+    });
+
+    if (combinedInfo.length > 0) {
+      const combinedInfoString = combinedInfo.join('\n');
+      try {
+          await navigator.clipboard.writeText(combinedInfoString);
+          handleSnackbarOpen(`Copied names, class, and contact info for ${combinedInfo.length} student(s)`);
+      } catch (err) {
+          console.error("Failed to copy combined info: ", err);
+          handleSnackbarOpen("Failed to copy combined info. Please try again.");
+      }
+    } else {
+      handleSnackbarOpen("No student data to copy");
+    }
   };
 
 
@@ -394,11 +457,11 @@ export default function ClassesPage() {
     const updated: ClassRow = {
       ...newRow,
       isNew: false, // Mark as not new after saving
-    } as ClassRow; // Cast to ClassRow
+    } as ClassRow;
 
     // Update the rows state with the modified row
     setClassRows((r) => r.map((x) => (x.id === newRow.id ? updated : x)));
-    return updated; // Return the updated row
+    return updated;
   };
 
     // Function to process updates to a Student row after editing
@@ -406,25 +469,25 @@ export default function ClassesPage() {
     // Calculate age based on the updated DOB
     const updated: StudentRow = {
       ...newRow,
-      age: calculateAge(newRow.dob as string), // Ensure dob is treated as string
-      isNew: false, // Mark as not new after saving
-    } as StudentRow; // Cast to StudentRow
+      age: calculateAge(newRow.dob as string),
+      isNew: false,
+    } as StudentRow;
 
     // Update the ALL students state with the modified row
     setAllStudents((r) => r.map((x) => (x.id === newRow.id ? updated : x)));
-    return updated; // Return the updated row
+    return updated;
   };
 
 
   // Filter the Class rows based on the search text
   const filteredClasses = classRows.filter((r) => {
     const t = classSearchText.toLowerCase();
-    const row = r as ClassRow; // Cast for type safety
+    const row = r as ClassRow;
 
     return (
-      (row.name?.toLowerCase() ?? "").includes(t) || // Check class name
-      (row.teacher?.toLowerCase() ?? "").includes(t) || // Check teacher name
-      (row.description?.toLowerCase() ?? "").includes(t) // Check description
+      (row.name?.toLowerCase() ?? "").includes(t) ||
+      (row.teacher?.toLowerCase() ?? "").includes(t) ||
+      (row.description?.toLowerCase() ?? "").includes(t)
     );
   });
 
@@ -432,16 +495,18 @@ export default function ClassesPage() {
   const studentsForSelectedClass = React.useMemo(() => {
     const t = studentSearchText.toLowerCase();
       return allStudents.filter((r) => {
-        const row = r as StudentRow; // Cast for type safety
+        const row = r as StudentRow;
         // Filter by selected class first, then by search text
         return row.class === selectedClassName && (
-            (row.name?.toLowerCase() ?? "").includes(t) || // Check name
-            (row.class?.toLowerCase() ?? "").includes(t) || // Check class (redundant after class filter, but good for robustness)
-            (row.dob?.includes(t) ?? false) || // Check date of birth string
-            (row.gender?.toLowerCase() ?? "").includes(t) // Check gender
+            (row.name?.toLowerCase() ?? "").includes(t) ||
+            (row.class?.toLowerCase() ?? "").includes(t) ||
+            (row.dob?.includes(t) ?? false) ||
+            (row.gender?.toLowerCase() ?? "").includes(t) ||
+            (row.parentPhoneNumber?.includes(t) ?? false) || // Search parent phone number
+            (row.parentEmail?.toLowerCase() ?? "").includes(t) // Search parent email
         );
       });
-  }, [allStudents, selectedClassName, studentSearchText]); // Recalculate when allStudents, selectedClassName, or studentSearchText changes
+  }, [allStudents, selectedClassName, studentSearchText]);
 
 
   // Define the columns for the Classes DataGrid
@@ -465,12 +530,11 @@ export default function ClassesPage() {
       field: "actions",
       type: "actions",
       headerName: "Actions",
-      width: 200, // Increased width to accommodate the new action
+      width: 200,
       getActions: ({ id, row }) => {
         const isEdit = classRowModesModel[id]?.mode === GridRowModes.Edit;
-        const classRow = row as ClassRow; // Cast row to ClassRow
+        const classRow = row as ClassRow;
 
-        // Render different actions based on whether the row is in edit mode
         return isEdit
           ? [
               <GridActionsCellItem
@@ -488,31 +552,30 @@ export default function ClassesPage() {
               />,
             ]
           : [
-               // This action now triggers showing the student table on the same page
                <GridActionsCellItem
                  key="viewStudents"
                  icon={<SchoolIcon />}
                  label="View Students"
-                 onClick={classActions.viewStudents(id, classRow.name)} // Call the action to switch view
+                 onClick={classActions.viewStudents(id, classRow.name)}
                  color="inherit"
                />,
               <GridActionsCellItem
                 key="view"
                 icon={<VisibilityIcon />}
-                label="View Class Details" // Updated label for clarity
+                label="View Class Details"
                 onClick={classActions.view(id)}
               />,
               <GridActionsCellItem
                 key="edit"
                 icon={<EditIcon />}
-                label="Edit Class" // Updated label for clarity
+                label="Edit Class"
                 onClick={classActions.edit(id)}
                 color="inherit"
               />,
               <GridActionsCellItem
                 key="delete"
                 icon={<DeleteIcon />}
-                label="Delete Class" // Updated label for clarity
+                label="Delete Class"
                 onClick={classActions.delete(id)}
                 color="inherit"
               />,
@@ -521,7 +584,7 @@ export default function ClassesPage() {
     },
   ];
 
-    // Define the columns for the Students DataGrid (Copied from the students page)
+    // Define the columns for the Students DataGrid, including new parent contact fields
   const studentColumns: GridColDef[] = [
     {
       field: "image",
@@ -529,8 +592,6 @@ export default function ClassesPage() {
       width: 100,
       editable: true,
       renderCell: (p) =>
-        // Render image if available
-        // Using Next.js <Image /> for optimized image rendering.
         p.value ? (
           <Image
             src={p.value as string}
@@ -542,7 +603,6 @@ export default function ClassesPage() {
         ) : null,
       renderEditCell: (params) => {
         const { id, field, api } = params;
-        // Render a file input for image selection in edit mode
         return (
           <input
             type="file"
@@ -554,13 +614,12 @@ export default function ClassesPage() {
               if (!file) return;
               const reader = new FileReader();
               reader.onloadend = () => {
-                // Set the cell value to the data URL of the selected image
                 api.setEditCellValue(
                   { id, field, value: reader.result },
                   undefined
                 );
               };
-              reader.readAsDataURL(file); // Read the file as a data URL
+              reader.readAsDataURL(file);
             }}
           />
         );
@@ -572,17 +631,14 @@ export default function ClassesPage() {
       headerName: "Date of Birth",
       width: 160,
       editable: true,
-      // Render the date in a human-readable format
       renderCell: (p) =>
         p.value ? new Date(p.value as string).toLocaleDateString("en-GB") : "",
       renderEditCell: (params) => {
         const { id, field, value, api } = params;
-        // Render a DatePicker for editing the date of birth
         return (
           <DatePicker
-            value={value ? dayjs(value as string) : null} // Use dayjs for DatePicker value
+            value={value ? dayjs(value as string) : null}
             onChange={(v) => {
-              // Set the cell value to the ISO string of the selected date
               api.setEditCellValue(
                 { id, field, value: v?.toISOString() },
                 undefined
@@ -598,35 +654,42 @@ export default function ClassesPage() {
       headerName: "Gender",
       width: 120,
       editable: true,
-      type: "singleSelect", // Use a single select dropdown for gender
-      valueOptions: ["Male", "Female", "Other"], // Define available options
+      type: "singleSelect",
+      valueOptions: ["Male", "Female", "Other"],
     },
     {
       field: "age",
       headerName: "Age",
       width: 80,
       type: "number",
-      editable: false, // Age is calculated, not directly editable
+      editable: false,
     },
     {
-        // The class field is included but not editable on this page
-        // as students are managed *within* a specific class context here.
         field: "class",
         headerName: "Class",
         width: 140,
-        editable: false, // Not editable in this view
+        editable: false,
+    },
+    {
+      field: "parentPhoneNumber", // New column for parent phone number
+      headerName: "Parent Phone",
+      width: 150,
+      editable: true,
+    },
+    {
+      field: "parentEmail", // New column for parent email
+      headerName: "Parent Email",
+      width: 200,
+      editable: true,
     },
     {
       field: "actions",
       type: "actions",
       headerName: "Actions",
-      width: 170, // Increased width to accommodate the new action
-      getActions: ({ id }) => { // Removed 'row' parameter
+      width: 170,
+      getActions: ({ id }) => {
         const isEdit = studentRowModesModel[id]?.mode === GridRowModes.Edit;
-         // studentRow was unused, removed.
-        // const studentRow = allStudents.find((r) => r.id === id) as StudentRow; // Moved lookup inside specific action handlers if needed
 
-        // Render different actions based on whether the row is in edit mode
         return isEdit
           ? [
               <GridActionsCellItem
@@ -678,30 +741,26 @@ export default function ClassesPage() {
 
 
   return (
-    // LocalizationProvider is needed for the DatePicker component (used in student table)
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
-          {/* Header section with sidebar trigger and breadcrumb */}
           <header className="flex h-16 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">Dashboard</BreadcrumbLink> {/* Update href as needed */}
+                  <BreadcrumbLink href="#">Dashboard</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
-                    {/* Breadcrumb link back to classes if viewing students */}
                    {showStudentsTable ? (
                         <BreadcrumbLink href="#" onClick={() => setShowStudentsTable(false)}>Classes</BreadcrumbLink>
                    ) : (
                         <BreadcrumbPage>Classes</BreadcrumbPage>
                    )}
                   </BreadcrumbItem>
-                  {/* Show current class in breadcrumb if viewing students */}
                 {showStudentsTable && selectedClassName && (
                     <>
                         <BreadcrumbSeparator className="hidden md:block" />
@@ -714,14 +773,10 @@ export default function ClassesPage() {
             </Breadcrumb>
           </header>
 
-          {/* Main content area */}
-          <div className="flex flex-1 bg-gray-300 flex-col gap-4 p-4">
+          <div className="flex flex-1 bg-blue-50 flex-col gap-4 p-4">
 
-            {/* Conditional Rendering: Show Classes Table or Students Table */}
             {!showStudentsTable ? (
-                // --- Classes Table View ---
                 <>
-                    {/* Search input for Classes */}
                     <div className="flex justify-end mb-2">
                         <input
                             type="text"
@@ -732,7 +787,6 @@ export default function ClassesPage() {
                         />
                     </div>
 
-                    {/* DataGrid container for Classes */}
                     <Box
                       sx={{
                         height: 600,
@@ -741,22 +795,20 @@ export default function ClassesPage() {
                         "& .textPrimary": { color: "text.primary" },
                       }}
                     >
-                      {/* Material UI DataGrid component for Classes */}
                       <DataGrid
-                        rows={filteredClasses} // Use filtered class rows
+                        rows={filteredClasses}
                         columns={classColumns}
-                        editMode="row" // Enable row editing
+                        editMode="row"
                         rowModesModel={classRowModesModel}
                         onRowModesModelChange={setClassRowModesModel}
                         onRowEditStop={handleClassRowEditStop}
-                        processRowUpdate={processClassRowUpdate} // Function to call after row update
-                        slots={{ toolbar: ClassEditToolbar }} // Use custom toolbar (contains the Add Class button)
-                        slotProps={{ toolbar: { setRows: setClassRows, setRowModesModel: setClassRowModesModel } }} // Pass props to toolbar
-                        showToolbar // Display the toolbar
+                        processRowUpdate={processClassRowUpdate}
+                        slots={{ toolbar: ClassEditToolbar }}
+                        slotProps={{ toolbar: { setRows: setClassRows, setRowModesModel: setClassRowModesModel } }}
+                        showToolbar
                       />
                     </Box>
 
-                    {/* Modal for viewing class details */}
                     <Modal open={!!viewClassRow} onClose={() => setViewClassRow(null)}>
                       <Box
                         sx={{
@@ -765,8 +817,8 @@ export default function ClassesPage() {
                           borderRadius: 2,
                           boxShadow: 24,
                           width: 360,
-                          mx: "auto", // Center the modal horizontally
-                          my: "10%", // Position the modal vertically
+                          mx: "auto",
+                          my: "10%",
                         }}
                       >
                         <Typography variant="h6" gutterBottom>
@@ -774,7 +826,6 @@ export default function ClassesPage() {
                         </Typography>
                         {viewClassRow && (
                           <div className="space-y-2">
-                            {/* Display class details */}
                             <p>
                               <strong>Class Name:</strong> {viewClassRow.name}
                             </p>
@@ -797,27 +848,23 @@ export default function ClassesPage() {
                     </Modal>
                 </>
             ) : (
-                // --- Students Table View ---
                 <>
-                    {/* Back to Classes Button */}
                     <div className="flex justify-start mb-2">
                         <Button variant="outlined" onClick={() => setShowStudentsTable(false)}>
                             Back to Classes
                         </Button>
                     </div>
 
-                    {/* Search input for Students */}
                     <div className="flex justify-end mb-2">
                         <input
                             type="text"
-                            placeholder={`Search students in ${selectedClassName || ''}...`} // Dynamic placeholder
+                            placeholder={`Search students in ${selectedClassName || ''}...`}
                             value={studentSearchText}
                             onChange={(e) => setStudentSearchText(e.target.value)}
                             className="w-full md:w-1/3 px-4 py-2 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
 
-                    {/* DataGrid container for Students */}
                     <Box
                       sx={{
                         height: 600,
@@ -826,21 +873,27 @@ export default function ClassesPage() {
                         "& .textPrimary": { color: "text.primary" },
                       }}
                     >
-                      {/* Material UI DataGrid component for Students */}
                       <DataGrid
-                        rows={studentsForSelectedClass} // Use filtered student rows for the selected class
+                        rows={studentsForSelectedClass}
                         columns={studentColumns}
-                        editMode="row" // Enable row editing
+                        editMode="row"
                         rowModesModel={studentRowModesModel}
                         onRowModesModelChange={setStudentRowModesModel}
                         onRowEditStop={handleStudentRowEditStop}
-                        processRowUpdate={processStudentRowUpdate} // Function to call after row update
-                        slots={{ toolbar: StudentEditToolbar }} // Use custom toolbar (contains the Add Student and Copy All button)
-                        slotProps={{ toolbar: { setRows: setAllStudents, setRowModesModel: setStudentRowModesModel, className: selectedClassName || '', onCopyAllStudentNames: handleCopyAllStudentNames } }} // Pass props including className and copy handler
+                        processRowUpdate={processStudentRowUpdate}
+                        slots={{ toolbar: StudentEditToolbar }}
+                        slotProps={{ toolbar: {
+                          setRows: setAllStudents,
+                          setRowModesModel: setStudentRowModesModel,
+                          className: selectedClassName || '',
+                          onCopyAllStudentNames: handleCopyAllStudentNames,
+                          onCopyStudentContactInfo: handleCopyStudentContactInfo,
+                          onCopyStudentNameClassContactInfo: handleCopyStudentNameClassContactInfo
+                        }}}
+                        showToolbar={true}
                       />
                     </Box>
 
-                    {/* Modal for viewing student details */}
                     <Modal open={!!viewStudentRow} onClose={() => setViewStudentRow(null)}>
                       <Box
                         sx={{
@@ -849,8 +902,8 @@ export default function ClassesPage() {
                           borderRadius: 2,
                           boxShadow: 24,
                           width: 360,
-                          mx: "auto", // Center the modal horizontally
-                          my: "10%", // Position the modal vertically
+                          mx: "auto",
+                          my: "10%",
                         }}
                       >
                         <Typography variant="h6" gutterBottom>
@@ -858,9 +911,6 @@ export default function ClassesPage() {
                         </Typography>
                         {viewStudentRow && (
                           <div className="space-y-2">
-                            {/* Display student image if available */}
-                            {/* Using <img> tag here as this is a standalone React component,
-                                not a Next.js application where next/image would be preferred for optimization. */}
                             {viewStudentRow.image && (
                               <Image
                                 src={viewStudentRow.image}
@@ -870,7 +920,6 @@ export default function ClassesPage() {
                                 className="h-16 w-16 rounded-full object-cover"
                               />
                             )}
-                            {/* Display student details */}
                             <p>
                               <strong>Name:</strong> {viewStudentRow.name}
                             </p>
@@ -887,16 +936,21 @@ export default function ClassesPage() {
                             <p>
                               <strong>Class:</strong> {viewStudentRow.class}
                             </p>
+                            <p>
+                              <strong>Parent Phone:</strong> {viewStudentRow.parentPhoneNumber || 'N/A'}
+                            </p>
+                            <p>
+                              <strong>Parent Email:</strong> {viewStudentRow.parentEmail || 'N/A'}
+                            </p>
                           </div>
                         )}
                       </Box>
                     </Modal>
                 </>
             )}
-             {/* Snackbar for copy feedback */}
              <Snackbar
                 open={snackbarOpen}
-                autoHideDuration={3000} // Auto-hide after 3 seconds
+                autoHideDuration={3000}
                 onClose={handleSnackbarClose}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             >
