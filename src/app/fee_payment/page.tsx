@@ -26,6 +26,13 @@ interface Student {
   studentClass: string;
 }
 
+// Define the structure for a payment record
+interface PaymentRecord {
+  id: number;
+  amount: number;
+  date: string; // Date of payment in YYYY-MM-DD format
+}
+
 // Define the structure for a fee item, linked to a student
 interface Fee {
   id: number;
@@ -33,28 +40,19 @@ interface Fee {
   name: string; // e.g., Tuition Fee, Library Fee
   amount: number; // Total amount due
   amountPaid: number; // Amount already paid
+  payments: PaymentRecord[]; // Array to store individual payment records
 }
 
 // Component to manage and display the fee payment system
 const FeePaymentSystem: React.FC = () => {
   // State to manage the list of students
   const [students, setStudents] = React.useState<Student[]>([
-  
+
   ]);
 
   // State to manage the list of fees
   const [fees, setFees] = React.useState<Fee[]>([
-    // Initial fees linked to students (amounts are examples in Cedis)
-    { id: 1, studentId: 1, name: "Tuition Fee", amount: 15000, amountPaid: 0 },
-    { id: 2, studentId: 2, name: "Library Fee", amount: 500, amountPaid: 500 },
-    { id: 3, studentId: 3, name: "Lab Fee", amount: 1000, amountPaid: 300 }, // Partially paid example
-    { id: 4, studentId: 4, name: "Sports Fee", amount: 750, amountPaid: 750 },
-    { id: 5, studentId: 5, name: "Tuition Fee", amount: 16000, amountPaid: 16000 },
-    { id: 6, studentId: 1, name: "Activity Fee", amount: 2000, amountPaid: 1000 },
-    { id: 7, studentId: 2, name: "Tuition Fee", amount: 15000, amountPaid: 10000 }, // Bob's tuition, partially paid
-    { id: 8, studentId: 3, name: "Tuition Fee", amount: 15000, amountPaid: 15000 }, // Charlie's tuition, fully paid
-    { id: 9, studentId: 4, name: "Tuition Fee", amount: 15000, amountPaid: 0 }, // Diana's tuition
-    { id: 10, studentId: 5, name: "Library Fee", amount: 500, amountPaid: 0 }, // Ethan's library fee
+
   ]);
 
   // State to manage the search term for filtering students
@@ -83,6 +81,16 @@ const FeePaymentSystem: React.FC = () => {
   const [selectedFeeTypeToEdit, setSelectedFeeTypeToEdit] = React.useState<string>('');
   const [newAmountForAll, setNewAmountForAll] = React.useState<number>(0);
 
+  // State for receipt generation
+  const [receiptDetails, setReceiptDetails] = React.useState<{
+    studentName: string;
+    feeName: string;
+    amountPaid: number;
+    paymentDate: string;
+    balance: number;
+    totalAmount: number;
+  } | null>(null);
+
 
   // Function to handle input changes for payment amounts
   const handlePaymentInputChange = (feeId: number, value: string) => {
@@ -96,21 +104,45 @@ const FeePaymentSystem: React.FC = () => {
   // Function to record a payment for a specific fee
   const recordPayment = (feeId: number) => {
     const paymentAmount = paymentInputs[feeId] || 0; // Get the amount from state, default to 0
+    const currentFee = fees.find(fee => fee.id === feeId);
 
-    if (paymentAmount <= 0) {
-      // Optionally show a message to the user if the payment amount is not valid
+    if (paymentAmount <= 0 || !currentFee) {
       console.log("Please enter a valid payment amount.");
       return;
     }
 
+    const newAmountPaid = Math.min(currentFee.amountPaid + paymentAmount, currentFee.amount);
+    const paymentDate = new Date().toISOString().slice(0, 10); // Get current date in YYYY-MM-DD
+
+    const newPaymentRecord: PaymentRecord = {
+      id: currentFee.payments.length > 0 ? Math.max(...currentFee.payments.map(p => p.id)) + 1 : 1,
+      amount: paymentAmount,
+      date: paymentDate,
+    };
+
     setFees(fees.map(fee => {
       if (fee.id === feeId) {
-        // Calculate the new amount paid, ensuring it doesn't exceed the total amount due
-        const newAmountPaid = Math.min(fee.amountPaid + paymentAmount, fee.amount);
-        return { ...fee, amountPaid: newAmountPaid };
+        return {
+          ...fee,
+          amountPaid: newAmountPaid,
+          payments: [...fee.payments, newPaymentRecord],
+        };
       }
       return fee;
     }));
+
+    // Set receipt details
+    const student = students.find(s => s.id === currentFee.studentId);
+    if (student) {
+      setReceiptDetails({
+        studentName: student.name,
+        feeName: currentFee.name,
+        amountPaid: paymentAmount,
+        paymentDate: paymentDate,
+        balance: currentFee.amount - newAmountPaid,
+        totalAmount: currentFee.amount,
+      });
+    }
 
     // Clear the input field after recording the payment
     setPaymentInputs({
@@ -149,6 +181,7 @@ const FeePaymentSystem: React.FC = () => {
       name: newFeeName,
       amount: newFeeDefaultAmount,
       amountPaid: 0,
+      payments: [], // Initialize payments array for new fees
     }));
 
     setFees([...fees, ...newFeesForStudents]);
@@ -184,10 +217,10 @@ const FeePaymentSystem: React.FC = () => {
 
   // Function to save the edited fee amount for a single student
   const saveEditedFee = (feeId: number) => {
-     if (editingFeeAmount <= 0) {
+    if (editingFeeAmount <= 0) {
       console.log("Please enter a valid amount for the fee.");
       return;
-     }
+    }
 
     setFees(fees.map(fee => {
       if (fee.id === feeId) {
@@ -230,6 +263,28 @@ const FeePaymentSystem: React.FC = () => {
     setNewAmountForAll(0);
   };
 
+  // Function to clear all data
+  const clearAllData = () => {
+    if (window.confirm("Are you sure you want to clear all student and fee data? This action cannot be undone.")) {
+      setStudents([]);
+      setFees([]);
+      setSelectedStudentId(null);
+      setSearchTerm('');
+      setNewStudentName('');
+      setNewStudentClass('');
+      setNewFeeName('');
+      setNewFeeDefaultAmount(0);
+      setEditingFeeId(null);
+      setEditingFeeAmount(0);
+      setSelectedFeeTypeToEdit('');
+      setNewAmountForAll(0);
+      setReceiptDetails(null);
+      setPaymentInputs({});
+      console.log("All data cleared.");
+    }
+  };
+
+
   // Get unique fee names for the dropdown
   const uniqueFeeNames = Array.from(new Set(fees.map(fee => fee.name)));
 
@@ -250,6 +305,16 @@ const FeePaymentSystem: React.FC = () => {
     <div className="container mx-auto p-4">
       <h2 className="text-2xl font-semibold mb-4">Fee Payment System</h2>
 
+      {/* Clear All Data Button */}
+      <div className="mb-4 text-right">
+        <button
+          onClick={clearAllData}
+          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+        >
+          Clear All Data
+        </button>
+      </div>
+
       {/* Search Bar */}
       <div className="mb-4">
         <input
@@ -261,12 +326,32 @@ const FeePaymentSystem: React.FC = () => {
         />
       </div>
 
+      {/* Receipt Display */}
+      {receiptDetails && (
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
+          <p className="font-bold">Payment Receipt</p>
+          <p>Student: {receiptDetails.studentName}</p>
+          <p>Fee Type: {receiptDetails.feeName}</p>
+          <p>Amount Paid: ₵{receiptDetails.amountPaid.toFixed(2)}</p>
+          <p>Date: {receiptDetails.paymentDate}</p>
+          <p>Total Fee: ₵{receiptDetails.totalAmount.toFixed(2)}</p>
+          <p>Balance Remaining: ₵{receiptDetails.balance.toFixed(2)}</p>
+          <button
+            onClick={() => setReceiptDetails(null)}
+            className="mt-2 px-3 py-1 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
+          >
+            Close Receipt
+          </button>
+        </div>
+      )}
+
+
       {/* Conditional Rendering: Show student list or selected student details */}
       {selectedStudentId === null ? (
         // Student List View
         <>
-           {/* Add New Fee Type Form */}
-           <div className="mb-6">
+          {/* Add New Fee Type Form */}
+          <div className="mb-6">
             <h3 className="text-xl font-semibold mb-3">Add New Fee Type for All Students</h3>
             <div className="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
               <input
@@ -295,36 +380,36 @@ const FeePaymentSystem: React.FC = () => {
 
           {/* Edit Existing Fee Type for All Students */}
           <div className="mb-6">
-             <h3 className="text-xl font-semibold mb-3">Edit Fee Amount for All Students by Type</h3>
-             <div className="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-               <select
-                 aria-label="Select Fee Type"
-                 className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                 value={selectedFeeTypeToEdit}
-                 onChange={(e) => setSelectedFeeTypeToEdit(e.target.value)}
-               >
-                 <option value="">-- Select Fee Type --</option>
-                 {uniqueFeeNames.map(feeName => (
-                   <option key={feeName} value={feeName}>{feeName}</option>
-                 ))}
-               </select>
-               <input
-                 type="number"
-                 placeholder="New Amount (₵)"
-                 className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                 value={newAmountForAll > 0 ? newAmountForAll : ''}
-                 onChange={(e) => setNewAmountForAll(parseFloat(e.target.value) || 0)}
-                 min="0"
-                 disabled={!selectedFeeTypeToEdit} // Disable if no fee type is selected
-               />
-               <button
-                 onClick={updateFeeForAllStudents}
-                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50"
-                 disabled={!selectedFeeTypeToEdit || newAmountForAll <= 0} // Disable if no fee type selected or amount is invalid
-               >
-                 Update Fee for All
-               </button>
-             </div>
+            <h3 className="text-xl font-semibold mb-3">Edit Fee Amount for All Students by Type</h3>
+            <div className="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <select
+                aria-label="Select Fee Type"
+                className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={selectedFeeTypeToEdit}
+                onChange={(e) => setSelectedFeeTypeToEdit(e.target.value)}
+              >
+                <option value="">-- Select Fee Type --</option>
+                {uniqueFeeNames.map(feeName => (
+                  <option key={feeName} value={feeName}>{feeName}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                placeholder="New Amount (₵)"
+                className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={newAmountForAll > 0 ? newAmountForAll : ''}
+                onChange={(e) => setNewAmountForAll(parseFloat(e.target.value) || 0)}
+                min="0"
+                disabled={!selectedFeeTypeToEdit} // Disable if no fee type is selected
+              />
+              <button
+                onClick={updateFeeForAllStudents}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50"
+                disabled={!selectedFeeTypeToEdit || newAmountForAll <= 0} // Disable if no fee type selected or amount is invalid
+              >
+                Update Fee for All
+              </button>
+            </div>
           </div>
 
 
@@ -369,8 +454,8 @@ const FeePaymentSystem: React.FC = () => {
                       .filter(fee => fee.studentId === student.id)
                       .reduce((sum, fee) => sum + fee.amount, 0);
                     const studentTotalPaid = fees
-                       .filter(fee => fee.studentId === student.id)
-                       .reduce((sum, fee) => sum + fee.amountPaid, 0);
+                      .filter(fee => fee.studentId === student.id)
+                      .reduce((sum, fee) => sum + fee.amountPaid, 0);
                     const studentOutstanding = studentTotalDue - studentTotalPaid;
 
                     return (
@@ -383,20 +468,20 @@ const FeePaymentSystem: React.FC = () => {
                           <p className="text-sm text-gray-500">{student.studentClass}</p>
                         </div>
                         <div className="flex items-center gap-3"> {/* Container for status and delete button */}
-                           <span className={`font-semibold ${studentOutstanding <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                             {studentOutstanding <= 0 ? 'All Fees Paid' : `₵${studentOutstanding.toFixed(2)} Outstanding`} {/* Updated currency symbol */}
-                           </span>
-                           {/* Replaced button with icon */}
-                           <span
-                             onClick={(e) => { // Use a separate onClick for the icon
-                               e.stopPropagation(); // Prevent the list item's onClick from firing
-                               deleteStudent(student.id);
-                             }}
-                             className="text-red-500 cursor-pointer hover:text-red-700 text-xl font-bold" // Styled as a clickable icon
-                             title="Delete Student" // Add a tooltip
-                           >
-                             &times; {/* '×' character for a simple close/delete icon */}
-                           </span>
+                          <span className={`font-semibold ${studentOutstanding <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {studentOutstanding <= 0 ? 'All Fees Paid' : `₵${studentOutstanding.toFixed(2)} Outstanding`} {/* Updated currency symbol */}
+                          </span>
+                          {/* Replaced button with icon */}
+                          <span
+                            onClick={(e) => { // Use a separate onClick for the icon
+                              e.stopPropagation(); // Prevent the list item's onClick from firing
+                              deleteStudent(student.id);
+                            }}
+                            className="text-red-500 cursor-pointer hover:text-red-700 text-xl font-bold" // Styled as a clickable icon
+                            title="Delete Student" // Add a tooltip
+                          >
+                            &times; {/* '×' character for a simple close/delete icon */}
+                          </span>
                         </div>
                       </li>
                     );
@@ -474,6 +559,16 @@ const FeePaymentSystem: React.FC = () => {
                               </p>
                             )}
                           </p>
+                          {fee.payments.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-600">
+                              <p className="font-semibold">Payment History:</p>
+                              {fee.payments.map(payment => (
+                                <p key={payment.id}>
+                                  ₵{payment.amount.toFixed(2)} on {payment.date}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           <span className={`font-semibold ${isFullyPaid ? 'text-green-600' : 'text-red-600'}`}>
