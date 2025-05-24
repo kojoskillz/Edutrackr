@@ -132,7 +132,7 @@ export default function BulkMessageForm() {
                 checked={viaSMS}
                 onCheckedChange={(checked) => setViaSMS(checked === true)}
               />
-              <span>SMS/WhatsApp</span>
+              <span>SMS</span>
             </label>
           </div>
 
