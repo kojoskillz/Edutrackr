@@ -39,11 +39,7 @@ interface Fee {
 const FeePaymentSystem: React.FC = () => {
   // State to manage the list of students
   const [students, setStudents] = React.useState<Student[]>([
-    { id: 1, name: "Alice Smith", studentClass: "Grade 10A" },
-    { id: 2, name: "Bob Johnson", studentClass: "Grade 11B" },
-    { id: 3, name: "Charlie Brown", studentClass: "Grade 9C" },
-    { id: 4, name: "Diana Prince", studentClass: "Grade 10A" },
-    { id: 5, name: "Ethan Hunt", studentClass: "Grade 12D" },
+  
   ]);
 
   // State to manage the list of fees
