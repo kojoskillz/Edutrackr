@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/app/Authentication-firebase/config';
+import { supabase } from '../lib/supabaseClient';
 import Link from 'next/link';
 
 export default function ResetPasswordPage() {
@@ -18,12 +17,22 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        // Optional: set this to your app's URL where users land after clicking the reset link
+        // redirectTo: 'https://yourdomain.com/reset-password-confirmation',
+      });
+
+      if (error) {
+        throw error;
+      }
+
       setMessage('Password reset email sent! Check your inbox.');
       setEmail('');
     } catch (error: unknown) {
-      console.error('Error sending password reset email:', error);
-      setMessage((error as Error).message);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error('Error sending password reset email:', errMsg);
+      setMessage('Error: ' + errMsg);
     }
   };
 
@@ -56,14 +65,16 @@ export default function ResetPasswordPage() {
         </button>
 
         {message && (
-          <p className="text-center text-sm text-green-600">{message}</p>
+          <p className={`text-center text-sm ${message.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+            {message}
+          </p>
         )}
 
         <p className="text-center text-sm text-gray-500">
           Remembered your password?{' '}
           <Link href="./login">
             <span className="text-blue-500 underline cursor-pointer">
-               Login
+              Login
             </span>
           </Link>
         </p>
