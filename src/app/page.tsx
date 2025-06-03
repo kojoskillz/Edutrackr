@@ -25,7 +25,7 @@ const Homepage = () => {
                 A comprehensive platform for efficient school management, designed to streamline tasks and enhance learning.
               </p>
 
-              <Link href="/Authentication-firebase/login">
+              <Link href="/Authentication-supabase/login">
                 <button className="text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-300 w-[12rem] h-[3rem] font-semibold rounded-full shadow-md transform hover:scale-105">
                   Get Started
                 </button>
