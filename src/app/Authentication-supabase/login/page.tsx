@@ -24,9 +24,7 @@ export default function LoginPage() {
         password,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       console.log('Login successful:', data.user);
       setEmail('');
@@ -40,14 +38,13 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
         router.push('/dashboard');
       }
     };
-
-    checkUser();
+    checkSession();
   }, []);
 
   return (
