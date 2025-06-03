@@ -1,6 +1,9 @@
-import * as React from "react"
-import { SearchForm } from "@/components/search-form"
-import { VersionSwitcher } from "@/components/version-switcher"
+'use client';
+
+import * as React from "react";
+import { useRouter } from 'next/navigation';
+import { supabase } from '../app/Authentication-supabase/lib/supabaseClient';  // adjust path to your supabaseClient
+import { VersionSwitcher } from "@/components/version-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 import {
   Home,
@@ -24,11 +27,10 @@ import {
   LogOut,
   Notebook,
   Megaphone,
-} from "lucide-react" // <== Icons from lucide-react
+} from "lucide-react";
 
-// This is sample data.
 const data = {
-  versions: ["1.0.1", "1.1.0-alpha", "2.0.0-beta1"],
+  versions: [],
   navMain: [
     {
       title: "",
@@ -43,21 +45,29 @@ const data = {
         { title: "View Previous Results", url: "/previous_results", icon: <Clock size={16} />, isActive: false },
         { title: "Report Card", url: "/Report_card", icon: <Notebook size={16} />, isActive: false },
         { title: "Announcement", url: "/Announcement", icon: <Megaphone size={16} />, isActive: false },
-        { title: "Sign Out", url: "./", icon: <LogOut size={16} />, isActive: false },
+        { title: "Sign Out", url: "#", icon: <LogOut size={16} />, isActive: false },
       ],
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter();
+
+  // Sign out handler
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      alert('Error signing out: ' + error.message);
+    } else {
+      router.push('/');  // redirect to home or login page after sign out
+    }
+  };
+
   return (
     <Sidebar {...props}>
       <SidebarHeader className="bg-blue-800 text-white">
-        <VersionSwitcher
-          versions={data.versions}
-          defaultVersion={data.versions[0]}
-        />
-        <SearchForm />
+        <VersionSwitcher />
       </SidebarHeader>
       <SidebarContent className="bg-blue-800 text-white">
         {data.navMain.map((item) => (
@@ -67,14 +77,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenu>
                 {item.items.map((menuItem) => (
                   <SidebarMenuItem key={menuItem.title}>
-                    <SidebarMenuButton asChild isActive={menuItem.isActive}>
-                      <a
-                        href={menuItem.url}
-                        className="flex items-center gap-2"
-                      >
-                        {menuItem.icon}
-                        {menuItem.title}
-                      </a>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={menuItem.isActive}
+                      {...(menuItem.title === "Sign Out"
+                        ? { onClick: (e) => {
+                            e.preventDefault();
+                            handleSignOut();
+                          }, style: { cursor: 'pointer' } }
+                        : {})}
+                    >
+                      {menuItem.title === "Sign Out" ? (
+                        <span className="flex items-center gap-2">
+                          {menuItem.icon}
+                          {menuItem.title}
+                        </span>
+                      ) : (
+                        <a href={menuItem.url} className="flex items-center gap-2">
+                          {menuItem.icon}
+                          {menuItem.title}
+                        </a>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -85,5 +108,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
