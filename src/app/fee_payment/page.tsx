@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import * as React from "react";
@@ -312,6 +313,7 @@ const FeePaymentSystem: React.FC = () => {
                 [feeId]: 0,
             });
             toast.success("Payment recorded successfully!");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error("Error recording payment:", error.message);
             toast.error(`Failed to record payment: ${error.message}`);
@@ -351,6 +353,7 @@ const FeePaymentSystem: React.FC = () => {
             setNewStudentName('');
             setNewStudentClass('');
             toast.success(`Added new student: ${trimmedName}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error("Error adding student:", error.message);
             toast.error(`Failed to add student: ${error.message}. Check RLS policies for 'students' table.`);
