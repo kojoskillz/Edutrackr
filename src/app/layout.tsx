@@ -5,7 +5,9 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { StudentProvider } from "@/context/StudentContext";
 import { AuthProvider } from "@/context/AuthContext";
-
+import { createServerSupabaseClient } from '../app/Authentication-supabase/lib/supabase/server';
+import  SupabaseProvider  from '../app/Authentication-supabase/lib/supabase/superbaseProvider';
+import  SupabaseListener  from '../app/Authentication-supabase/lib/supabase/superbaseProvider';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,22 +24,29 @@ export const metadata: Metadata = {
   description: "School Management System",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
+  const supabase = await createServerSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      > <ToastContainer />
-      <AuthProvider>
-         <StudentProvider>
-            {children}
-         </StudentProvider>
-         </AuthProvider>
-      
+      >
+        <ToastContainer />
+        <SupabaseProvider session={session}>
+          <SupabaseListener serverAccessToken={session?.access_token} />
+          <AuthProvider>
+            <StudentProvider>
+              {children}
+            </StudentProvider>
+          </AuthProvider>
+        </SupabaseProvider>
       </body>
     </html>
   );
