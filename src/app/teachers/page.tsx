@@ -100,6 +100,7 @@ const mockSupabase = {
 };
 
 const supabase = mockSupabase;
+// import { supabase } from "../Authentication-supabase/lib/supabaseClient"; // 
 // --- END MOCK SUPABASE CLIENT ---
 
 // Shape of a teacher row
