@@ -31,7 +31,6 @@ import PrintIcon from '@mui/icons-material/Print';
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- Type Definitions ---
@@ -41,7 +40,7 @@ interface Student {
     id: string; // Supabase row ID
     name: string;
     studentClass: string;
-    userId: string; // Ensure this is always present for RLS
+    user_id: string; // Changed from userId to user_id
 }
 
 // Define the structure for a payment record within a fee document
@@ -58,13 +57,13 @@ interface Fee {
     amount: number; // Total amount due
     amountPaid: number; // Amount already paid
     payments: PaymentRecord[]; // Array to store individual payment records (JSONB in Supabase)
-    userId: string; // Ensure this is always present for RLS
+    user_id: string; // Changed from userId to user_id
 }
 
 // Component to manage and display the fee payment system
 const FeePaymentSystem: React.FC = () => {
     // --- Supabase State ---
-    const [userId, setUserId] = React.useState<string | null>(null);
+    const [user_id, setUser_id] = React.useState<string | null>(null); // Changed from userId to user_id
     const [isAuthReady, setIsAuthReady] = React.useState(false); // To track if auth state is determined
 
     // --- Application Data State ---
@@ -112,7 +111,7 @@ const FeePaymentSystem: React.FC = () => {
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
                 console.log("Auth State Changed: User is logged in", session.user.id);
-                setUserId(session.user.id);
+                setUser_id(session.user.id); // Changed from setUserId to setUser_id
             } else {
                 console.log("Auth State Changed: No user session. Attempting anonymous sign-in.");
                 try {
@@ -120,18 +119,18 @@ const FeePaymentSystem: React.FC = () => {
                     if (error) {
                         console.error("Supabase anonymous sign-in failed:", error.message);
                         toast.error("Failed to sign in to Supabase. Please try again.");
-                        setUserId(null); // Explicitly set to null if anonymous sign-in fails
+                        setUser_id(null); // Changed from setUserId to setUser_id
                     } else if (data.user) {
                         console.log("Anonymous user signed in:", data.user.id);
-                        setUserId(data.user.id);
+                        setUser_id(data.user.id); // Changed from setUserId to setUser_id
                     } else {
                         console.warn("Anonymous sign-in returned no user data.");
-                        setUserId(null);
+                        setUser_id(null); // Changed from setUserId to setUser_id
                     }
                 } catch (error: any) { // Catch any unexpected errors during anonymous sign-in
                     console.error("Supabase anonymous sign-in failed (catch block):", error.message);
                     toast.error("Failed to sign in to Supabase. Please try again.");
-                    setUserId(null);
+                    setUser_id(null); // Changed from setUserId to setUser_id
                 }
             }
             setIsAuthReady(true); // Auth state determined
@@ -141,7 +140,7 @@ const FeePaymentSystem: React.FC = () => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 console.log("Initial session check: User is logged in", session.user.id);
-                setUserId(session.user.id);
+                setUser_id(session.user.id); // Changed from setUserId to setUser_id
             } else {
                 console.log("Initial session check: No active session.");
             }
@@ -155,20 +154,20 @@ const FeePaymentSystem: React.FC = () => {
 
     // --- Supabase Data Listeners (Students & Fees) ---
     React.useEffect(() => {
-        if (!userId || !isAuthReady) {
-            console.log("Data listener skipped: userId or auth not ready.", { userId, isAuthReady });
+        if (!user_id || !isAuthReady) {
+            console.log("Data listener skipped: user_id or auth not ready.", { user_id, isAuthReady });
             return; // Wait for Supabase and auth to be ready
         }
 
-        console.log(`Setting up real-time listeners for userId: ${userId}`);
+        console.log(`Setting up real-time listeners for user_id: ${user_id}`);
 
         const fetchStudents = async () => {
             setIsLoadingStudents(true);
-            console.log(`Fetching students for userId: ${userId}`);
+            console.log(`Fetching students for user_id: ${user_id}`);
             const { data, error } = await supabase
                 .from('students')
                 .select('*')
-                .eq('userId', userId); // Assuming a 'userId' column in your 'students' table
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (error) {
                 console.error("Error fetching students:", error.message);
@@ -182,11 +181,11 @@ const FeePaymentSystem: React.FC = () => {
 
         const fetchFees = async () => {
             setIsLoadingFees(true);
-            console.log(`Fetching fees for userId: ${userId}`);
+            console.log(`Fetching fees for user_id: ${user_id}`);
             const { data, error } = await supabase
                 .from('fees')
                 .select('*')
-                .eq('userId', userId); // Assuming a 'userId' column in your 'fees' table
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (error) {
                 console.error("Error fetching fees:", error.message);
@@ -198,7 +197,7 @@ const FeePaymentSystem: React.FC = () => {
             setIsLoadingFees(false);
         };
 
-        // Initial fetch when userId becomes available
+        // Initial fetch when user_id becomes available
         fetchStudents();
         fetchFees();
 
@@ -207,7 +206,7 @@ const FeePaymentSystem: React.FC = () => {
             .channel('public:students_changes') // Use a unique channel name
             .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, (payload) => {
                 console.log("Realtime student change detected:", payload);
-                if (payload.new && (payload.new as Student).userId === userId) { // Only process changes for the current user
+                if (payload.new && (payload.new as Student).user_id === user_id) { // Changed from userId to user_id
                     if (payload.eventType === 'INSERT') {
                         setStudents(prev => [...prev, payload.new as Student]);
                         toast.info(`New student added: ${(payload.new as Student).name}`);
@@ -226,7 +225,7 @@ const FeePaymentSystem: React.FC = () => {
             .channel('public:fees_changes') // Use a unique channel name
             .on('postgres_changes', { event: '*', schema: 'public', table: 'fees' }, (payload) => {
                 console.log("Realtime fee change detected:", payload);
-                if (payload.new && (payload.new as Fee).userId === userId) { // Only process changes for the current user
+                if (payload.new && (payload.new as Fee).user_id === user_id) { // Changed from userId to user_id
                     if (payload.eventType === 'INSERT') {
                         setFees(prev => [...prev, payload.new as Fee]);
                         toast.info(`New fee added: ${(payload.new as Fee).name}`);
@@ -247,7 +246,7 @@ const FeePaymentSystem: React.FC = () => {
             supabase.removeChannel(studentsChannel);
             supabase.removeChannel(feesChannel);
         };
-    }, [userId, isAuthReady]); // Re-run if userId, or authReady changes
+    }, [user_id, isAuthReady]); // Re-run if user_id, or authReady changes
 
 
     // --- Functions to handle input changes for payment amounts ---
@@ -261,8 +260,8 @@ const FeePaymentSystem: React.FC = () => {
 
     // --- Function to record a payment for a specific fee (Supabase) ---
     const recordPayment = async (feeId: string) => {
-        if (!userId || isSaving) {
-            console.warn("Record payment skipped: userId or isSaving not ready.", { userId, isSaving });
+        if (!user_id || isSaving) {
+            console.warn("Record payment skipped: user_id or isSaving not ready.", { user_id, isSaving });
             toast.error("User not authenticated or a save operation is already in progress.");
             return;
         }
@@ -290,7 +289,7 @@ const FeePaymentSystem: React.FC = () => {
                     payments: [...currentFee.payments, newPaymentRecord], // Append new payment to JSONB array
                 })
                 .eq('id', feeId)
-                .eq('userId', userId); // Ensure the user owns the fee
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (error) throw error;
 
@@ -324,8 +323,8 @@ const FeePaymentSystem: React.FC = () => {
 
     // --- Function to add a new student (Supabase) ---
     const addStudent = async () => {
-        if (!userId || isSaving) {
-            console.warn("Add student skipped: userId or isSaving not ready.", { userId, isSaving });
+        if (!user_id || isSaving) {
+            console.warn("Add student skipped: user_id or isSaving not ready.", { user_id, isSaving });
             toast.error("User not authenticated or a save operation is already in progress.");
             return;
         }
@@ -339,13 +338,13 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to add student for userId: ${userId}`);
+            console.log(`Attempting to add student for user_id: ${user_id}`);
             const { error } = await supabase
                 .from('students')
                 .insert({
                     name: trimmedName,
                     studentClass: trimmedClass,
-                    userId: userId, // Link to the current user
+                    user_id: user_id, // Changed from userId to user_id
                 });
 
             if (error) throw error;
@@ -364,8 +363,8 @@ const FeePaymentSystem: React.FC = () => {
 
     // --- Function to add a new fee type to all students (Supabase) ---
     const addFeeTypeToAllStudents = async () => {
-        if (!userId || isSaving) {
-            console.warn("Add fee type skipped: userId or isSaving not ready.", { userId, isSaving });
+        if (!user_id || isSaving) {
+            console.warn("Add fee type skipped: user_id or isSaving not ready.", { user_id, isSaving });
             toast.error("User not authenticated or a save operation is already in progress.");
             return;
         }
@@ -381,14 +380,14 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to add fee type '${trimmedFeeName}' for all students for userId: ${userId}`);
+            console.log(`Attempting to add fee type '${trimmedFeeName}' for all students for user_id: ${user_id}`);
             const feeRecords = students.map(student => ({
                 studentId: student.id,
                 name: trimmedFeeName,
                 amount: newFeeDefaultAmount,
                 amountPaid: 0,
                 payments: [],
-                userId: userId, // Link to the current user
+                user_id: user_id, // Changed from userId to user_id
             }));
 
             const { error } = await supabase
@@ -410,20 +409,20 @@ const FeePaymentSystem: React.FC = () => {
 
     // --- Function to delete a student and their associated fees (Supabase) ---
     const deleteStudent = async (studentId: string) => {
-        if (!userId || isSaving) return;
+        if (!user_id || isSaving) return;
         if (!window.confirm("Are you sure you want to delete this student and all their associated fees? This action cannot be undone.")) {
             return;
         }
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to delete student ${studentId} and associated fees for userId: ${userId}`);
+            console.log(`Attempting to delete student ${studentId} and associated fees for user_id: ${user_id}`);
             // Delete all fees associated with the deleted student first (due to foreign key constraints if you set them up)
             const { error: deleteFeesError } = await supabase
                 .from('fees')
                 .delete()
                 .eq('studentId', studentId)
-                .eq('userId', userId);
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (deleteFeesError) throw deleteFeesError;
 
@@ -432,7 +431,7 @@ const FeePaymentSystem: React.FC = () => {
                 .from('students')
                 .delete()
                 .eq('id', studentId)
-                .eq('userId', userId);
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (deleteStudentError) throw deleteStudentError;
 
@@ -463,7 +462,7 @@ const FeePaymentSystem: React.FC = () => {
 
     // --- Function to save the edited fee amount for a single student (Supabase) ---
     const saveEditedFee = async (feeId: string) => {
-        if (!userId || isSaving) return;
+        if (!user_id || isSaving) return;
         if (editingFeeAmount <= 0) {
             toast.error("Please enter a valid amount for the fee.");
             return;
@@ -471,7 +470,7 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to save edited fee ${feeId} for userId: ${userId}`);
+            console.log(`Attempting to save edited fee ${feeId} for user_id: ${user_id}`);
             const currentFee = fees.find(f => f.id === feeId);
 
             // Ensure amountPaid doesn't exceed the new total amount
@@ -485,7 +484,7 @@ const FeePaymentSystem: React.FC = () => {
                     amountPaid: newAmountPaid,
                 })
                 .eq('id', feeId)
-                .eq('userId', userId);
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (error) throw error;
 
@@ -508,7 +507,7 @@ const FeePaymentSystem: React.FC = () => {
 
     // --- Function to update the amount for a specific fee type for all students (Supabase) ---
     const updateFeeForAllStudents = async () => {
-        if (!userId || isSaving) return;
+        if (!user_id || isSaving) return;
         const trimmedFeeType = selectedFeeTypeToEdit.trim();
         if (!trimmedFeeType || newAmountForAll <= 0) {
             toast.error("Please select a fee type and enter a valid amount.");
@@ -517,13 +516,13 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to update fee type '${trimmedFeeType}' for all students for userId: ${userId}`);
+            console.log(`Attempting to update fee type '${trimmedFeeType}' for all students for user_id: ${user_id}`);
             // Fetch all fees matching the fee type for the current user
             const { data: feesToUpdate, error: fetchError } = await supabase
                 .from('fees')
                 .select('*')
                 .eq('name', trimmedFeeType)
-                .eq('userId', userId);
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (fetchError) throw fetchError;
 
@@ -537,7 +536,7 @@ const FeePaymentSystem: React.FC = () => {
                         amountPaid: newAmountPaid,
                     })
                     .eq('id', feeData.id)
-                    .eq('userId', userId);
+                    .eq('user_id', user_id); // Changed from userId to user_id
             });
 
             // Execute all updates concurrently
@@ -565,19 +564,19 @@ const FeePaymentSystem: React.FC = () => {
 
     // --- Function to clear all data (Supabase) ---
     const clearAllData = async () => {
-        if (!userId || isSaving) return;
+        if (!user_id || isSaving) return;
         if (!window.confirm("Are you sure you want to clear all student and fee data? This action cannot be undone.")) {
             return;
         }
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to clear all data for userId: ${userId}`);
+            console.log(`Attempting to clear all data for user_id: ${user_id}`);
             // Delete all fees first (due to potential foreign key constraints)
             const { error: deleteFeesError } = await supabase
                 .from('fees')
                 .delete()
-                .eq('userId', userId); // Delete only current user's fees
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (deleteFeesError) throw deleteFeesError;
 
@@ -585,7 +584,7 @@ const FeePaymentSystem: React.FC = () => {
             const { error: deleteStudentsError } = await supabase
                 .from('students')
                 .delete()
-                .eq('userId', userId); // Delete only current user's students
+                .eq('user_id', user_id); // Changed from userId to user_id
 
             if (deleteStudentsError) throw deleteStudentsError;
 
