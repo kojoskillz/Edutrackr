@@ -144,7 +144,7 @@ function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
                 {
                   id,
                   name: "",
-                  dob: "",
+                  dob: dayjs().format('YYYY-MM-DD'),
                   age: 0,
                   class: className || "",
                   gender: "Male",
@@ -248,7 +248,6 @@ export default function ClassesPage() {
           throw new Error("User not authenticated");
         }
         
-        // Fetch classes for current user
         const { data: classData, error: classError } = await supabase
           .from('classes')
           .select('*')
@@ -256,7 +255,6 @@ export default function ClassesPage() {
         
         if (classError) throw new Error(`Class fetch error: ${classError.message}`);
         
-        // Fetch students for current user
         const { data: studentData, error: studentError } = await supabase
           .from('students')
           .select('*')
@@ -326,10 +324,9 @@ export default function ClassesPage() {
         
         if (error) throw new Error(`Insert failed: ${error.message}`);
         
-        setClassRows((r) => {
-          if (r.some(row => row.id === data[0].id)) return r;
-          return [...r, data[0]];
-        });
+        setClassRows(prevClasses => 
+          prevClasses.map(cls => cls.id === newRow.id ? data[0] : cls)
+        );
         handleSnackbarOpen('Class added successfully');
         return data[0];
       } else {
@@ -341,7 +338,9 @@ export default function ClassesPage() {
         
         if (error) throw new Error(`Update failed: ${error.message}`);
         
-        setClassRows((r) => r.map((x) => (x.id === newRow.id ? data[0] : x)));
+        setClassRows(prevClasses => 
+          prevClasses.map(cls => cls.id === newRow.id ? data[0] : cls)
+        );
         handleSnackbarOpen('Class updated successfully');
         return data[0];
       }
@@ -361,12 +360,15 @@ export default function ClassesPage() {
     }
 
     try {
+      const dob = newRow.dob ? new Date(newRow.dob).toISOString() : new Date().toISOString();
+      
       const updated: StudentRow = {
         ...newRow,
-        dob: new Date(newRow.dob).toISOString(),
-        age: calculateAge(newRow.dob as string),
+        dob,
+        age: calculateAge(dob),
         isNew: false,
-        user_id: user.id
+        user_id: user.id,
+        class: selectedClassName || newRow.class
       };
 
       if (newRow.isNew) {
@@ -377,7 +379,11 @@ export default function ClassesPage() {
         
         if (error) throw new Error(`Insert failed: ${error.message}`);
         
-        setAllStudents((r) => [...r, data[0]]);
+        setAllStudents(prevStudents => 
+          prevStudents.map(student => 
+            student.id === newRow.id ? data[0] : student
+          )
+        );
         handleSnackbarOpen('Student added successfully');
         return data[0];
       } else {
@@ -389,7 +395,11 @@ export default function ClassesPage() {
         
         if (error) throw new Error(`Update failed: ${error.message}`);
         
-        setAllStudents((r) => r.map((x) => (x.id === newRow.id ? data[0] : x)));
+        setAllStudents(prevStudents => 
+          prevStudents.map(student => 
+            student.id === newRow.id ? data[0] : student
+          )
+        );
         handleSnackbarOpen('Student updated successfully');
         return data[0];
       }
@@ -610,9 +620,40 @@ export default function ClassesPage() {
       headerName: "Photo",
       width: 100,
       editable: true,
-      renderCell: (p) => p.value ? (
-        <Image src={p.value as string} alt="student photo" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
-      ) : null,
+      renderCell: (p) => {
+        if (!p.value) return null;
+        
+        if (typeof p.value === 'string' && p.value.startsWith('data:image')) {
+          return (
+            <Image 
+              src={p.value} 
+              alt="student photo" 
+              width={32} 
+              height={32} 
+              className="h-8 w-8 rounded-full object-cover" 
+            />
+          );
+        }
+        
+        if (typeof p.value === 'string') {
+          try {
+            new URL(p.value);
+            return (
+              <Image 
+                src={p.value} 
+                alt="student photo" 
+                width={32} 
+                height={32} 
+                className="h-8 w-8 rounded-full object-cover" 
+              />
+            );
+          } catch {
+            return null;
+          }
+        }
+        
+        return null;
+      },
       renderEditCell: (params) => {
         const { id, field, api } = params;
         return (
@@ -645,7 +686,7 @@ export default function ClassesPage() {
         const { id, field, value, api } = params;
         return (
           <DatePicker
-            value={value ? dayjs(value as string) : null}
+            value={value ? dayjs(value as string) : dayjs()}
             onChange={(v) => {
               api.setEditCellValue({ id, field, value: v?.toISOString() }, undefined);
             }}
@@ -788,7 +829,7 @@ export default function ClassesPage() {
                     }}
                     sx={{
                       '& .MuiDataGrid-cell': {
-                        padding: '8px 16px',
+                          padding: '8px 16px',
                       },
                       '& .MuiDataGrid-columnHeader': {
                         backgroundColor: '#f5f5f5',
@@ -834,6 +875,7 @@ export default function ClassesPage() {
                   <DataGrid
                     rows={studentsForSelectedClass}
                     columns={studentColumns}
+                    getRowId={(row) => row.id}
                     editMode="row"
                     rowModesModel={studentRowModesModel}
                     onRowModesModelChange={setStudentRowModesModel}
@@ -862,7 +904,13 @@ export default function ClassesPage() {
                     {viewStudentRow && (
                       <div className="space-y-2">
                         {viewStudentRow.image && (
-                          <Image src={viewStudentRow.image} alt="student photo" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
+                          <Image 
+                            src={viewStudentRow.image} 
+                            alt="student photo" 
+                            width={64} 
+                            height={64} 
+                            className="h-16 w-16 rounded-full object-cover" 
+                          />
                         )}
                         <p><strong>Name:</strong> {viewStudentRow.name}</p>
                         <p><strong>DOB:</strong> {new Date(viewStudentRow.dob).toLocaleDateString("en-GB")}</p>
