@@ -1,67 +1,63 @@
-// app/dashboard/useFeesStore.ts
-"use client"; // Add "use client" if this store is used in Client Components
-
+// Example: ../dashboard/useFeesStore.ts
 import { create } from 'zustand';
-import { useEffect } from 'react';
+import { supabase } from '../Authentication-supabase/lib/supabase/supabaseClient'
 
-// 1. Define the interface for your store's state and actions
 interface FeesState {
   paidFees: number;
   unpaidFees: number;
-  setFees: (paid: number, unpaid: number) => void;
-  // You can add other fee-related state or actions here if needed
-  // For example:
-  // totalFeesReceivable: number;
-  // setTotalFeesReceivable: (total: number) => void;
+  setPaidFees: (percentage: number) => void;
+  setUnpaidFees: (percentage: number) => void;
+  fetchFees: () => Promise<void>; // Add a fetch method
 }
 
-// 2. Create the store with the defined type
 const useFeesStore = create<FeesState>((set) => ({
-  // Initial state
   paidFees: 0,
   unpaidFees: 0,
-  // totalFeesReceivable: 0, // Example initial state
 
-  // Actions to update the state
-  setFees: (paid, unpaid) => set({ paidFees: paid, unpaidFees: unpaid }),
-  // setTotalFeesReceivable: (total) => set({ totalFeesReceivable: total }), // Example action
-}));
+  // Fetch fees from Supabase
+  fetchFees: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('school_statistics')
+        .select('paid_fees_percentage, unpaid_fees_percentage')
+        .limit(1)
+        .single(); // Use single() if you expect only one row
 
-// 3. useLoadFees hook to load and set fee data into the store
-export const useLoadFees = () => {
-  // Get the action from the store to update fees
-  const setFees = useFeesStore((state) => state.setFees);
-  // const setTotalFeesReceivable = useFeesStore((state) => state.setTotalFeesReceivable); // Example
+      if (error) throw error;
 
-  useEffect(() => {
-    // Simulate loading fees data.
-    // In a real application, you would fetch this from an API or localStorage.
-    const fetchFeesData = async () => {
-      try {
-        // Example: Fetching from localStorage
-        const storedPaidFees = localStorage.getItem('totalPaidFees');
-        const storedUnpaidFees = localStorage.getItem('totalUnpaidFees');
-        // const storedTotalReceivable = localStorage.getItem('totalReceivableFees');
-
-        const loadedPaidFees = storedPaidFees ? Number(JSON.parse(storedPaidFees)) : 50000; // Default if not found
-        const loadedUnpaidFees = storedUnpaidFees ? Number(JSON.parse(storedUnpaidFees)) : 15000; // Default if not found
-        // const loadedTotalReceivable = storedTotalReceivable ? Number(JSON.parse(storedTotalReceivable)) : 65000;
-
-        // Update the store with the loaded data
-        setFees(loadedPaidFees, loadedUnpaidFees);
-        // setTotalFeesReceivable(loadedTotalReceivable); // Example
-
-        // console.log("Fees loaded into store:", { loadedPaidFees, loadedUnpaidFees });
-      } catch (error) {
-        console.error("Failed to load fees data:", error);
-        // Set default or error state if loading fails
-        setFees(0, 0);
-        // setTotalFeesReceivable(0);
+      if (data) {
+        set({
+          paidFees: data.paid_fees_percentage,
+          unpaidFees: data.unpaid_fees_percentage,
+        });
       }
-    };
+    } catch (error) {
+      console.error("Error fetching fees:", error);
+      // Handle error, e.g., toast.error
+    }
+  },
 
-    fetchFeesData();
-  }, [setFees]); // Dependency array ensures this runs once on mount or when setFees changes (though setFees itself shouldn't change)
-};
+  setPaidFees: async (percentage: number) => {
+    set({ paidFees: percentage });
+    // Update Supabase immediately
+    try {
+      // Assuming there's a single row for school_statistics,
+      // you'd need its ID. A simpler approach if only one row: always update.
+      // Or, better, fetch the ID first if it's the first update.
+      // For now, let's assume `Page` component triggers the actual save to DB for `school_statistics`.
+      // If you want direct update from here, you'd need the school_statistics ID.
+      // For this example, I'll rely on the `Page` component's `handleSubmitSchoolStats`.
+      // If you *only* change fees here, you'd need an ID to update.
+      // For now, just set local state. The `Page` component's submit button for school stats will sync.
+    } catch (error) {
+      console.error("Error updating paid fees in DB:", error);
+    }
+  },
+
+  setUnpaidFees: async (percentage: number) => {
+    set({ unpaidFees: percentage });
+    // Same as setPaidFees, relying on Page component to sync
+  },
+}));
 
 export default useFeesStore;
