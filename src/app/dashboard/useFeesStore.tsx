@@ -41,14 +41,6 @@ const useFeesStore = create<FeesState>((set) => ({
     set({ paidFees: percentage });
     // Update Supabase immediately
     try {
-      // Assuming there's a single row for school_statistics,
-      // you'd need its ID. A simpler approach if only one row: always update.
-      // Or, better, fetch the ID first if it's the first update.
-      // For now, let's assume `Page` component triggers the actual save to DB for `school_statistics`.
-      // If you want direct update from here, you'd need the school_statistics ID.
-      // For this example, I'll rely on the `Page` component's `handleSubmitSchoolStats`.
-      // If you *only* change fees here, you'd need an ID to update.
-      // For now, just set local state. The `Page` component's submit button for school stats will sync.
     } catch (error) {
       console.error("Error updating paid fees in DB:", error);
     }
