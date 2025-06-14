@@ -130,7 +130,7 @@ export default function Page() {
   // Redirect if not authenticated
   useEffect(() => {
     if (user === null) {
-      router.push('/login');
+      router.push('../Authentication-supabase/login');
     }
   }, [user, router]);
 
