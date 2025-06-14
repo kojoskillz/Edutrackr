@@ -1,15 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import React, { useState, useEffect } from "react";
-// Removed the useRouter import as it was not used in the component logic
-// import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// Ensure these imports are correct based on your project structure
-import { useStudent } from "@/context/StudentContext";
-import useFeesStore from "../dashboard/useFeesStore";
+import { useStudent } from "@/context/StudentContext"; // Assuming this context exists
+import useFeesStore from "../dashboard/useFeesStore"; // Assuming this store exists
+import { supabase } from '../Authentication-supabase/lib/supabase/supabaseClient'; 
 
 import { AppSidebar } from "@/components/app-sidebar";
 import {
@@ -27,229 +24,444 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-// Define the structure for student data by class
-interface StudentData {
-  [className: string]: {
-    male: number;
-    female: number;
-  };
+// Define interfaces for your Supabase tables
+interface ClassUpdate {
+  id: string;
+  class_name: string;
+  male_students_count: number;
+  female_students_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
-// Note: The TypeScript error 'Property 'setPaidFees' does not exist on type 'FeesState''
-// IS RESOLVED BY ADDING 'setPaidFees' and 'setUnpaidFees' to the FeesState interface
-// in the file where useFeesStore is defined (e.g., ../dashboard/useFeesStore.ts).
-// The code below assumes that fix has been made in the store definition.
+interface SchoolStatistic {
+  id: string;
+  total_male_teachers: number;
+  total_female_teachers: number;
+  overall_male_students: number;
+  overall_female_students: number;
+  paid_fees_percentage: number;
+  unpaid_fees_percentage: number;
+  updated_at: string;
+}
 
+interface AdminProfile {
+  id: string;
+  admin_name: string;
+  admin_image_url: string | null;
+  updated_at: string;
+}
 
 export default function Page() {
   // State for Admin Profile
-  const [name, setName] = useState("");
-  const [image, setImage] = useState<string | null>(null);
+  const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
+  const [adminName, setAdminName] = useState("");
+  const [adminImage, setAdminImage] = useState<string | null>(null);
 
-  // State for Teacher Counts
-  const [maleTeachers, setMaleTeachers] = useState(0);
-  const [femaleTeachers, setFemaleTeachers] = useState(0);
+  // State for School Statistics
+  const [schoolStats, setSchoolStats] = useState<SchoolStatistic | null>(null);
 
-  // State for overall Student Counts (These seem separate from the class-specific counts below)
-  // Consider if these overall counts should be derived from the class-specific counts instead
-  const [maleStudent, setMaleStudent] = useState(0);
-  const [femaleStudent, setFemaleStudent] = useState(0);
-
-  // Removed the unused router variable
-  // const router = useRouter();
-
-  // Accessing fees store and student context
-  // Destructuring paidFees as paid, unpaidFees as unpaid,
-  // AND getting the setter functions directly from the store.
-  // This requires the FeesState type definition in useFeesStore.ts to include these setters.
-  const { paidFees: paid, unpaidFees: unpaid } = useFeesStore();
-
-  const { studentData, setStudentData } = useStudent();
-
-  // State for managing classes and student data within classes
-  const [currentClass, setCurrentClass] = useState("Class A"); // Default class
+  // Class-specific student data from context
+  const { studentData, setStudentData } = useStudent(); // studentData will be StudentData
+  const [currentClass, setCurrentClass] = useState(""); // Default to empty, will be set from fetched data
   const [newClassName, setNewClassName] = useState(""); // State for adding a new class name
 
-  // Effect to load saved student data from localStorage on component mount
-  useEffect(() => {
-    const savedStudentData = localStorage.getItem("studentData");
-    if (savedStudentData) {
-      try {
-        // Attempt to parse the saved data
-        const parsedData: StudentData = JSON.parse(savedStudentData);
-        setStudentData(parsedData);
+  // Fees data from Zustand store
+  const { paidFees, unpaidFees, setPaidFees, setUnpaidFees } = useFeesStore();
 
-        // Set the current class to the first one found in saved data, or default
-        const firstClass = Object.keys(parsedData)[0];
-        if (firstClass) {
-          setCurrentClass(firstClass);
+  // --- Data Fetching Effects ---
+
+  // Fetch Admin Profile
+  useEffect(() => {
+    const fetchAdminProfile = async () => {
+      try {
+        // Assuming there's only one admin profile, or you're fetching a specific one (e.g., by ID 'auth.uid()')
+        // For simplicity, let's fetch the first one if multiple exist.
+        const { data, error } = await supabase
+          .from("admin_profiles")
+          .select("*")
+          .limit(1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const profile = data[0];
+          setAdminProfile(profile);
+          setAdminName(profile.admin_name);
+          setAdminImage(profile.admin_image_url);
         } else {
-          // If no classes saved but data was found (e.g., empty object), initialize with a default
-          const defaultData = { "Class A": { male: 0, female: 0 } };
-          setStudentData(defaultData);
-          localStorage.setItem("studentData", JSON.stringify(defaultData)); // Also save default
-          setCurrentClass("Class A");
+          // If no admin profile exists, initialize a default one or leave fields blank
+          setAdminName("");
+          setAdminImage(null);
         }
-      } catch (error) {
-        console.error("Failed to parse student data from localStorage:", error);
-        // Handle potential parsing errors by clearing invalid data and initializing with default
-        localStorage.removeItem("studentData");
-        const defaultData = { "Class A": { male: 0, female: 0 } };
-        setStudentData(defaultData);
-        localStorage.setItem("studentData", JSON.stringify(defaultData)); // Also save default
-        setCurrentClass("Class A");
+      } catch (error: any) {
+        toast.error(`Error fetching admin profile: ${error.message}`, {
+          position: "top-right",
+        });
+        console.error("Error fetching admin profile:", error);
       }
-    } else {
-      // If no data in localStorage, initialize with a default class
-      const defaultData = { "Class A": { male: 0, female: 0 } };
-      setStudentData(defaultData);
-      localStorage.setItem("studentData", JSON.stringify(defaultData)); // Also save default
-      setCurrentClass("Class A");
-    }
+    };
+    fetchAdminProfile();
+  }, []);
+
+  // Fetch School Statistics
+  useEffect(() => {
+    const fetchSchoolStatistics = async () => {
+      try {
+        // Assuming there's only one row for school statistics
+        const { data, error } = await supabase
+          .from("school_statistics")
+          .select("*")
+          .limit(1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const stats = data[0];
+          setSchoolStats(stats);
+          // Set individual states for inputs for easier binding
+          // These individual states are now redundant if schoolStats is used directly in inputs
+          // However, for update handlers, it might be easier to use them for now.
+          // In a more robust system, consider if inputs directly bind to `schoolStats` and update a temp object.
+          // For now, mapping fetched data to existing individual states:
+          // setMaleTeachers(stats.total_male_teachers);
+          // setFemaleTeachers(stats.total_female_teachers);
+          // setMaleStudent(stats.overall_male_students);
+          // setFemaleStudent(stats.overall_female_students);
+          setPaidFees(stats.paid_fees_percentage);
+          setUnpaidFees(stats.unpaid_fees_percentage);
+        } else {
+          // If no stats entry, initialize with defaults (or leave states as 0)
+          setPaidFees(0);
+          setUnpaidFees(0);
+        }
+      } catch (error: any) {
+        toast.error(`Error fetching school statistics: ${error.message}`, {
+          position: "top-right",
+        });
+        console.error("Error fetching school statistics:", error);
+      }
+    };
+    fetchSchoolStatistics();
+  }, [setPaidFees, setUnpaidFees]); // Include setters for fees store as dependencies
+
+  // Fetch Class Student Data
+  // This effect will run on component mount and whenever setStudentData is stable.
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("classes_update")
+          .select("class_name, male_students_count, female_students_count");
+
+        if (error) throw error;
+
+        if (data) {
+          const fetchedStudentData: {
+            [className: string]: { male: number; female: number };
+          } = {};
+          data.forEach((cls) => {
+            fetchedStudentData[cls.class_name] = {
+              male: cls.male_students_count,
+              female: cls.female_students_count,
+            };
+          });
+          setStudentData(fetchedStudentData);
+
+          // Set current class to the first one fetched, or default
+          const firstClass = Object.keys(fetchedStudentData)[0];
+          if (firstClass) {
+            setCurrentClass(firstClass);
+          } else {
+            // If no classes exist, set a default "Class A" if desired
+            // Or leave currentClass empty and prompt user to create one
+            setCurrentClass("");
+          }
+        }
+      } catch (error: any) {
+        toast.error(`Error fetching class data: ${error.message}`, {
+          position: "top-right",
+        });
+        console.error("Error fetching class data:", error);
+      }
+    };
+
+    fetchClasses();
   }, [setStudentData]); // Dependency array includes setStudentData
 
-  // Load other data from localStorage on mount
-  useEffect(() => {
-    // Load admin profile data
-    setName(localStorage.getItem("adminName") || "");
-    setImage(localStorage.getItem("adminImage") || null);
+  // --- Handlers for Supabase Operations ---
 
-    // Load teacher counts
-    setMaleTeachers(Number(localStorage.getItem("maleTeachers") || "0"));
-    setFemaleTeachers(Number(localStorage.getItem("femaleTeachers") || "0"));
-
-    // Load overall student counts
-    setMaleStudent(Number(localStorage.getItem("maleStudent") || "0"));
-    setFemaleStudent(Number(localStorage.getItem("femaleStudent") || "0"));
-
-    // Note: Fees data is managed by useFeesStore, assuming it loads its state internally
-    // (e.g., from localStorage or a backend) upon initialization.
-    // So, no need to load fees directly here from localStorage.
-
-  }, []); // Empty dependency array means this effect runs only once on mount
-
-
-  // Handler for admin profile image change
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Admin Profile Handlers
+  const handleAdminImageChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     const reader = new FileReader();
     reader.onloadend = () => {
-      setImage(reader.result as string);
+      setAdminImage(reader.result as string);
     };
     if (file) reader.readAsDataURL(file);
   };
 
-  // Handler for submitting admin profile updates
-  const handleSubmit1 = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitAdminProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    localStorage.setItem("adminName", name);
-    localStorage.setItem("adminImage", image || "");
-    toast.success("Admin Profile updated successfully", { position: "top-right" });
+    try {
+      if (adminProfile) {
+        // Update existing profile
+        const { error } = await supabase
+          .from("admin_profiles")
+          .update({
+            admin_name: adminName,
+            admin_image_url: adminImage,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", adminProfile.id); // Update by ID
+
+        if (error) throw error;
+        toast.success("Admin Profile updated successfully!", {
+          position: "top-right",
+        });
+      } else {
+        // Insert new profile if none exists
+        const { data, error } = await supabase.from("admin_profiles").insert({
+          admin_name: adminName,
+          admin_image_url: adminImage,
+        }).select(); // Select the newly inserted data to get the ID
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setAdminProfile(data[0]); // Save the newly created profile data
+          toast.success("Admin Profile created successfully!", {
+            position: "top-right",
+          });
+        }
+      }
+    } catch (error: any) {
+      toast.error(`Error updating admin profile: ${error.message}`, {
+        position: "top-right",
+      });
+      console.error("Error updating admin profile:", error);
+    }
   };
 
-  // Handler for submitting teacher count updates
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // School Statistics Handlers (Teachers and Overall Students)
+  const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    localStorage.setItem("maleTeachers", maleTeachers.toString());
-    localStorage.setItem("femaleTeachers", femaleTeachers.toString());
-    toast.success("Teacher counts updated successfully", {
-      position: "top-right",
-    });
+    try {
+      // Get values from the inputs, which are bound to schoolStats state or temporary states if preferred
+      // For now, let's derive from current state of schoolStats or fallback to 0
+      const maleTeachers = schoolStats?.total_male_teachers || 0;
+      const femaleTeachers = schoolStats?.total_female_teachers || 0;
+      const maleStudents = schoolStats?.overall_male_students || 0;
+      const femaleStudents = schoolStats?.overall_female_students || 0;
+
+      const updatedStats = {
+        total_male_teachers: maleTeachers,
+        total_female_teachers: femaleTeachers,
+        overall_male_students: maleStudents,
+        overall_female_students: femaleStudents,
+        paid_fees_percentage: paidFees, // Use values from useFeesStore
+        unpaid_fees_percentage: unpaidFees, // Use values from useFeesStore
+        updated_at: new Date().toISOString(),
+      };
+
+      if (schoolStats) {
+        // Update existing row
+        const { error } = await supabase
+          .from("school_statistics")
+          .update(updatedStats)
+          .eq("id", schoolStats.id);
+
+        if (error) throw error;
+        toast.success("School statistics updated successfully!", {
+          position: "top-right",
+        });
+      } else {
+        // Insert new row (first time)
+        const { data, error } = await supabase
+          .from("school_statistics")
+          .insert(updatedStats)
+          .select();
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setSchoolStats(data[0]); // Store the newly created stats
+          toast.success("School statistics created successfully!", {
+            position: "top-right",
+          });
+        }
+      }
+    } catch (error: any) {
+      toast.error(`Error updating school statistics: ${error.message}`, {
+        position: "top-right",
+      });
+      console.error("Error updating school statistics:", error);
+    }
   };
 
-  // Handler for submitting overall student count updates
-  const handleSubmit2 = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    localStorage.setItem("maleStudent", maleStudent.toString());
-    localStorage.setItem("femaleStudent", femaleStudent.toString());
-    toast.success("Overall Student counts updated successfully", {
-      position: "top-right",
-    });
-  };
-
-  // Handler for updating fees - This now just shows a success message,
-  // assuming the input fields already update the store state via setPaidFees and setUnpaidFees
+  // Fees Update Handler (now part of handleSubmitSchoolStats)
+  // Re-evaluating this: Since paidFees and unpaidFees are from useFeesStore,
+  // and the table `school_statistics` holds these values, the `handleSubmitSchoolStats`
+  // should ideally cover updating these too. The button `Update Fees` can trigger that same submit.
   const handleUpdateFeesClick = () => {
-     // Optional: Add logic here if you need a specific action on button click,
-     // like saving the *current* store state (paid, unpaid) to a backend/localStorage
-     // Example: localStorage.setItem("paidFees", paid.toString());
-     // Example: localStorage.setItem("unpaidFees", unpaid.toString());
-    toast.success("Fees updated successfully!", { position: "top-right" });
+    handleSubmitSchoolStats(
+      new Event("submit") as unknown as React.FormEvent<HTMLFormElement>
+    ); // Manually trigger the submit form for stats
   };
 
-  // Handler for creating a new class
-  const createClass = () => {
+  // Class Management Handlers
+  const createClass = async () => {
     const trimmedClassName = newClassName.trim();
-    // Prevent creating empty or duplicate class names
     if (trimmedClassName === "") {
       toast.error("Class name cannot be empty!", { position: "top-right" });
       return;
     }
     if (studentData[trimmedClassName]) {
-      toast.error(`${trimmedClassName} already exists!`, { position: "top-right" });
+      toast.error(`${trimmedClassName} already exists!`, {
+        position: "top-right",
+      });
       return;
     }
 
-    const updatedStudentData = {
-      ...studentData,
-      [trimmedClassName]: { male: 0, female: 0 }, // Initialize new class with 0 students
-    };
-    setStudentData(updatedStudentData);
-    localStorage.setItem("studentData", JSON.stringify(updatedStudentData));
-    setNewClassName(""); // Clear the input field
-    toast.success(`${trimmedClassName} created successfully!`, { position: "top-right" });
+    try {
+      const { data, error } = await supabase
+        .from("classes_update")
+        .insert({
+          class_name: trimmedClassName,
+          male_students_count: 0,
+          female_students_count: 0,
+        })
+        .select(); // Select to get the full inserted row (including id, created_at, updated_at)
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const newClass = data[0];
+        const updatedStudentData = {
+          ...studentData,
+          [newClass.class_name]: {
+            male: newClass.male_students_count,
+            female: newClass.female_students_count,
+          },
+        };
+        setStudentData(updatedStudentData);
+        setCurrentClass(newClass.class_name); // Automatically select the new class
+        setNewClassName("");
+        toast.success(`${newClass.class_name} created successfully!`, {
+          position: "top-right",
+        });
+      }
+    } catch (error: any) {
+      toast.error(`Error creating class: ${error.message}`, {
+        position: "top-right",
+      });
+      console.error("Error creating class:", error);
+    }
   };
 
-  // Handler for deleting a class
-  const deleteClass = (className: string) => {
-    // Prevent deleting if it's the only class
+  const deleteClass = async (className: string) => {
     if (Object.keys(studentData).length <= 1) {
       toast.error("Cannot delete the last class!", { position: "top-right" });
       return;
     }
-    const updatedData = { ...studentData };
-    delete updatedData[className];
-    setStudentData(updatedData);
-    localStorage.setItem("studentData", JSON.stringify(updatedData));
-    // Set current class to the first remaining class after deletion
-    const remainingClasses = Object.keys(updatedData);
-    if (remainingClasses.length > 0) {
-      setCurrentClass(remainingClasses[0]);
-    } else {
-        // This case should theoretically not happen due to the check above,
-        // but as a fallback, reset to a default state if somehow empty.
-        const defaultData = { "Class A": { male: 0, female: 0 } };
-        setStudentData(defaultData);
-        localStorage.setItem("studentData", JSON.stringify(defaultData));
-        setCurrentClass("Class A");
+
+    try {
+      const { error } = await supabase
+        .from("classes_update")
+        .delete()
+        .eq("class_name", className); // Delete by class_name
+
+      if (error) throw error;
+
+      const updatedData = { ...studentData };
+      delete updatedData[className];
+      setStudentData(updatedData);
+
+      // Set current class to the first remaining class after deletion
+      const remainingClasses = Object.keys(updatedData);
+      if (remainingClasses.length > 0) {
+        setCurrentClass(remainingClasses[0]);
+      } else {
+        setCurrentClass(""); // No classes left
+      }
+      toast.success(`${className} has been deleted!`, {
+        position: "top-right",
+      });
+    } catch (error: any) {
+      toast.error(`Error deleting class: ${error.message}`, {
+        position: "top-right",
+      });
+      console.error("Error deleting class:", error);
     }
-    toast.success(`${className} has been deleted!`, { position: "top-right" });
   };
 
   // Handler for updating male/female student counts for the currently selected class
-  const updateClassStudentCount = (gender: "male" | "female", value: number) => {
-    // Ensure the value is not negative
-    const safeValue = Math.max(0, value);
-    const updatedData = { ...studentData };
-    if (updatedData[currentClass]) {
-      updatedData[currentClass] = {
-        ...updatedData[currentClass],
-        [gender]: safeValue,
-      };
-      setStudentData(updatedData);
-      localStorage.setItem("studentData", JSON.stringify(updatedData));
-    }
-  };
+  // This needs to fetch the specific class's ID to update it.
+  const updateClassStudentCount = useCallback(
+    async (gender: "male" | "female", value: number) => {
+      const safeValue = Math.max(0, value);
+      if (!currentClass) {
+        toast.error("Please select a class first.", { position: "top-right" });
+        return;
+      }
 
-  const {  } = useFeesStore();
+      try {
+        // Fetch the ID of the current class based on its name
+        const { data: existingClass, error: fetchError } = await supabase
+          .from("classes_update")
+          .select("id, male_students_count, female_students_count")
+          .eq("class_name", currentClass)
+          .single(); // Use single() to expect one result
 
-  function setPaidFees(arg0: number): void {
-    throw new Error("Function not implemented.");
-  }
+        if (fetchError) throw fetchError;
+        if (!existingClass) {
+          toast.error(`Class "${currentClass}" not found.`, {
+            position: "top-right",
+          });
+          return;
+        }
 
-  function setUnpaidFees(arg0: number): void {
-    throw new Error("Function not implemented.");
-  }
+        const updateData: {
+          male_students_count?: number;
+          female_students_count?: number;
+          updated_at: string;
+        } = { updated_at: new Date().toISOString() };
+
+        if (gender === "male") {
+          updateData.male_students_count = safeValue;
+        } else {
+          updateData.female_students_count = safeValue;
+        }
+
+        const { error: updateError } = await supabase
+          .from("classes_update")
+          .update(updateData)
+          .eq("id", existingClass.id); // Update by the fetched ID
+
+        if (updateError) throw updateError;
+
+        // Optimistically update local state after successful Supabase update
+        const updatedStudentData = { ...studentData };
+        if (updatedStudentData[currentClass]) {
+          updatedStudentData[currentClass] = {
+            ...updatedStudentData[currentClass],
+            [gender]: safeValue,
+          };
+          setStudentData(updatedStudentData);
+        }
+        toast.success(
+          `Student count for ${currentClass} updated successfully!`,
+          { position: "top-right" }
+        );
+      } catch (error: any) {
+        toast.error(`Error updating student count: ${error.message}`, {
+          position: "top-right",
+        });
+        console.error("Error updating student count:", error);
+      }
+    },
+    [currentClass, studentData, setStudentData]
+  ); // Dependencies for useCallback
 
   return (
     <SidebarProvider>
@@ -282,38 +494,53 @@ export default function Page() {
             </h2>
           </div>
 
-          {/* Centered and potentially responsive grid container */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full max-w-4xl"> {/* Use max-w-4xl for better control on large screens */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full max-w-4xl">
             {/* Update Admin Profile */}
-            <div className="bg-white p-6 rounded-lg shadow-lg hover:scale-105 duration-300 flex flex-col"> {/* Use flex-col for internal stacking */}
-              <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center"> {/* Center heading */}
+            <div className="bg-white p-6 rounded-lg shadow-lg hover:scale-105 duration-300 flex flex-col">
+              <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center">
                 Update Admin Profile
               </h2>
-              <form onSubmit={handleSubmit1} className="space-y-4 flex-grow flex flex-col justify-center"> {/* Center form content */}
-                <label htmlFor="adminName" className="block text-sm font-medium text-gray-700">Admin Name:</label>
+              <form
+                onSubmit={handleSubmitAdminProfile}
+                className="space-y-4 flex-grow flex flex-col justify-center"
+              >
+                <label
+                  htmlFor="adminName"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Admin Name:
+                </label>
                 <input
                   title="Admin Name"
                   placeholder="Enter admin name"
                   type="text"
                   id="adminName"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={adminName}
+                  onChange={(e) => setAdminName(e.target.value)}
                   className="w-full p-2 bg-slate-100 border rounded-md"
                 />
-                <label htmlFor="adminImage" className="block text-sm font-medium text-gray-700">Admin Image:</label> {/* Added label for file input */}
+                <label
+                  htmlFor="adminImage"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Admin Image:
+                </label>
                 <input
                   type="file"
-                  id="adminImage" // Added id for label association
+                  id="adminImage"
                   accept="image/*"
-                  onChange={handleImageChange}
+                  onChange={handleAdminImageChange}
                   className="w-full p-2 bg-slate-100 border rounded-md"
                 />
-                 {/* Optional: Display current image */}
-                 {image && (
-                    <div className="mt-2 text-center">
-                        <img src={image} alt="Admin Preview" className="mt-2 w-24 h-24 object-cover rounded-full inline-block" />
-                    </div>
-                 )}
+                {adminImage && (
+                  <div className="mt-2 text-center">
+                    <img
+                      src={adminImage}
+                      alt="Admin Preview"
+                      className="mt-2 w-24 h-24 object-cover rounded-full inline-block"
+                    />
+                  </div>
+                )}
                 <button
                   type="submit"
                   className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600"
@@ -323,134 +550,138 @@ export default function Page() {
               </form>
             </div>
 
-            {/* Update Teacher Counts */}
-            <div className="bg-white p-6 rounded-lg shadow-lg hover:scale-105 duration-300 flex flex-col"> {/* Use flex-col for internal stacking */}
-              <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center"> {/* Center heading */}
-                Update Teacher Counts
+            {/* Update Teacher Counts and Overall Student Counts (Combined into School Statistics) */}
+            <div className="bg-white p-6 rounded-lg shadow-lg hover:scale-105 duration-300 flex flex-col">
+              <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center">
+                Update School Statistics
               </h2>
-              <form onSubmit={handleSubmit} className="space-y-4 flex-grow flex flex-col justify-center"> {/* Center form content */}
-                <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
+              <form
+                onSubmit={handleSubmitSchoolStats}
+                className="space-y-4 flex-grow flex flex-col justify-center"
+              >
+                {/* Teacher Counts */}
+                <div className="flex justify-between items-center gap-4">
                   <label className="font-medium">Male Teachers</label>
                   <input
                     type="number"
-                    value={maleTeachers}
-                    onChange={(e) => setMaleTeachers(Number(e.target.value))}
+                    value={schoolStats?.total_male_teachers || 0}
+                    onChange={(e) =>
+                      setSchoolStats((prev) =>
+                        prev
+                          ? { ...prev, total_male_teachers: Number(e.target.value) }
+                          : null
+                      )
+                    }
                     className="p-1 bg-slate-100 border rounded-md w-1/2"
-                    min="0" // Ensure counts are not negative
+                    min="0"
                     title="Male Teachers"
                     placeholder="Enter number of male teachers"
                   />
                 </div>
-                <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
+                <div className="flex justify-between items-center gap-4">
                   <label className="font-medium">Female Teachers</label>
                   <input
                     type="number"
-                    value={femaleTeachers}
-                    onChange={(e) => setFemaleTeachers(Number(e.target.value))}
+                    value={schoolStats?.total_female_teachers || 0}
+                    onChange={(e) =>
+                      setSchoolStats((prev) =>
+                        prev
+                          ? { ...prev, total_female_teachers: Number(e.target.value) }
+                          : null
+                      )
+                    }
                     className="p-1 bg-slate-100 border rounded-md w-1/2"
-                    min="0" // Ensure counts are not negative
+                    min="0"
                     title="Female Teachers"
                     placeholder="Enter number of female teachers"
                   />
                 </div>
-                <button
-                  type="submit"
-                  className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600"
-                >
-                  Save Teacher Counts
-                </button>
-              </form>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 w-full max-w-4xl"> {/* Use max-w-4xl for better control on large screens */}
-            {/* Update Overall Student Counts (Note: These seem separate from class-specific counts) */}
-            <div className="bg-white p-6 rounded-lg shadow-lg hover:scale-105 duration-300 flex flex-col"> {/* Use flex-col for internal stacking */}
-              <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center"> {/* Center heading */}
-                Update Overall Student Counts
-              </h2>
-              <form onSubmit={handleSubmit2} className="space-y-4 flex-grow flex flex-col justify-center"> {/* Center form content */}
-                <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
-                  <label className="font-medium">Male Students</label>
+                {/* Overall Student Counts */}
+                <div className="flex justify-between items-center gap-4">
+                  <label className="font-medium">Overall Male Students</label>
                   <input
                     type="number"
-                    value={maleStudent}
-                    title="Male Students"
-                    placeholder="Enter male Students"
-                    onChange={(e) => setMaleStudent(Number(e.target.value))}
+                    value={schoolStats?.overall_male_students || 0}
+                    onChange={(e) =>
+                      setSchoolStats((prev) =>
+                        prev
+                          ? { ...prev, overall_male_students: Number(e.target.value) }
+                          : null
+                      )
+                    }
+                    title="Overall Male Students"
+                    placeholder="Enter overall male students"
                     className="p-1 bg-slate-100 border rounded-md w-1/2"
-                    min="0" // Ensure counts are not negative
+                    min="0"
                   />
                 </div>
-                <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
-                  <label className="font-medium">Female Students</label>
+                <div className="flex justify-between items-center gap-4">
+                  <label className="font-medium">Overall Female Students</label>
                   <input
                     type="number"
-                    value={femaleStudent}
-                    title="Female Students"
-                    placeholder="Enter Female Students"
-                    onChange={(e) => setFemaleStudent(Number(e.target.value))}
+                    value={schoolStats?.overall_female_students || 0}
+                    onChange={(e) =>
+                      setSchoolStats((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              overall_female_students: Number(e.target.value),
+                            }
+                          : null
+                      )
+                    }
+                    title="Overall Female Students"
+                    placeholder="Enter overall female students"
                     className="p-1 bg-slate-100 border rounded-md w-1/2"
-                    min="0" // Ensure counts are not negative
+                    min="0"
                   />
                 </div>
-                <button
-                  type="submit"
-                  className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600"
-                >
-                  Save Overall Student Counts
-                </button>
-              </form>
-            </div>
 
-            {/* Update Fees */}
-            <div className="bg-white p-6 rounded-lg shadow-lg hover:scale-105 duration-300 flex flex-col"> {/* Use flex-col for internal stacking */}
-              <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center"> {/* Center heading */}
-                Update Fees
-              </h2>
-              <div className="flex-grow flex flex-col justify-center space-y-4"> {/* Center content and add space-y */}
-                <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
+                {/* Fees Percentage */}
+                <div className="flex justify-between items-center gap-4">
                   <label className="font-medium">Paid Fees (%)</label>
                   <input
                     type="number"
                     title="Paid Fees"
                     placeholder="Paid Fees"
-                    value={paid}
-                    onChange={(e) => setPaidFees(Number(e.target.value))} // Use setPaidFees from the store
+                    value={paidFees}
+                    onChange={(e) => setPaidFees(Number(e.target.value))}
                     className="p-1 bg-slate-100 border rounded-md w-1/2"
-                    min="0" // Add min and max for percentage
+                    min="0"
                     max="100"
                   />
                 </div>
-                <div className="flex justify-between items-center gap-4"> {/* Add items-center for vertical alignment */}
+                <div className="flex justify-between items-center gap-4">
                   <label className="font-medium">Unpaid Fees (%)</label>
                   <input
                     type="number"
                     title="Unpaid Fees"
                     placeholder="Unpaid Fees"
-                    value={unpaid}
-                    onChange={(e) => setUnpaidFees(Number(e.target.value))} // Use setUnpaidFees from the store
+                    value={unpaidFees}
+                    onChange={(e) => setUnpaidFees(Number(e.target.value))}
                     className="p-1 bg-slate-100 border rounded-md w-1/2"
-                    min="0" // Add min and max for percentage
+                    min="0"
                     max="100"
                   />
                 </div>
+
                 <button
-                  onClick={handleUpdateFeesClick} // Call the handler
+                  type="submit"
                   className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600"
                 >
-                  Update Fees
+                  Save School Statistics
                 </button>
-              </div>
+              </form>
             </div>
           </div>
 
           {/* Create or Delete Class and Update Class-Specific Student Counts */}
-          <div className="bg-white p-6 rounded-lg shadow-lg mt-6 w-full max-w-md mx-auto hover:scale-105 duration-300 flex flex-col"> {/* Use max-w-md and mx-auto for centering */}
-            <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center"> {/* Center heading */}
+          <div className="bg-white p-6 rounded-lg shadow-lg mt-6 w-full max-w-md mx-auto hover:scale-105 duration-300 flex flex-col">
+            <h2 className="text-xl font-semibold text-blue-600 mb-4 text-center">
               Manage Classes and Students
             </h2>
-            <div className="flex-grow flex flex-col justify-center space-y-4"> {/* Center content and add space-y */}
+            <div className="flex-grow flex flex-col justify-center space-y-4">
               {/* Input and button for creating a new class */}
               <div className="flex gap-2">
                 <input
@@ -476,53 +707,59 @@ export default function Page() {
                 onChange={(e) => setCurrentClass(e.target.value)}
                 className="w-full p-2 bg-slate-100 border rounded-md"
               >
-                {/* Map over the class names from studentData to create options */}
-                {/* Add a check to ensure studentData is not null/undefined and has keys */}
-                {Object.keys(studentData || {}).map((className) => (
-                  <option key={className} value={className}>
-                    {className}
+                {Object.keys(studentData || {}).length === 0 ? (
+                  <option value="" disabled>
+                    No classes available
                   </option>
-                ))}
+                ) : (
+                  Object.keys(studentData || {}).map((className) => (
+                    <option key={className} value={className}>
+                      {className}
+                    </option>
+                  ))
+                )}
               </select>
 
-              {/* Inputs to update student counts for the selected class */}
-              {/* Only show these inputs if a class is actually selected/available */}
               {currentClass && studentData && studentData[currentClass] && (
-                 <>
-                    <label className="font-medium">Students in {currentClass}:</label>
-                    <input
-                      type="number"
-                      // Display the current male student count for the selected class, default to 0 if class data is missing
-                      value={studentData[currentClass]?.male || 0}
-                      onChange={(e) => updateClassStudentCount("male", Number(e.target.value))}
-                      className="w-full p-2 bg-slate-100 border rounded-md"
-                      title="Male Students in selected class"
-                      placeholder="Male Students"
-                      min="0" // Ensure student counts are not negative
-                    />
-                    <input
-                      type="number"
-                      // Display the current female student count for the selected class, default to 0 if class data is missing
-                      value={studentData[currentClass]?.female || 0}
-                      onChange={(e) => updateClassStudentCount("female", Number(e.target.value))}
-                      className="w-full p-2 bg-slate-100 border rounded-md"
-                      placeholder="Female Students"
-                      min="0" // Ensure student counts are not negative
-                    />
+                <>
+                  <label className="font-medium">
+                    Students in {currentClass}:
+                  </label>
+                  <input
+                    type="number"
+                    value={studentData[currentClass]?.male || 0}
+                    onChange={(e) =>
+                      updateClassStudentCount("male", Number(e.target.value))
+                    }
+                    className="w-full p-2 bg-slate-100 border rounded-md"
+                    title="Male Students in selected class"
+                    placeholder="Male Students"
+                    min="0"
+                  />
+                  <input
+                    type="number"
+                    value={studentData[currentClass]?.female || 0}
+                    onChange={(e) =>
+                      updateClassStudentCount("female", Number(e.target.value))
+                    }
+                    className="w-full p-2 bg-slate-100 border rounded-md"
+                    placeholder="Female Students"
+                    min="0"
+                  />
 
-                    {/* Button to delete the currently selected class */}
-                    <button
-                      onClick={() => deleteClass(currentClass)}
-                      className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600"
-                    >
-                      Delete Selected Class ({currentClass})
-                    </button>
-                 </>
+                  <button
+                    onClick={() => deleteClass(currentClass)}
+                    className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600"
+                  >
+                    Delete Selected Class ({currentClass})
+                  </button>
+                </>
               )}
-                {/* Optional message if no classes exist */}
-                {Object.keys(studentData || {}).length === 0 && (
-                    <p className="text-center text-gray-500">No classes available. Add a new class above.</p>
-                )}
+              {Object.keys(studentData || {}).length === 0 && (
+                <p className="text-center text-gray-500">
+                  No classes available. Add a new class above.
+                </p>
+              )}
             </div>
           </div>
         </div>
