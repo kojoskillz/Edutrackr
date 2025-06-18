@@ -2,8 +2,6 @@
 'use client';
 
 import * as React from "react";
-// Assuming AppSidebar, Breadcrumb components, etc., are correctly imported
-// from your components library.
 import { AppSidebar } from "@/components/app-sidebar";
 import {
     Breadcrumb,
@@ -21,77 +19,51 @@ import {
 } from "@/components/ui/sidebar";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-// Supabase imports
-import { createClient } from '@supabase/supabase-js'; // Import Supabase client creator
-
-// Import PrintIcon for the print button
+import { createClient } from '@supabase/supabase-js';
 import PrintIcon from '@mui/icons-material/Print';
 
-// Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// --- Type Definitions ---
-
-// Define the structure for a student row in Supabase
 interface Student {
-    id: string; // Supabase row ID
+    id: string;
     name: string;
     studentClass: string;
-    user_id: string; // Changed from userId to user_id
+    user_id: string;
 }
 
-// Define the structure for a payment record within a fee document
 interface PaymentRecord {
     amount: number;
-    date: string; // Date of payment in ISO-MM-DD format
+    date: string;
 }
 
-// Define the structure for a fee row in Supabase
 interface Fee {
-    id: string; // Supabase row ID
-    studentId: string; // Link to the student's Supabase row ID
-    name: string; // e.g., Tuition Fee, Library Fee
-    amount: number; // Total amount due
-    amountPaid: number; // Amount already paid
-    payments: PaymentRecord[]; // Array to store individual payment records (JSONB in Supabase)
-    user_id: string; // Changed from userId to user_id
+    id: string;
+    studentId: string;
+    name: string;
+    amount: number;
+    amountPaid: number;
+    payments: PaymentRecord[];
+    user_id: string;
 }
 
-// Component to manage and display the fee payment system
 const FeePaymentSystem: React.FC = () => {
-    // --- Supabase State ---
-    const [user_id, setUser_id] = React.useState<string | null>(null); // Changed from userId to user_id
-    const [isAuthReady, setIsAuthReady] = React.useState(false); // To track if auth state is determined
-
-    // --- Application Data State ---
+    const [user_id, setUser_id] = React.useState<string | null>(null);
+    const [isAuthReady, setIsAuthReady] = React.useState(false);
     const [students, setStudents] = React.useState<Student[]>([]);
     const [fees, setFees] = React.useState<Fee[]>([]);
-
-    // --- UI State ---
     const [searchTerm, setSearchTerm] = React.useState<string>('');
-    const [paymentInputs, setPaymentInputs] = React.useState<{ [key: string]: number }>({}); // Key is fee.id (string)
-    const [selectedStudentId, setSelectedStudentId] = React.useState<string | null>(null); // Student ID is now string
-
-    // State for adding a new student
+    const [paymentInputs, setPaymentInputs] = React.useState<{ [key: string]: number }>({});
+    const [selectedStudentId, setSelectedStudentId] = React.useState<string | null>(null);
     const [newStudentName, setNewStudentName] = React.useState<string>('');
     const [newStudentClass, setNewStudentClass] = React.useState<string>('');
-
-    // State for adding a new fee type
     const [newFeeName, setNewFeeName] = React.useState<string>('');
     const [newFeeDefaultAmount, setNewFeeDefaultAmount] = React.useState<number>(0);
-
-    // State to track which fee is currently being edited (feeId or null)
-    const [editingFeeId, setEditingFeeId] = React.useState<string | null>(null); // feeId is string
-    // State to hold the value of the fee amount input while editing
+    const [editingFeeId, setEditingFeeId] = React.useState<string | null>(null);
     const [editingFeeAmount, setEditingFeeAmount] = React.useState<number>(0);
-    // State for editing fee amount for all students
     const [selectedFeeTypeToEdit, setSelectedFeeTypeToEdit] = React.useState<string>('');
     const [newAmountForAll, setNewAmountForAll] = React.useState<number>(0);
-
-    // State for receipt generation
     const [receiptDetails, setReceiptDetails] = React.useState<{
         studentName: string;
         feeName: string;
@@ -100,80 +72,67 @@ const FeePaymentSystem: React.FC = () => {
         balance: number;
         totalAmount: number;
     } | null>(null);
-    // Loading states
     const [isLoadingStudents, setIsLoadingStudents] = React.useState(true);
     const [isLoadingFees, setIsLoadingFees] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
+    const [totalFeesPaid, setTotalFeesPaid] = React.useState<number>(0);
 
+    React.useEffect(() => {
+        const total = fees.reduce((sum, fee) => sum + fee.amountPaid, 0);
+        setTotalFeesPaid(total);
+    }, [fees]);
 
-    // --- Supabase Authentication ---
     React.useEffect(() => {
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
-                console.log("Auth State Changed: User is logged in", session.user.id);
-                setUser_id(session.user.id); // Changed from setUserId to setUser_id
+                setUser_id(session.user.id);
             } else {
-                console.log("Auth State Changed: No user session. Attempting anonymous sign-in.");
                 try {
                     const { data, error } = await supabase.auth.signInAnonymously();
                     if (error) {
                         console.error("Supabase anonymous sign-in failed:", error.message);
                         toast.error("Failed to sign in to Supabase. Please try again.");
-                        setUser_id(null); // Changed from setUserId to setUser_id
+                        setUser_id(null);
                     } else if (data.user) {
-                        console.log("Anonymous user signed in:", data.user.id);
-                        setUser_id(data.user.id); // Changed from setUserId to setUser_id
+                        setUser_id(data.user.id);
                     } else {
-                        console.warn("Anonymous sign-in returned no user data.");
-                        setUser_id(null); // Changed from setUserId to setUser_id
+                        setUser_id(null);
                     }
-                } catch (error: any) { // Catch any unexpected errors during anonymous sign-in
+                } catch (error: any) {
                     console.error("Supabase anonymous sign-in failed (catch block):", error.message);
                     toast.error("Failed to sign in to Supabase. Please try again.");
-                    setUser_id(null); // Changed from setUserId to setUser_id
+                    setUser_id(null);
                 }
             }
-            setIsAuthReady(true); // Auth state determined
+            setIsAuthReady(true);
         });
 
-        // Initial check for session on component mount
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
-                console.log("Initial session check: User is logged in", session.user.id);
-                setUser_id(session.user.id); // Changed from setUserId to setUser_id
-            } else {
-                console.log("Initial session check: No active session.");
+                setUser_id(session.user.id);
             }
             setIsAuthReady(true);
         });
 
         return () => {
-            authListener.subscription.unsubscribe(); // Cleanup auth listener
+            authListener.subscription.unsubscribe();
         };
-    }, []); // Run once on component mount
+    }, []);
 
-    // --- Supabase Data Listeners (Students & Fees) ---
     React.useEffect(() => {
-        if (!user_id || !isAuthReady) {
-            console.log("Data listener skipped: user_id or auth not ready.", { user_id, isAuthReady });
-            return; // Wait for Supabase and auth to be ready
-        }
-
-        console.log(`Setting up real-time listeners for user_id: ${user_id}`);
+        if (!user_id || !isAuthReady) return;
 
         const fetchStudents = async () => {
             setIsLoadingStudents(true);
-            console.log(`Fetching students for user_id: ${user_id}`);
             const { data, error } = await supabase
                 .from('students')
                 .select('*')
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (error) {
                 console.error("Error fetching students:", error.message);
                 toast.error("Failed to load students.");
             } else {
-                console.log("Students fetched:", data);
                 setStudents(data as Student[]);
             }
             setIsLoadingStudents(false);
@@ -181,32 +140,27 @@ const FeePaymentSystem: React.FC = () => {
 
         const fetchFees = async () => {
             setIsLoadingFees(true);
-            console.log(`Fetching fees for user_id: ${user_id}`);
             const { data, error } = await supabase
                 .from('fees')
                 .select('*')
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (error) {
                 console.error("Error fetching fees:", error.message);
                 toast.error("Failed to load fees.");
             } else {
-                console.log("Fees fetched:", data);
                 setFees(data as Fee[]);
             }
             setIsLoadingFees(false);
         };
 
-        // Initial fetch when user_id becomes available
         fetchStudents();
         fetchFees();
 
-        // Set up real-time subscriptions
         const studentsChannel = supabase
-            .channel('public:students_changes') // Use a unique channel name
+            .channel('public:students_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, (payload) => {
-                console.log("Realtime student change detected:", payload);
-                if (payload.new && (payload.new as Student).user_id === user_id) { // Changed from userId to user_id
+                if (payload.new && (payload.new as Student).user_id === user_id) {
                     if (payload.eventType === 'INSERT') {
                         setStudents(prev => [...prev, payload.new as Student]);
                         toast.info(`New student added: ${(payload.new as Student).name}`);
@@ -222,10 +176,9 @@ const FeePaymentSystem: React.FC = () => {
             .subscribe();
 
         const feesChannel = supabase
-            .channel('public:fees_changes') // Use a unique channel name
+            .channel('public:fees_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'fees' }, (payload) => {
-                console.log("Realtime fee change detected:", payload);
-                if (payload.new && (payload.new as Fee).user_id === user_id) { // Changed from userId to user_id
+                if (payload.new && (payload.new as Fee).user_id === user_id) {
                     if (payload.eventType === 'INSERT') {
                         setFees(prev => [...prev, payload.new as Fee]);
                         toast.info(`New fee added: ${(payload.new as Fee).name}`);
@@ -240,31 +193,22 @@ const FeePaymentSystem: React.FC = () => {
             })
             .subscribe();
 
-        // Cleanup listeners on unmount or when dependencies change
         return () => {
-            console.log("Cleaning up Supabase channels.");
             supabase.removeChannel(studentsChannel);
             supabase.removeChannel(feesChannel);
         };
-    }, [user_id, isAuthReady]); // Re-run if user_id, or authReady changes
+    }, [user_id, isAuthReady]);
 
-
-    // --- Functions to handle input changes for payment amounts ---
     const handlePaymentInputChange = (feeId: string, value: string) => {
         const amount = parseFloat(value);
         setPaymentInputs({
             ...paymentInputs,
-            [feeId]: isNaN(amount) ? 0 : amount, // Store 0 if input is not a valid number
+            [feeId]: isNaN(amount) ? 0 : amount,
         });
     };
 
-    // --- Function to record a payment for a specific fee (Supabase) ---
     const recordPayment = async (feeId: string) => {
-        if (!user_id || isSaving) {
-            console.warn("Record payment skipped: user_id or isSaving not ready.", { user_id, isSaving });
-            toast.error("User not authenticated or a save operation is already in progress.");
-            return;
-        }
+        if (!user_id || isSaving) return;
         const paymentAmount = paymentInputs[feeId] || 0;
         const currentFee = fees.find(fee => fee.id === feeId);
         if (paymentAmount <= 0 || !currentFee) {
@@ -281,19 +225,17 @@ const FeePaymentSystem: React.FC = () => {
                 date: paymentDate,
             };
 
-            // Update the row in Supabase
             const { error } = await supabase
                 .from('fees')
                 .update({
                     amountPaid: newAmountPaid,
-                    payments: [...currentFee.payments, newPaymentRecord], // Append new payment to JSONB array
+                    payments: [...currentFee.payments, newPaymentRecord],
                 })
                 .eq('id', feeId)
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (error) throw error;
 
-            // Set receipt details
             const student = students.find(s => s.id === currentFee.studentId);
             if (student) {
                 setReceiptDetails({
@@ -306,13 +248,11 @@ const FeePaymentSystem: React.FC = () => {
                 });
             }
 
-            // Clear the input field after recording the payment
             setPaymentInputs({
                 ...paymentInputs,
                 [feeId]: 0,
             });
             toast.success("Payment recorded successfully!");
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error("Error recording payment:", error.message);
             toast.error(`Failed to record payment: ${error.message}`);
@@ -321,13 +261,8 @@ const FeePaymentSystem: React.FC = () => {
         }
     };
 
-    // --- Function to add a new student (Supabase) ---
     const addStudent = async () => {
-        if (!user_id || isSaving) {
-            console.warn("Add student skipped: user_id or isSaving not ready.", { user_id, isSaving });
-            toast.error("User not authenticated or a save operation is already in progress.");
-            return;
-        }
+        if (!user_id || isSaving) return;
         const trimmedName = newStudentName.trim();
         const trimmedClass = newStudentClass.trim();
 
@@ -338,13 +273,12 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to add student for user_id: ${user_id}`);
             const { error } = await supabase
                 .from('students')
                 .insert({
                     name: trimmedName,
                     studentClass: trimmedClass,
-                    user_id: user_id, // Changed from userId to user_id
+                    user_id: user_id,
                 });
 
             if (error) throw error;
@@ -352,7 +286,6 @@ const FeePaymentSystem: React.FC = () => {
             setNewStudentName('');
             setNewStudentClass('');
             toast.success(`Added new student: ${trimmedName}`);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error("Error adding student:", error.message);
             toast.error(`Failed to add student: ${error.message}. Check RLS policies for 'students' table.`);
@@ -361,53 +294,6 @@ const FeePaymentSystem: React.FC = () => {
         }
     };
 
-    // --- Function to add a new fee type to all students (Supabase) ---
-    const addFeeTypeToAllStudents = async () => {
-        if (!user_id || isSaving) {
-            console.warn("Add fee type skipped: user_id or isSaving not ready.", { user_id, isSaving });
-            toast.error("User not authenticated or a save operation is already in progress.");
-            return;
-        }
-        const trimmedFeeName = newFeeName.trim();
-        if (!trimmedFeeName || newFeeDefaultAmount <= 0) {
-            toast.error("Please enter a valid fee name and amount.");
-            return;
-        }
-        if (students.length === 0) {
-            toast.info("No students available to assign this fee type to. Please add students first.");
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            console.log(`Attempting to add fee type '${trimmedFeeName}' for all students for user_id: ${user_id}`);
-            const feeRecords = students.map(student => ({
-                studentId: student.id,
-                name: trimmedFeeName,
-                amount: newFeeDefaultAmount,
-                amountPaid: 0,
-                payments: [],
-                user_id: user_id, // Changed from userId to user_id
-            }));
-
-            const { error } = await supabase
-                .from('fees')
-                .insert(feeRecords);
-
-            if (error) throw error;
-
-            setNewFeeName('');
-            setNewFeeDefaultAmount(0);
-            toast.success(`Added '${trimmedFeeName}' fee for all students.`);
-        } catch (error: any) {
-            console.error("Error adding fee type to all students:", error.message);
-            toast.error(`Failed to add fee type for all students: ${error.message}. Check RLS policies for 'fees' table.`);
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    // --- Function to delete a student and their associated fees (Supabase) ---
     const deleteStudent = async (studentId: string) => {
         if (!user_id || isSaving) return;
         if (!window.confirm("Are you sure you want to delete this student and all their associated fees? This action cannot be undone.")) {
@@ -416,26 +302,22 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to delete student ${studentId} and associated fees for user_id: ${user_id}`);
-            // Delete all fees associated with the deleted student first (due to foreign key constraints if you set them up)
             const { error: deleteFeesError } = await supabase
                 .from('fees')
                 .delete()
                 .eq('studentId', studentId)
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (deleteFeesError) throw deleteFeesError;
 
-            // Delete the student row
             const { error: deleteStudentError } = await supabase
                 .from('students')
                 .delete()
                 .eq('id', studentId)
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (deleteStudentError) throw deleteStudentError;
 
-            // If the deleted student was the one currently selected, return to the list view
             if (selectedStudentId === studentId) {
                 setSelectedStudentId(null);
             }
@@ -448,19 +330,16 @@ const FeePaymentSystem: React.FC = () => {
         }
     };
 
-    // --- Function to start editing a fee (UI state only) ---
     const startEditingFee = (fee: Fee) => {
         setEditingFeeId(fee.id);
         setEditingFeeAmount(fee.amount);
     };
 
-    // --- Function to handle changes in the editing fee amount input ---
     const handleEditingFeeAmountChange = (value: string) => {
         const amount = parseFloat(value);
         setEditingFeeAmount(isNaN(amount) ? 0 : amount);
     };
 
-    // --- Function to save the edited fee amount for a single student (Supabase) ---
     const saveEditedFee = async (feeId: string) => {
         if (!user_id || isSaving) return;
         if (editingFeeAmount <= 0) {
@@ -470,10 +349,7 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to save edited fee ${feeId} for user_id: ${user_id}`);
             const currentFee = fees.find(f => f.id === feeId);
-
-            // Ensure amountPaid doesn't exceed the new total amount
             const newAmountPaid = currentFee ?
                 Math.min(currentFee.amountPaid, editingFeeAmount) : 0;
 
@@ -484,12 +360,12 @@ const FeePaymentSystem: React.FC = () => {
                     amountPaid: newAmountPaid,
                 })
                 .eq('id', feeId)
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (error) throw error;
 
-            setEditingFeeId(null); // Exit editing mode
-            setEditingFeeAmount(0); // Reset editing amount
+            setEditingFeeId(null);
+            setEditingFeeAmount(0);
             toast.success("Fee amount updated successfully!");
         } catch (error: any) {
             console.error("Error saving edited fee:", error.message);
@@ -499,13 +375,11 @@ const FeePaymentSystem: React.FC = () => {
         }
     };
 
-    // --- Function to cancel editing a fee (UI state only) ---
     const cancelEditingFee = () => {
-        setEditingFeeId(null); // Exit editing mode
-        setEditingFeeAmount(0); // Reset editing amount
+        setEditingFeeId(null);
+        setEditingFeeAmount(0);
     };
 
-    // --- Function to update the amount for a specific fee type for all students (Supabase) ---
     const updateFeeForAllStudents = async () => {
         if (!user_id || isSaving) return;
         const trimmedFeeType = selectedFeeTypeToEdit.trim();
@@ -516,17 +390,14 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to update fee type '${trimmedFeeType}' for all students for user_id: ${user_id}`);
-            // Fetch all fees matching the fee type for the current user
             const { data: feesToUpdate, error: fetchError } = await supabase
                 .from('fees')
                 .select('*')
                 .eq('name', trimmedFeeType)
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (fetchError) throw fetchError;
 
-            // Prepare batch updates
             const batchPromises = feesToUpdate.map(async (feeData: Fee) => {
                 const newAmountPaid = Math.min(feeData.amountPaid, newAmountForAll);
                 return supabase
@@ -536,13 +407,10 @@ const FeePaymentSystem: React.FC = () => {
                         amountPaid: newAmountPaid,
                     })
                     .eq('id', feeData.id)
-                    .eq('user_id', user_id); // Changed from userId to user_id
+                    .eq('user_id', user_id);
             });
 
-            // Execute all updates concurrently
             const results = await Promise.all(batchPromises);
-
-            // Check for errors in batch updates
             const hasErrors = results.some(result => result.error);
             if (hasErrors) {
                 console.error("Errors occurred during batch update:", results);
@@ -551,7 +419,6 @@ const FeePaymentSystem: React.FC = () => {
                 toast.success(`Updated amount for fee type '${trimmedFeeType}' to ₵${newAmountForAll.toFixed(2)} for all students.`);
             }
 
-            // Optionally reset the selection and input after updating
             setSelectedFeeTypeToEdit('');
             setNewAmountForAll(0);
         } catch (error: any) {
@@ -562,7 +429,6 @@ const FeePaymentSystem: React.FC = () => {
         }
     };
 
-    // --- Function to clear all data (Supabase) ---
     const clearAllData = async () => {
         if (!user_id || isSaving) return;
         if (!window.confirm("Are you sure you want to clear all student and fee data? This action cannot be undone.")) {
@@ -571,24 +437,20 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            console.log(`Attempting to clear all data for user_id: ${user_id}`);
-            // Delete all fees first (due to potential foreign key constraints)
             const { error: deleteFeesError } = await supabase
                 .from('fees')
                 .delete()
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (deleteFeesError) throw deleteFeesError;
 
-            // Delete all students
             const { error: deleteStudentsError } = await supabase
                 .from('students')
                 .delete()
-                .eq('user_id', user_id); // Changed from userId to user_id
+                .eq('user_id', user_id);
 
             if (deleteStudentsError) throw deleteStudentsError;
 
-            // Reset UI states
             setSelectedStudentId(null);
             setSearchTerm('');
             setNewStudentName('');
@@ -611,22 +473,18 @@ const FeePaymentSystem: React.FC = () => {
         }
     };
 
-    // --- Function to handle printing the receipt ---
     const handlePrintReceipt = () => {
-        console.log("Attempting to print receipt. Current receiptDetails:", receiptDetails);
         if (!receiptDetails) {
             toast.error("No receipt details available to print. Please record a payment first.");
             return;
         }
 
-        // Create a new window for printing
         const printWindow = window.open('', '_blank', 'width=800,height=600');
         if (!printWindow) {
             toast.error("Could not open print window. Please allow pop-ups.");
             return;
         }
 
-        // Construct the HTML for the receipt
         const receiptHtml = `
             <!DOCTYPE html>
             <html>
@@ -652,13 +510,12 @@ const FeePaymentSystem: React.FC = () => {
                     strong {
                         font-weight: 600;
                     }
-                    /* Basic styling for the receipt content */
                     .receipt-content {
                         border: 1px solid #ccc;
                         padding: 20px;
                         border-radius: 8px;
                         max-width: 500px;
-                        margin: 0 auto; /* Center the receipt on the page */
+                        margin: 0 auto;
                         box-shadow: 0 0 10px rgba(0,0,0,0.1);
                     }
                 </style>
@@ -677,31 +534,67 @@ const FeePaymentSystem: React.FC = () => {
             </html>
         `;
 
-        // Write the HTML to the new window
         printWindow.document.write(receiptHtml);
-        printWindow.document.close(); // Close the document to ensure content is loaded
-
-        // Wait for content to load, then print
+        printWindow.document.close();
         printWindow.onload = () => {
-            printWindow.focus(); // Focus the new window
-            printWindow.print(); // Trigger print
-            printWindow.close(); // Close the window after printing
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
         };
     };
 
+    const addFeeTypeToAllStudents = async (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        event.preventDefault();
+        if (!user_id || isSaving) {
+            toast.error("User not authenticated or a save operation is already in progress.");
+            return;
+        }
+        const trimmedFeeName = newFeeName.trim();
+        if (!trimmedFeeName || newFeeDefaultAmount <= 0) {
+            toast.error("Please enter a valid fee name and amount.");
+            return;
+        }
+        if (students.length === 0) {
+            toast.error("No students available to assign the fee.");
+            return;
+        }
 
-    // Get unique fee names for the dropdown
+        setIsSaving(true);
+        try {
+            const newFees = students.map(student => ({
+                studentId: student.id,
+                name: trimmedFeeName,
+                amount: newFeeDefaultAmount,
+                amountPaid: 0,
+                payments: [],
+                user_id: user_id,
+            }));
+
+            const { error } = await supabase
+                .from('fees')
+                .insert(newFees);
+
+            if (error) throw error;
+
+            setNewFeeName('');
+            setNewFeeDefaultAmount(0);
+            toast.success(`Added fee type "${trimmedFeeName}" for all students.`);
+        } catch (error: any) {
+            console.error("Error adding fee type to all students:", error.message);
+            toast.error(`Failed to add fee type: ${error.message}. Check RLS policies for 'fees' table.`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const uniqueFeeNames = Array.from(new Set(fees.map(fee => fee.name)));
-    // Filter students based on the search term
     const filteredStudents = students.filter(student =>
         student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.studentClass.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    // Get the selected student's details
     const selectedStudent = students.find(student => student.id === selectedStudentId);
-    // Get fees for the selected student
     const selectedStudentFees = fees.filter(fee => fee.studentId === selectedStudentId);
-    // Show loading indicator if data is being fetched or saved
+
     if (!isAuthReady || isLoadingStudents || isLoadingFees) {
         return (
             <div className="flex justify-center items-center h-screen">
@@ -712,13 +605,28 @@ const FeePaymentSystem: React.FC = () => {
 
     return (
         <div className="container mx-auto p-4">
-            {/* The global print styles are now handled by the new window approach,
-                so we don't need the complex media print rules here.
-                We only need the print-hide classes on elements that should not be visible
-                when the receipt is displayed on the main page.
-            */}
-
             <h2 className="text-2xl font-semibold mb-4">Fee Payment System</h2>
+
+            {/* Summary Card */}
+            <div className="mb-6 bg-white shadow rounded-lg p-4">
+                <h3 className="text-xl font-semibold mb-3">Fee Collection Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-md">
+                        <p className="text-sm text-blue-600">Total Students</p>
+                        <p className="text-2xl font-bold">{students.length}</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-md">
+                        <p className="text-sm text-green-600">Total Fees Paid</p>
+                        <p className="text-2xl font-bold">₵{totalFeesPaid.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-md">
+                        <p className="text-sm text-purple-600">Total Outstanding</p>
+                        <p className="text-2xl font-bold">
+                            ₵{(fees.reduce((sum, fee) => sum + fee.amount, 0) - totalFeesPaid).toFixed(2)}
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             {/* Clear All Data Button */}
             <div className="mb-4 text-right">
@@ -746,7 +654,6 @@ const FeePaymentSystem: React.FC = () => {
             {/* Receipt Display */}
             {receiptDetails && (
                 <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded-md" role="alert">
-                    {/* This div is for displaying the receipt on the main page */}
                     <h3 className="font-bold text-xl mb-2">Payment Receipt</h3>
                     <p><strong>Student:</strong> {receiptDetails.studentName}</p>
                     <p><strong>Fee Type:</strong> {receiptDetails.feeName}</p>
@@ -755,7 +662,7 @@ const FeePaymentSystem: React.FC = () => {
                     <p><strong>Total Fee:</strong> ₵{receiptDetails.totalAmount.toFixed(2)}</p>
                     <p><strong>Balance Remaining:</strong> ₵{receiptDetails.balance.toFixed(2)}</p>
 
-                    <div> {/* Buttons for closing and printing */}
+                    <div>
                         <button
                             onClick={() => setReceiptDetails(null)}
                             className="mt-2 px-3 py-1 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
@@ -771,7 +678,6 @@ const FeePaymentSystem: React.FC = () => {
                     </div>
                 </div>
             )}
-
 
             {/* Conditional Rendering: Show student list or selected student details */}
             {selectedStudentId === null ? (
@@ -838,10 +744,10 @@ const FeePaymentSystem: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Edit Existing Fee Type for All Students */}
+                    {/* Bulk Update Fees */}
                     <div className="mb-6">
-                        <h3 className="text-xl font-semibold mb-3">Edit Fee Amount for All Students by Type</h3>
-                        <div className="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                        <h3 className="text-xl font-semibold mb-3">Bulk Update Fees</h3>
+                        <div className="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
                             <select
                                 aria-label="Select Fee Type"
                                 className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -868,12 +774,84 @@ const FeePaymentSystem: React.FC = () => {
                                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50"
                                 disabled={isSaving || !selectedFeeTypeToEdit || newAmountForAll <= 0}
                             >
-                                {isSaving ? 'Updating...' : 'Update Fee for All'}
+                                {isSaving ? 'Updating...' : 'Update Amount'}
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!selectedFeeTypeToEdit) return;
+                                    if (!window.confirm(`Are you sure you want to delete "${selectedFeeTypeToEdit}" for all students?`)) return;
+                                    
+                                    setIsSaving(true);
+                                    try {
+                                        const { error } = await supabase
+                                            .from('fees')
+                                            .delete()
+                                            .eq('name', selectedFeeTypeToEdit)
+                                            .eq('user_id', user_id);
+                                        
+                                        if (error) throw error;
+                                        
+                                        toast.success(`Deleted fee type "${selectedFeeTypeToEdit}" for all students`);
+                                        setSelectedFeeTypeToEdit('');
+                                    } catch (error: any) {
+                                        toast.error(`Failed to delete fee: ${error.message}`);
+                                    } finally {
+                                        setIsSaving(false);
+                                    }
+                                }}
+                                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
+                                disabled={isSaving || !selectedFeeTypeToEdit}
+                            >
+                                {isSaving ? 'Deleting...' : 'Delete Fee Type'}
                             </button>
                         </div>
                     </div>
 
+                    {/* All Payments History */}
+                    <div className="mb-6">
+                        <h3 className="text-xl font-semibold mb-3">All Payments History</h3>
+                        <div className="bg-white shadow rounded-lg p-4">
+                            {fees.filter(f => f.payments.length > 0).length === 0 ? (
+                                <p className="text-gray-600">No payment history found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Type</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {fees.flatMap(fee => {
+                                                const student = students.find(s => s.id === fee.studentId);
+                                                return fee.payments.map((payment, index) => (
+                                                    <tr key={`${fee.id}-${index}`}>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                            {student?.name || 'Unknown Student'}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            {fee.name}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            ₵{payment.amount.toFixed(2)}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            {payment.date}
+                                                        </td>
+                                                    </tr>
+                                                ));
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
+                    {/* Students List */}
                     <div className="mb-6">
                         <h3 className="text-xl font-semibold mb-3">Students</h3>
                         <div className="bg-white shadow rounded-lg p-4">
@@ -882,7 +860,6 @@ const FeePaymentSystem: React.FC = () => {
                             ) : (
                                 <ul>
                                     {filteredStudents.map(student => {
-                                        // Calculate total outstanding amount for the student
                                         const studentTotalDue = fees
                                             .filter(fee => fee.studentId === student.id)
                                             .reduce((sum, fee) => sum + fee.amount, 0);
@@ -992,7 +969,7 @@ const FeePaymentSystem: React.FC = () => {
                                                         <div className="mt-2 text-xs text-gray-600">
                                                             <p className="font-semibold">Payment History:</p>
                                                             {fee.payments.map((payment, index) => (
-                                                                <p key={index}> {/* Using index as key for simplicity, unique IDs preferred for real apps */}
+                                                                <p key={index}>
                                                                     ₵{payment.amount.toFixed(2)} on {payment.date}
                                                                 </p>
                                                             ))}
@@ -1038,20 +1015,14 @@ const FeePaymentSystem: React.FC = () => {
     );
 };
 
-
 export default function Page() {
     return (
         <SidebarProvider>
-            {/* AppSidebar component */}
             <AppSidebar />
             <SidebarInset>
-                {/* Header with Breadcrumb */}
                 <header className="flex h-16 items-center gap-2 border-b px-4">
-                    {/* Sidebar trigger button */}
                     <SidebarTrigger className="-ml-1" />
-                    {/* Separator */}
                     <Separator orientation="vertical" className="mr-2 h-4" />
-                    {/* Breadcrumb navigation */}
                     <Breadcrumb>
                         <BreadcrumbList>
                             <BreadcrumbItem className="hidden md:block">
@@ -1065,9 +1036,7 @@ export default function Page() {
                     </Breadcrumb>
                 </header>
 
-                {/* Main content area */}
                 <div className="flex flex-1 flex-col bg-gray-100 p-4">
-                    {/* Integrate the FeePaymentSystem component here */}
                     <FeePaymentSystem />
                 </div>
             </SidebarInset>
