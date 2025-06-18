@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import Image from "next/image";
 import Link from 'next/link';
-import { supabase } from './Authentication-supabase/lib/supabaseClient';
+import { supabase } from '../app/Authentication-supabase/lib/supabase/supabaseClient'; // Adjust the path as necessary'
+
 
 const Homepage = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
