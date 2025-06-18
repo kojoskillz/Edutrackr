@@ -40,7 +40,7 @@ const sidebarNavigationData = {
       url: "#", // Placeholder URL as it's a group
       items: [
         // Navigation items with icons, titles, and URLs
-        { title: "Dashboard", url: "/dashboard", icon: <Home size={16} />, isActive: false },
+        { title: "Dashboard", url: "./dashboard", icon: <Home size={16} />, isActive: false },
         { title: "Profile", url: "/profile", icon: <User size={16} />, isActive: false },
         { title: "Teachers", url: "/teachers", icon: <Users size={16} />, isActive: false },
         { title: "Class/Students", url: "/students", icon: <Users size={16} />, isActive: false },
