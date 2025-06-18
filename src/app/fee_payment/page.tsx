@@ -908,7 +908,7 @@ const FeePaymentSystem: React.FC = () => {
                             <h3 className="text-xl font-semibold">{selectedStudent.name}&apos;s Fees ({selectedStudent.studentClass})</h3>
                             <button
                                 onClick={() => setSelectedStudentId(null)}
-                                className="px-4 py-2 bg-blue-300 text-white rounded-md hover:bg-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-opacity-50"
+                                className="px-4 py-2 bg-blue-400 text-white rounded-md hover:bg-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-opacity-50"
                             >
                                 Back to Student List
                             </button>
