@@ -55,23 +55,12 @@ interface StudentData {
 }
 
 // Interfaces for Supabase table data
-interface SupabaseClassUpdate {
+interface ClassesUpdate {
   id: string;
   class_name: string;
   male_students_count: number;
   female_students_count: number;
   created_at: string;
-  updated_at: string;
-}
-
-interface SupabaseSchoolStatistic {
-  id: string;
-  total_male_teachers: number;
-  total_female_teachers: number;
-  overall_male_students: number;
-  overall_female_students: number;
-  paid_fees_percentage: number;
-  unpaid_fees_percentage: number;
   updated_at: string;
 }
 
@@ -145,12 +134,12 @@ export default function Page() {
   // Fetch Admin Profile
   useEffect(() => {
     const fetchAdminProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from<SupabaseAdminProfile>("admin_profiles")
-          .select("admin_name, admin_image_url")
-          .limit(1)
-          .single(); // Assuming a single admin profile entry
+          try {
+            const { data, error } = await supabase
+              .from<"admin_profiles", SupabaseAdminProfile>("admin_profiles")
+              .select("admin_name, admin_image_url")
+              .limit(1)
+              .single(); // Assuming a single admin profile entry
 
         if (error && error.code !== 'PGRST116') { // PGRST116 means no row found
           throw error;
@@ -164,8 +153,9 @@ export default function Page() {
           setAdminName("Admin");
           setAdminImage(PROFILE_PLACEHOLDER_IMAGE);
         }
-      } catch (error: any) {
-        toast.error(`Error fetching admin profile: ${error.message}`, {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        toast.error(`Error fetching admin profile: ${errorMessage}`, {
           position: "top-right",
         });
         console.error("Error fetching admin profile:", error);
@@ -179,7 +169,7 @@ export default function Page() {
     const fetchSchoolStatistics = async () => {
       try {
         const { data, error } = await supabase
-          .from<SupabaseSchoolStatistic>("school_statistics")
+          .from("school_statistics")
           .select("*")
           .limit(1)
           .single(); // Assuming a single row for all school statistics
@@ -204,8 +194,9 @@ export default function Page() {
           setPaidFees(0);
           setUnpaidFees(0);
         }
-      } catch (error: any) {
-        toast.error(`Error fetching school statistics: ${error.message}`, {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        toast.error(`Error fetching school statistics: ${errorMessage}`, {
           position: "top-right",
         });
         console.error("Error fetching school statistics:", error);
@@ -219,8 +210,8 @@ export default function Page() {
     const fetchClassStudentData = async () => {
       try {
         const { data, error } = await supabase
-          .from<SupabaseClassUpdate>("classes_update")
-          .select("class_name, male_students_count, female_students_count");
+          .from<'classes_update', ClassesUpdate>('classes_update')
+          .select('*');
 
         if (error) {
           throw error;
@@ -244,8 +235,9 @@ export default function Page() {
             setSelectedClass("");
           }
         }
-      } catch (error: any) {
-        toast.error(`Error fetching class data: ${error.message}`, {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        toast.error(`Error fetching class data: ${errorMessage}`, {
           position: "top-right",
         });
         console.error("Error fetching class data:", error);
