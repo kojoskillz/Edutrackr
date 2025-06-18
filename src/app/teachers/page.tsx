@@ -76,7 +76,7 @@ const mockSupabase = {
       return { data: [data], error: null };
     },
     delete: () => ({
-      eq: async (column: string, value: any) => {
+      eq: async (column: string, value: string | number) => {
         console.log(`Mock Supabase: Deleting from ${tableName} where ${column} = ${value}`);
         return { data: [], error: null };
       }
