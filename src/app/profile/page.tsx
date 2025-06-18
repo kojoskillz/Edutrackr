@@ -24,14 +24,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-interface ClassUpdate {
-  id: string;
-  class_name: string;
-  male_students_count: number;
-  female_students_count: number;
-  created_at: string;
-  updated_at: string;
-}
 
 interface SchoolStatistic {
   id: string;
@@ -85,8 +77,9 @@ export default function Page() {
         } else {
           setAdminName(user.email || "");
         }
-      } catch (error: any) {
-        toast.error(`Error fetching admin profile: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+        toast.error(`Error fetching admin profile: ${errorMessage}`);
         console.error("Error fetching admin profile:", error);
       } finally {
         setIsLoading(false);
@@ -115,8 +108,9 @@ export default function Page() {
           setPaidFees(0);
           setUnpaidFees(0);
         }
-      } catch (error: any) {
-        toast.error(`Error fetching school statistics: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        toast.error(`Error fetching school statistics: ${errorMessage}`);
         console.error("Error fetching school statistics:", error);
       } finally {
         setIsLoading(false);
@@ -147,8 +141,9 @@ export default function Page() {
           setStudentData(fetchedStudentData);
           setCurrentClass(Object.keys(fetchedStudentData)[0] || "");
         }
-      } catch (error: any) {
-        toast.error(`Error fetching class data: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        toast.error(`Error fetching class data: ${errorMessage}`);
         console.error("Error fetching class data:", error);
       } finally {
         setIsLoading(false);
@@ -191,8 +186,9 @@ export default function Page() {
 
       setAdminImage(publicUrl);
       
-    } catch (error: any) {
-      toast.error(`Error uploading image: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      toast.error(`Error uploading image: ${errorMessage}`);
       console.error("Error uploading image:", error);
     } finally {
       setIsLoading(false);
@@ -237,8 +233,9 @@ export default function Page() {
         setAdminProfile(data);
         toast.success("Admin Profile created successfully!");
       }
-    } catch (error: any) {
-      toast.error(`Error updating admin profile: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      toast.error(`Error updating admin profile: ${errorMessage}`);
       console.error("Error updating admin profile:", error);
     } finally {
       setIsLoading(false);
@@ -289,8 +286,9 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
       setSchoolStats(data);
       toast.success("School statistics created successfully!");
     }
-  } catch (error: any) {
-    toast.error(`Error updating school statistics: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    toast.error(`Error updating school statistics: ${errorMessage}`);
     console.error("Error updating school statistics:", error);
   } finally {
     setIsLoading(false);
@@ -330,8 +328,9 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
       setCurrentClass(data.class_name);
       setNewClassName("");
       toast.success(`${data.class_name} created successfully!`);
-    } catch (error: any) {
-      toast.error(`Error creating class: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      toast.error(`Error creating class: ${errorMessage}`);
       console.error("Error creating class:", error);
     } finally {
       setIsLoading(false);
@@ -358,8 +357,9 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
       setStudentData(updatedData);
       setCurrentClass(Object.keys(updatedData)[0] || "");
       toast.success(`${className} has been deleted!`);
-    } catch (error: any) {
-      toast.error(`Error deleting class: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      toast.error(`Error deleting class: ${errorMessage}`);
       console.error("Error deleting class:", error);
     } finally {
       setIsLoading(false);
@@ -404,8 +404,9 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
           }
         }));
         toast.success(`Student count for ${currentClass} updated successfully!`);
-      } catch (error: any) {
-        toast.error(`Error updating student count: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        toast.error(`Error updating student count: ${errorMessage}`);
         console.error("Error updating student count:", error);
       } finally {
         setIsLoading(false);
@@ -511,10 +512,10 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
                         type="number"
                         value={schoolStats?.total_male_teachers || 0}
                         onChange={(e) =>
-                          setSchoolStats(prev => ({
-                            ...(prev || {}),
+                          setSchoolStats(prev => prev ? {
+                            ...prev,
                             total_male_teachers: Number(e.target.value)
-                          }))
+                          } : null)
                         }
                         className="p-1 bg-slate-100 border rounded-md w-1/2"
                         min="0"
@@ -526,10 +527,10 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
                         type="number"
                         value={schoolStats?.total_female_teachers || 0}
                         onChange={(e) =>
-                          setSchoolStats(prev => ({
-                            ...(prev || {}),
+                          setSchoolStats(prev => prev ? {
+                            ...prev,
                             total_female_teachers: Number(e.target.value)
-                          }))
+                          } : null)
                         }
                         className="p-1 bg-slate-100 border rounded-md w-1/2"
                         min="0"
@@ -543,10 +544,10 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
                         type="number"
                         value={schoolStats?.overall_male_students || 0}
                         onChange={(e) =>
-                          setSchoolStats(prev => ({
-                            ...(prev || {}),
+                          setSchoolStats(prev => prev ? {
+                            ...prev,
                             overall_male_students: Number(e.target.value)
-                          }))
+                          } : null)
                         }
                         className="p-1 bg-slate-100 border rounded-md w-1/2"
                         min="0"
@@ -558,10 +559,10 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
                         type="number"
                         value={schoolStats?.overall_female_students || 0}
                         onChange={(e) =>
-                          setSchoolStats(prev => ({
-                            ...(prev || {}),
+                          setSchoolStats(prev => prev ? {
+                            ...prev,
                             overall_female_students: Number(e.target.value)
-                          }))
+                          } : null)
                         }
                         className="p-1 bg-slate-100 border rounded-md w-1/2"
                         min="0"
@@ -632,6 +633,7 @@ const handleSubmitSchoolStats = async (e: React.FormEvent<HTMLFormElement>) => {
                     onChange={(e) => setCurrentClass(e.target.value)}
                     className="w-full p-2 bg-slate-100 border rounded-md"
                     disabled={isLoading || Object.keys(studentData || {}).length === 0}
+                    aria-label="Select class"
                   >
                     {Object.keys(studentData || {}).length === 0 ? (
                       <option value="" disabled>No classes available</option>
