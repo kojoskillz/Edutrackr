@@ -666,3 +666,1953 @@ export default function ClassPage() {
             setSubjectName("N/A");
             setTerm("N/A");
             setYear("N/A");
+            setSubjectTeacher("N/A");
+            setOverallClassAverage(0);
+            return;
+        }
+
+        setSubjectName(currentSubject.name);
+        setTerm(currentSubject.term);
+        setYear(currentSubject.year);
+        setSubjectTeacher(currentSubject.subjectTeacher);
+
+        // Merge students with their scores for the selected subject
+        const studentsInSelectedClass = students.filter(s => s.classId === selectedClassId);
+        const mergedRows: StudentRow[] = studentsInSelectedClass.map(student => {
+            const scoreData = studentScores.find(score =>
+                score.studentId === student.id && score.subjectId === selectedSubjectId && score.classId === selectedClassId
+            );
+
+            return {
+                ...student, // MyStudent properties
+                scoreId: scoreData?.id, // ID of the score entry
+                cat1: scoreData?.cat1 ?? undefined,
+                cat2: scoreData?.cat2 ?? undefined,
+                projectWork: scoreData?.projectWork ?? undefined,
+                exams: scoreData?.exams ?? undefined,
+                total: scoreData?.total ?? undefined,
+                position: scoreData?.position ?? undefined,
+                remarks: scoreData?.remarks ?? undefined,
+                grade: scoreData?.grade ?? undefined,
+                classWorkTotal: scoreData?.classWorkTotal ?? undefined,
+            };
+        });
+        setRows(mergedRows);
+        calculateAndSetAverage(mergedRows);
+
+    }, [selectedClassId, selectedSubjectId, classes, students, subjects, studentScores, isAuthReady, userId, isLoadingInitialData]);
+
+
+    /**
+     * Calculates the average 'total' score from the provided rows
+     * and updates the `overallClassAverage` state (per subject).
+     * Wrapped in useCallback to provide a stable function reference.
+     * @param currentRows An array of StudentRow objects.
+     */
+    const calculateAndSetAverage = React.useCallback((currentRows: StudentRow[]) => {
+        if (!currentRows || currentRows.length === 0) {
+            setOverallClassAverage(0);
+            return;
+        }
+        let totalOfTotals = 0;
+        currentRows.forEach(row => {
+            const cat1 = row.cat1 || 0;
+            const cat2 = row.cat2 || 0;
+            const projectWork = row.projectWork || 0;
+            const exams = row.exams || 0;
+
+            const total = row.total ?? (cat1 + cat2 + projectWork + (exams / 2));
+            totalOfTotals += total;
+        });
+        const calculatedAverage = (totalOfTotals / currentRows.length).toFixed(2);
+        setOverallClassAverage(calculatedAverage);
+    }, []);
+
+    /**
+     * Generates the correct ordinal suffix (ST, ND, RD, TH) for a given position number.
+     * @param position The position number.
+     * @returns The ordinal suffix string.
+     */
+    const getOrdinalSuffix = React.useCallback((position: number): string => {
+        if (position % 100 >= 11 && position % 100 <= 13) {
+            return "TH";
+        }
+        switch (position % 10) {
+            case 1: return "ST";
+            case 2: return "ND";
+            case 3: return "RD";
+            default: return "TH";
+        }
+    }, []);
+
+    /**
+     * Aggregates student data from all subjects for a given class
+     * and calculates overall total, average, and rank.
+     * Also generates dynamic columns for each subject.
+     * @param classId The ID of the class to process.
+     * @returns An object containing rankedResults (OverallStudentRow[]) and subjectColumns (GridColDef[]).
+     */
+    const calculateOverallResults = React.useCallback((classId: string): { rankedResults: OverallStudentRow[], subjectColumns: GridColDef<OverallStudentRow>[] } => {
+        const studentsOverallData: { [studentId: string]: { name: string; totalScores: number[]; subjectCount: number; subjectTotals: { [subjectId: string]: number } } } = {};
+
+        const studentsInClass = students.filter(s => s.classId === classId);
+        if (studentsInClass.length === 0) {
+            return { rankedResults: [], subjectColumns: [] };
+        }
+
+        studentsInClass.forEach(student => {
+            studentsOverallData[student.id] = {
+                name: student.name,
+                totalScores: [],
+                subjectCount: 0,
+                subjectTotals: {},
+            };
+        });
+
+        const subjectsForClass = subjects.filter(subject => subject.classId === classId);
+
+        subjectsForClass.forEach(subject => {
+            const scoresForSubject = studentScores.filter(score => score.subjectId === subject.id && score.classId === classId);
+            scoresForSubject.forEach(score => {
+                if (studentsOverallData[score.studentId]) {
+                    const subjectTotal = score.total ?? 0;
+                    studentsOverallData[score.studentId].totalScores.push(subjectTotal);
+                    studentsOverallData[score.studentId].subjectCount++;
+                    studentsOverallData[score.studentId].subjectTotals[subject.id] = subjectTotal;
+                }
+            });
+        });
+
+        const overallResults: OverallStudentRow[] = Object.keys(studentsOverallData).map(studentId => {
+            const data = studentsOverallData[studentId];
+            const overallTotalScore = data.totalScores.reduce((sum, score) => sum + score, 0);
+            const overallAverage = data.subjectCount > 0 ? overallTotalScore / data.subjectCount : 0;
+
+            return {
+                id: studentId,
+                name: data.name,
+                overallTotalScore: parseFloat(overallTotalScore.toFixed(2)),
+                overallAverage: parseFloat(overallAverage.toFixed(2)),
+                overallRank: "N/A",
+                subjectTotals: data.subjectTotals,
+            };
+        });
+
+        overallResults.sort((a, b) => b.overallTotalScore - a.overallTotalScore);
+
+        const rankedResults = overallResults.map((row, index) => {
+            const rank = index + 1;
+            return {
+                ...row,
+                overallRank: `${rank}${getOrdinalSuffix(rank)}`,
+            };
+        });
+
+        const subjectColumns: GridColDef<OverallStudentRow>[] = subjectsForClass.map(subject => ({
+            field: subject.id,
+            headerName: `${subject.name} Total`,
+            width: 150,
+            type: 'number',
+            editable: false,
+            sortable: true,
+            valueGetter: (_value, row) => row.subjectTotals[subject.id] ?? 0,
+        }));
+
+        return { rankedResults, subjectColumns };
+    }, [getOrdinalSuffix, students, subjects, studentScores]);
+
+    // --- Effect to Calculate Overall Results ---
+    React.useEffect(() => {
+        if (selectedClassId && isAuthReady && userId) {
+            const { rankedResults, subjectColumns } = calculateOverallResults(selectedClassId);
+            setOverallResults(rankedResults);
+            setDynamicOverallColumns(subjectColumns);
+        } else {
+            setOverallResults([]);
+            setDynamicOverallColumns([]);
+        }
+    }, [selectedClassId, classes, students, subjects, studentScores, isAuthReady, userId, calculateOverallResults]);
+
+
+    // --- Report Card Handlers (Single Student) ---
+    const handleViewReportCard = React.useCallback((studentId: string) => async () => {
+        if (!selectedClassId || !userId) {
+            toast.error("Please select a class and ensure authentication is ready.");
+            return;
+        }
+
+        const studentDetails = students.find(s => s.id === studentId && s.classId === selectedClassId);
+        if (!studentDetails) {
+            toast.error("Student data not found in the selected class.");
+            return;
+        }
+
+        const subjectsForClass = subjects.filter(s => s.classId === selectedClassId);
+        const aggregatedSubjectResults: StudentReportCardData['subjectResults'] = [];
+
+        for (const subject of subjectsForClass) {
+            const scoreData = studentScores.find(score =>
+                score.studentId === studentId && score.subjectId === subject.id && score.classId === selectedClassId
+            );
+
+            if (scoreData) {
+                const classWorkTotal = (scoreData.cat1 ?? 0) + (scoreData.cat2 ?? 0) + (scoreData.projectWork ?? 0);
+                aggregatedSubjectResults.push({
+                    subjectId: subject.id,
+                    subjectName: subject.name,
+                    subjectTeacher: subject.subjectTeacher,
+                    cat1: scoreData.cat1,
+                    cat2: scoreData.cat2,
+                    projectWork: scoreData.projectWork,
+                    exams: scoreData.exams,
+                    total: scoreData.total,
+                    position: scoreData.position,
+                    grade: scoreData.grade,
+                    remarks: scoreData.remarks,
+                    classWorkTotal: classWorkTotal,
+                });
+            } else {
+                 // Include subject even if no scores exist for it
+                 aggregatedSubjectResults.push({
+                    subjectId: subject.id,
+                    subjectName: subject.name,
+                    subjectTeacher: subject.subjectTeacher,
+                    cat1: null, cat2: null, projectWork: null, exams: null, total: null,
+                    position: null, grade: null, remarks: null, classWorkTotal: null,
+                 });
+            }
+        }
+
+        const currentClassDetails = classes.find(c => c.id === selectedClassId);
+        const anySubjectInClass = subjectsForClass.length > 0 ? subjectsForClass[0] : null;
+        const term = anySubjectInClass?.term || "N/A";
+        const year = anySubjectInClass?.year || "N/A";
+
+        const studentOverallData = overallResults.find(result => result.id === studentId);
+
+        const reportData: StudentReportCardData = {
+            studentId: studentId,
+            studentName: studentDetails.name,
+            className: currentClassDetails?.name || "N/A",
+            term: term,
+            year: year,
+            imageUrl: studentDetails.imageUrl || null,
+            overallRemarks: studentDetails.overallRemarks || null,
+            subjectResults: aggregatedSubjectResults,
+            studentOverallPercentage: studentOverallData?.overallAverage,
+            studentOverallGrade: undefined, // You would need logic to derive overall grade from overall average
+            attendance: studentDetails.attendance || null,
+            house: studentDetails.house || null,
+            positionInClass: studentDetails.positionInClass || null,
+            overallPosition: studentOverallData?.overallRank,
+            formMistressReport: "", // Placeholder
+            conduct: "", // Placeholder
+            interest: "", // Placeholder
+            housemistressReport: "", // Placeholder
+            headmasterReport: "", // Placeholder
+        };
+
+        setCurrentStudentReport(reportData);
+        setReportCardImage(reportData.imageUrl ?? null);
+        setReportCardOverallRemarks(reportData.overallRemarks || "");
+        setReportCardAttendance(reportData.attendance || "");
+        setReportCardHouse(reportData.house || "");
+        setReportCardPositionInClass(reportData.positionInClass || "");
+        setOpenReportCardDialog(true);
+
+    }, [selectedClassId, students, subjects, studentScores, overallResults, userId]);
+
+
+    const handleCloseReportCardDialog = () => {
+        setOpenReportCardDialog(false);
+        setCurrentStudentReport(null);
+        setReportCardImage(null);
+        setReportCardOverallRemarks("");
+        setReportCardAttendance("");
+        setReportCardHouse("");
+        setReportCardPositionInClass("");
+    };
+
+    const handleReportCardOverallRemarksChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setReportCardOverallRemarks(event.target.value);
+    };
+
+    const handleReportCardAttendanceChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setReportCardAttendance(event.target.value);
+    };
+    const handleReportCardHouseChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setReportCardHouse(event.target.value);
+    };
+    const handleReportCardPositionInClassChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setReportCardPositionInClass(event.target.value);
+    };
+
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !userId || !currentStudentReport) {
+            toast.error("No file selected, or user/student not identified.");
+            return;
+        }
+
+        const filePath = `${userId}/${currentStudentReport.studentId}/${Date.now()}_${file.name}`;
+
+        try {
+            const { error } = await supabase.storage
+                .from('student_images') // Assuming you have a bucket named 'student_images'
+                .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+            if (error) throw error;
+
+            const { data: publicUrlData } = supabase.storage
+                .from('student_images')
+                .getPublicUrl(filePath);
+
+            if (!publicUrlData || !publicUrlData.publicUrl) {
+                throw new Error("Failed to get public URL for the uploaded image.");
+            }
+
+            setReportCardImage(publicUrlData.publicUrl);
+            toast.success("Image uploaded successfully!");
+        } catch (error: Error | unknown) {
+            console.error("Error uploading image:", error instanceof Error ? error.message : String(error));
+            toast.error(`Failed to upload image: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    const handleSaveReportCard = async () => {
+        if (!currentStudentReport || !userId || !selectedClassId) {
+            toast.error("Cannot save report card details (student data or selection missing).");
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('user_students') // Updated table name
+                .update({
+                    overallRemarks: reportCardOverallRemarks,
+                    imageUrl: reportCardImage,
+                    attendance: reportCardAttendance,
+                    house: reportCardHouse,
+                    positionInClass: reportCardPositionInClass,
+                })
+                .eq('id', currentStudentReport.studentId)
+                .eq('classId', selectedClassId)
+                .eq('userId', userId);
+
+            if (error) throw error;
+
+            toast.success("Report card details saved.");
+        } catch (error: Error | unknown) {
+            console.error("Error saving report card details:", error instanceof Error ? error.message : String(error));
+            toast.error(`Failed to save report card details: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    const handlePrintReportCard = () => {
+        if (reportCardRef.current) {
+            const printContent = reportCardRef.current.innerHTML;
+            const originalContent = document.body.innerHTML;
+            const originalTitle = document.title;
+
+            document.body.innerHTML = printContent;
+            document.title = `Report Card - ${currentStudentReport?.studentName || 'Student'}`;
+
+            const printStyles = `
+                <style>
+                    @media print {
+                        body > *:not(#report-card-content) { display: none !important; }
+                        #report-card-content {
+                            display: block !important; width: 100%; margin: 0 auto; padding: 10mm;
+                            box-sizing: border-box; font-family: sans-serif; color: #000;
+                        }
+                        .MuiCard-root, .MuiCardContent-root { border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
+                        h1, h2, h6, p, strong { color: #000 !important; margin-bottom: 0.5em; }
+                        h6 { font-size: 1.1em; margin-top: 1em; }
+                        p { font-size: 0.9em; }
+                        .flex { display: flex !important; } .grid { display: grid !important; } .flex-col { flex-direction: column !important; }
+                        .md\\:flex-row { flex-direction: row !important; } .items-start { align-items: flex-start !important; }
+                        .items-center { align-items: center !important; } .gap-6 { gap: 1.5rem !important; } .mb-6 { margin-bottom: 1.5rem !important; }
+                        .p-4 { padding: 1rem !important; } .p-3 { padding: 0.75rem !important; } .p-2 { padding: 0.5rem !important; }
+                        .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem !important; margin-bottom: 0 !important; }
+                        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+                        .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+                        .flex-shrink-0 { flex-shrink: 0 !important; } .flex-grow { flex-grow: 1 !important; }
+                        .justify-center { justify-content: center !important; }
+                        img { display: block !important; max-width: 100% !important; height: auto !important; object-fit: cover !important; }
+                        .rounded-full { border-radius: 9999px !important; } .h-32 { height: 8rem !important; } .w-32 { width: 8rem !important; }
+                        .border-2 { border-width: 2px !important; } .border-blue-500 { border-color: #3b82f6 !important; }
+                        .MuiDivider-root, .separator { border-top: 1px solid #ccc !important; margin: 1em 0 !important; }
+                        .print-hide { display: none !important; }
+                        .print-only { display: block !important; }
+                        .MuiDialog-container, .MuiDialog-paper, .MuiModal-backdrop { display: none !important; }
+                    }
+                </style>
+            `;
+            const styleElement = document.createElement('style');
+            styleElement.innerHTML = printStyles;
+            document.head.appendChild(styleElement);
+            window.print();
+            document.body.innerHTML = originalContent;
+            document.title = originalTitle;
+            if (document.head.contains(styleElement)) {
+                 document.head.removeChild(styleElement);
+            }
+            setTimeout(() => {}, 50);
+        } else {
+            toast.error("Report card content not available for printing.");
+        }
+    };
+
+
+    const handleDeleteSingle = React.useCallback( (studentId: string) => async () => {
+        if (!selectedClassId || !userId) {
+            toast.error("Authentication or class not ready.");
+            return;
+        }
+
+        if (window.confirm("Delete this student's record from this class and all subjects? This action cannot be undone.")) {
+            try {
+                // 1. Delete student scores for this student across all subjects in this class
+                const { error: scoresError } = await supabase
+                    .from('user_student_scores') // Updated table name
+                    .delete()
+                    .eq('studentId', studentId)
+                    .eq('classId', selectedClassId)
+                    .eq('userId', userId);
+
+                if (scoresError) throw scoresError;
+
+                // 2. Delete the student from the user_students table
+                const { error: studentError } = await supabase
+                    .from('user_students') // Updated table name
+                    .delete()
+                    .eq('id', studentId)
+                    .eq('classId', selectedClassId)
+                    .eq('userId', userId);
+
+                if (studentError) throw studentError;
+
+                toast.success("Student record and all associated scores deleted.");
+            } catch (error: Error | unknown) {
+                console.error("Error deleting student:", error instanceof Error ? error.message : String(error));
+                toast.error(`Failed to delete student: ${error instanceof Error ? error.message : String(error)}. Check RLS policies.`);
+            }
+        }
+    }, [selectedClassId, userId]);
+
+
+    // --- DataGrid Column Definitions ---
+    const columns: GridColDef<StudentRow>[] = React.useMemo(() => [
+        { field: "name", headerName: "Name of Students", width: 200, editable: false },
+        {
+            field: "cat1", headerName: "CAT 1 (10)", width: 100, editable: true, type: "number",
+            valueParser: (value) => Number(value) || 0,
+        },
+        {
+            field: "cat2", headerName: "CAT 2 (20)", width: 100, editable: true, type: "number",
+            valueParser: (value) => Number(value) || 0,
+        },
+        {
+            field: "projectWork", headerName: "Project Work (20)", width: 120, editable: true, type: "number",
+            valueParser: (value) => Number(value) || 0,
+        },
+        {
+            field: "classWorkTotal", headerName: "Class Score (50)", width: 120, editable: false, sortable: true,
+            valueGetter: (_value, row) => {
+                const cat1 = row.cat1 || 0;
+                const cat2 = row.cat2 || 0;
+                const projectWork = row.projectWork || 0;
+                const classWorkTotal = cat1 + cat2 + projectWork;
+                return parseFloat(classWorkTotal.toFixed(2));
+            },
+        },
+        {
+            field: "exams", headerName: "Exams (100)", width: 100, editable: true, type: "number",
+            valueParser: (value) => Number(value) || 0,
+        },
+        {
+            field: "total", headerName: "Total (100%)", width: 120, editable: false, sortable: true,
+            valueGetter: (_value, row) => {
+                const cat1 = row.cat1 || 0;
+                const cat2 = row.cat2 || 0;
+                const projectWork = row.projectWork || 0;
+                const exams = row.exams || 0;
+                const total = cat1 + cat2 + projectWork + (exams / 2);
+                return parseFloat(total.toFixed(2));
+            },
+        },
+        { field: "position", headerName: "Position", width: 100, sortable: true, editable: false },
+        { field: "remarks", headerName: "Remarks", width: 120, editable: true },
+        {
+            field: "actions", type: "actions", headerName: "Delete", width: 100,
+            getActions: ({ id }) => [
+                <GridActionsCellItem
+                    key={`delete-${id}`}
+                    icon={<DeleteIcon />}
+                    label="Delete"
+                    onClick={handleDeleteSingle(id as string)}
+                    color="inherit"
+                />,
+            ],
+        },
+    ], [handleDeleteSingle]);
+
+    // --- DataGrid Column Definitions for Overall Ranking ---
+    const overallColumns: GridColDef<OverallStudentRow>[] = React.useMemo(() => {
+        const baseColumns: GridColDef<OverallStudentRow>[] = [
+            { field: "name", headerName: "Student Name", width: 250 },
+            { field: "overallTotalScore", headerName: "Overall Total", width: 150, type: "number" },
+            { field: "overallAverage", headerName: "Overall Average (%)", width: 150, type: "number" },
+            { field: "overallRank", headerName: "Overall Rank", width: 120 },
+            {
+                field: "actions", type: "actions", headerName: "Results", width: 100,
+                getActions: ({ id }) => [
+                    <GridActionsCellItem
+                        key={`view-${id}`}
+                        icon={<VisibilityIcon />}
+                        label="View Report Card"
+                        onClick={handleViewReportCard(id as string)}
+                        color="primary"
+                    />,
+                ],
+            },
+        ];
+
+        const combinedColumns: GridColDef<OverallStudentRow>[] = [
+            ...baseColumns.slice(0, 1),
+            ...dynamicOverallColumns,
+            ...baseColumns.slice(1),
+        ];
+
+        return combinedColumns;
+    }, [dynamicOverallColumns, handleViewReportCard]);
+
+
+    // --- Event Handlers & Logic ---
+
+    // --- Class Management Handlers ---
+    const handleCreateClass = () => { setOpenCreateClassDialog(true); };
+    const handleCloseCreateClassDialog = () => {
+        setOpenCreateClassDialog(false);
+        setNewClassData({ name: "" });
+    };
+
+    const handleSaveNewClass = async () => {
+        if (!newClassData.name.trim() || !userId) {
+            toast.error("Class name cannot be empty or user not authenticated.");
+            return;
+        }
+        try {
+            const { data, error } = await supabase
+                .from('user_classes') // Updated table name
+                .insert({ name: newClassData.name.trim(), userId: userId })
+                .select();
+            if (error) throw error;
+            const newClass = data[0] as MyClass;
+            setSelectedClassId(newClass.id);
+            setSelectedSubjectId(null);
+            setRows([]);
+            setSubjectName("N/A");
+            setTerm("N/A");
+            setYear("N/A");
+            setSubjectTeacher("N/A");
+            setClassName(newClass.name);
+            setOverallClassAverage(0);
+            setShowOverallResults(false);
+            setOverallResults([]);
+            setDynamicOverallColumns([]);
+            handleCloseCreateClassDialog();
+            toast.success(`Class "${newClass.name}" created.`);
+        } catch (error: Error | unknown) {
+            console.error("Error creating class:", error instanceof Error ? error.message : String(error));
+            toast.error(`Failed to create class: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    const handleClassSelection = (event: SelectChangeEvent<string>) => {
+        const selectedId = event.target.value;
+        if (!selectedId) {
+            setSelectedClassId(null);
+            setSelectedSubjectId(null);
+            setClassName("N/A");
+            setRows([]);
+            setSubjectName("N/A");
+            setTerm("N/A");
+            setYear("N/A");
+            setSubjectTeacher("N/A");
+            setOverallClassAverage(0);
+            setShowOverallResults(false);
+            setOverallResults([]);
+            setDynamicOverallColumns([]);
+            return;
+        }
+        setSelectedClassId(selectedId);
+        setSelectedSubjectId(null); // Reset subject when class changes
+        const selectedClass = classes.find((c) => c.id === selectedId);
+        setClassName(selectedClass ? selectedClass.name : "N/A");
+        setRows([]); // Clear rows as we are changing class
+        setSubjectName("N/A");
+        setTerm("N/A");
+        setYear("N/A");
+        setSubjectTeacher("N/A");
+        setOverallClassAverage(0);
+        setShowOverallResults(false);
+    };
+
+    const handleDeleteClass = async () => {
+        if (!selectedClassId || !userId) {
+            toast.info("No class selected or user not authenticated.");
+            return;
+        }
+        const currentClassName = classes.find(c => c.id === selectedClassId)?.name || "N/A";
+
+        if (window.confirm(`ARE YOU SURE?\n\nDeleting class "${currentClassName}" will permanently remove:\n- The class itself\n- All subjects within this class\n- All student records and scores for all subjects in this class.\n\nThis action cannot be undone.`)) {
+            try {
+                // Supabase CASCADE DELETE on foreign keys should handle subjects, students, and student_scores
+                // if configured correctly in your table schema.
+                // If not, you'd need to delete in reverse order: user_student_scores -> user_students -> user_subjects -> user_classes.
+                const { error: classError } = await supabase
+                    .from('user_classes') // Updated table name
+                    .delete()
+                    .eq('id', selectedClassId)
+                    .eq('userId', userId);
+
+                if (classError) throw classError;
+
+                // State will be updated by real-time listeners.
+                setSelectedClassId(null);
+                setSelectedSubjectId(null);
+                setRows([]);
+                setSubjectName("N/A");
+                setTerm("N/A");
+                setYear("N/A");
+                setSubjectTeacher("N/A");
+                setClassName("N/A");
+                setOverallClassAverage(0);
+                setOverallResults([]);
+                setDynamicOverallColumns([]);
+                setShowOverallResults(false);
+
+                toast.success(`Class "${currentClassName}" and all its data deleted.`);
+            } catch (error: Error | unknown) {
+                console.error("Error deleting class:", error instanceof Error ? error.message : String(error));
+                toast.error(`Failed to delete class: ${error instanceof Error ? error.message : String(error)}. Check RLS policies.`);
+            }
+        }
+    };
+
+
+    // --- Subject Management Handlers ---
+    const handleAddSubject = () => {
+        if (!selectedClassId) {
+            toast.error("Please select a class first before adding a subject.");
+            return;
+        }
+        setNewSubjectData({ name: "", subjectTeacher: "", term: "", year: "" });
+        setOpenAddSubjectDialog(true);
+    };
+    const handleCloseAddSubjectDialog = () => { setOpenAddSubjectDialog(false); };
+
+    const handleSaveNewSubject = async () => {
+        if (!newSubjectData.name.trim() || !selectedClassId || !userId) {
+            toast.error("Subject name, class selection, or user authentication missing.");
+            return;
+        }
+        try {
+            const { data, error } = await supabase
+                .from('user_subjects') // Updated table name
+                .insert({ ...newSubjectData, classId: selectedClassId, userId: userId })
+                .select();
+            if (error) throw error;
+            const newSubject = data[0] as MySubject;
+            setSelectedSubjectId(newSubject.id);
+            setRows([]);
+            setSubjectName(newSubject.name);
+            setTerm(newSubject.term);
+            setYear(newSubject.year);
+            setSubjectTeacher(newSubject.subjectTeacher);
+            setOverallClassAverage(0);
+            setShowOverallResults(false);
+            handleCloseAddSubjectDialog();
+            toast.success(`Subject "${newSubject.name}" added to class "${className}".`);
+        } catch (error: unknown) {
+            console.error("Error adding subject:", (error as Error).message);
+            toast.error(`Failed to add subject: ${(error as Error).message}`);
+        }
+    };
+
+    const handleSubjectSelection = (event: SelectChangeEvent<string>) => {
+        const selectedId = event.target.value;
+        if (!selectedId) {
+            setSelectedSubjectId(null);
+            setRows([]);
+            setSubjectName("N/A");
+            setTerm("N/A");
+            setYear("N/A");
+            setSubjectTeacher("N/A");
+            setOverallClassAverage(0);
+            setShowOverallResults(false);
+            return;
+        }
+
+        setSelectedSubjectId(selectedId);
+        const selectedSubject = subjects.find((s) => s.id === selectedId);
+        if (selectedSubject) {
+            setSubjectName(selectedSubject.name);
+            setTerm(selectedSubject.term);
+            setYear(selectedSubject.year);
+            setSubjectTeacher(selectedSubject.subjectTeacher);
+        }
+        setRows([]); // Will be populated by the useEffect sync
+        setShowOverallResults(false);
+    };
+
+    const handleEditSubjectDetails = () => {
+        const currentSubject = subjects.find(s => s.id === selectedSubjectId);
+        if (!currentSubject) {
+            toast.error("No subject selected to edit.");
+            return;
+        }
+        setSubjectEditData({
+            name: currentSubject.name,
+            subjectTeacher: currentSubject.subjectTeacher,
+            term: currentSubject.term,
+            year: currentSubject.year,
+        });
+        setOpenEditSubjectDialog(true);
+    };
+    const handleCloseEditSubjectDialog = () => { setOpenEditSubjectDialog(false); };
+
+    const handleSaveSubjectDetails = async () => {
+        if (!selectedSubjectId || !userId) {
+            toast.error("No subject selected or user not authenticated.");
+            return;
+        }
+        try {
+            const { error } = await supabase
+                .from('user_subjects') // Updated table name
+                .update(subjectEditData)
+                .eq('id', selectedSubjectId)
+                .eq('userId', userId);
+            if (error) throw error;
+            toast.success("Subject details updated");
+            handleCloseEditSubjectDialog();
+        } catch (error: Error | unknown) {
+            console.error("Error saving subject details:", error instanceof Error ? error.message : String(error));
+            toast.error(`Failed to save subject details: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    const handleDeleteSubject = async () => {
+        if (!selectedSubjectId || !selectedClassId || !userId) {
+            toast.info("No subject selected or user not authenticated.");
+            return;
+        }
+        const subjectToDelete = subjects.find(s => s.id === selectedSubjectId);
+        const currentSubjectName = subjectToDelete ? subjectToDelete.name : "N/A";
+
+        if (window.confirm(`ARE YOU SURE?\n\nDeleting subject "${currentSubjectName}" for class "${className}" will permanently remove:\n- The subject itself\n- All student scores associated with this specific subject.\n\nThis action cannot be undone.`)) {
+            try {
+                // Supabase CASCADE DELETE on foreign keys should handle user_student_scores
+                const { error } = await supabase
+                    .from('user_subjects') // Updated table name
+                    .delete()
+                    .eq('id', selectedSubjectId)
+                    .eq('classId', selectedClassId)
+                    .eq('userId', userId);
+                if (error) throw error;
+
+                setSelectedSubjectId(null);
+                setRows([]);
+                setSubjectName("N/A");
+                setTerm("N/A");
+                setYear("N/A");
+                setSubjectTeacher("N/A");
+                setOverallClassAverage(0);
+                setShowOverallResults(false);
+                toast.success(`Subject "${currentSubjectName}" and its data deleted.`);
+            } catch (error: Error | unknown) {
+                console.error("Error deleting subject:", error instanceof Error ? error.message : String(error));
+                toast.error(`Failed to delete subject: ${error instanceof Error ? error.message : String(error)}. Check RLS policies.`);
+            }
+        }
+    };
+
+
+    // --- Student Management Handlers ---
+    const handleAddStudent = () => {
+        if (!selectedClassId) {
+            toast.error("Please select a class before adding students.");
+            return;
+        }
+        setNewStudentName("");
+        setOpenAddStudentDialog(true);
+    };
+    const handleCloseAddStudentDialog = () => { setOpenAddStudentDialog(false); };
+
+    const handleSaveNewStudent = async () => {
+        if (!selectedClassId || !newStudentName.trim() || !userId) {
+            toast.error("Class not selected, student name empty, or user not authenticated.");
+            return;
+        }
+        try {
+            const { data: studentData, error: studentError } = await supabase
+                .from('user_students') // Updated table name
+                .insert({
+                    name: newStudentName.trim(),
+                    classId: selectedClassId,
+                    userId: userId,
+                })
+                .select();
+            if (studentError) throw studentError;
+
+            const newStudent = studentData[0] as MyStudent;
+
+            // Automatically add initial score entries for all existing subjects in this class
+            const subjectsInClass = subjects.filter(s => s.classId === selectedClassId);
+            if (subjectsInClass.length > 0) {
+                const newScoreEntries = subjectsInClass.map(subject => ({
+                    id: crypto.randomUUID(),
+                    studentId: newStudent.id,
+                    subjectId: subject.id,
+                    classId: selectedClassId,
+                    userId: userId,
+                }));
+                const { error: scoresError } = await supabase
+                    .from('user_student_scores') // Updated table name
+                    .insert(newScoreEntries);
+                if (scoresError) {
+                    console.warn(`Could not create initial score entries for new student: ${scoresError.message}`);
+                    toast.warn(`Student added, but failed to create initial score entries for all subjects. (Error: ${scoresError.message})`);
+                }
+            }
+
+            handleCloseAddStudentDialog();
+            toast.success(`Student "${newStudent.name}" added to class "${className}".`);
+        } catch (error: Error | unknown) {
+            console.error("Error adding student:", error instanceof Error ? error.message : String(error));
+            toast.error(`Failed to add student: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    const handleOpenPasteNamesDialog = () => {
+        if (!selectedClassId) {
+            toast.error("Please select a class before pasting students.");
+            return;
+        }
+        setPastedNames("");
+        setOpenPasteNamesDialog(true);
+    };
+    const handleClosePasteNamesDialog = () => { setOpenPasteNamesDialog(false); };
+
+    const handleAddPastedNames = async () => {
+        if (!selectedClassId || !pastedNames.trim() || !userId) {
+            toast.error("Class not selected, names empty, or user not authenticated.");
+            return;
+        }
+
+        const namesArray = pastedNames.split(/\r?\n/).map(name => name.trim()).filter(name => name !== '');
+        if (namesArray.length === 0) {
+            toast.info("No valid names found in the pasted text.");
+            return;
+        }
+
+        try {
+            const newStudentsToInsert = namesArray.map(name => ({
+                name: name,
+                classId: selectedClassId,
+                userId: userId,
+            }));
+
+            const { data: insertedStudentsData, error: studentError } = await supabase
+                .from('user_students') // Updated table name
+                .insert(newStudentsToInsert)
+                .select(); // Get the inserted rows with their IDs
+            if (studentError) throw studentError;
+
+            const insertedStudents = insertedStudentsData as MyStudent[];
+
+            // For each newly inserted student, add initial score entries for all existing subjects
+            const subjectsInClass = subjects.filter(s => s.classId === selectedClassId);
+            if (subjectsInClass.length > 0 && insertedStudents.length > 0) {
+                const newScoreEntries: MyStudentScore[] = [];
+                insertedStudents.forEach(newStudent => {
+                    subjectsInClass.forEach(subject => {
+                        newScoreEntries.push({
+                            id: crypto.randomUUID(),
+                            studentId: newStudent.id,
+                            subjectId: subject.id,
+                            classId: selectedClassId,
+                            userId: userId,
+                        });
+                    });
+                });
+                const { error: scoresError } = await supabase
+                    .from('user_student_scores') // Updated table name
+                    .insert(newScoreEntries);
+                if (scoresError) {
+                    console.warn(`Could not create initial score entries for pasted students: ${scoresError.message}`);
+                    toast.warn(`Students added, but failed to create initial score entries for some. (Error: ${scoresError.message})`);
+                }
+            }
+
+            handleClosePasteNamesDialog();
+            toast.success(`${insertedStudents.length} student(s) added.`);
+        } catch (error: Error | unknown) {
+            console.error("Error adding pasted students:", error instanceof Error ? error.message : String(error));
+            toast.error(`Failed to add students: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    const handleDeleteSelected = async () => {
+        if (!userId || !selectedClassId || rows.length === 0) { // Check if rows exist for current subject view
+            toast.info("No students selected or authentication/class not ready.");
+            return;
+        }
+
+        // The DataGrid component currently doesn't provide a selectionModel directly in this usage.
+        // Assuming `selectionModel` is implicitly used or we need a way to track selected rows.
+        // For simplicity, let's assume `rows` here refers to the currently displayed filterable/editable rows
+        // and we will apply deletion to currently displayed. A proper multi-delete would involve a `selectionModel` state.
+
+        if (rows.length === 0) { // No students to delete in current view
+            toast.info("No students to delete in the current view.");
+            return;
+        }
+         // Assuming we want to delete all students currently displayed in the grid if selectedStudentIds is empty.
+         // If a proper `selectionModel` is implemented by DataGrid, use that instead.
+         // For now, if no specific selection is made, and user clicks "Delete Selected",
+         // we should clarify what "selected" means or disable if nothing explicitly selected via checkbox.
+         // Given the UI shows checkboxSelection, I'll use a placeholder for `selectionModel` which needs to be managed by DataGrid.
+         // For now, let's assume this means deleting students explicitly selected by checkbox if `selectionModel` is updated by DataGrid.
+         // If `selectionModel` is empty, maybe prompt user if they mean to delete ALL visible?
+         if (rows.length === 0) {
+             toast.info("No rows to delete. Select rows using the checkboxes.");
+             return;
+         }
+
+        if (window.confirm(`Delete ${rows.length} student(s) from this class and all subjects? This action cannot be undone.`)) {
+            try {
+                // Delete all students in the current view (and their associated scores via CASCADE DELETE)
+                const studentIdsInView = rows.map(r => r.id);
+                if (studentIdsInView.length === 0) {
+                    toast.info("No students to delete in the current view.");
+                    return;
+                }
+
+                const { error: studentDeleteError } = await supabase
+                    .from('user_students') // Updated table name
+                    .delete()
+                    .in('id', studentIdsInView) // Delete all students currently in the `rows` state
+                    .eq('classId', selectedClassId)
+                    .eq('userId', userId);
+
+                if (studentDeleteError) throw studentDeleteError;
+
+                toast.success("Selected student records and all associated scores deleted.");
+                // Real-time listeners will update the state
+            } catch (error: Error | unknown) {
+                console.error("Error deleting selected students:", error instanceof Error ? error.message : String(error));
+                toast.error(`Failed to delete selected students: ${error instanceof Error ? error.message : String(error)}. Check RLS policies.`);
+            }
+        }
+    };
+
+
+    const processRowUpdate = async (newRow: GridRowModel<StudentRow>, oldRow: GridRowModel<StudentRow>): Promise<StudentRow> => {
+        if (!userId || !selectedClassId || !selectedSubjectId) {
+            toast.error("User not authenticated or selection incomplete. Cannot save.");
+            return oldRow;
+        }
+
+        // Calculate derived fields (total, classWorkTotal) before saving
+        const cat1 = Number(newRow.cat1 || 0);
+        const cat2 = Number(newRow.cat2 || 0);
+        const projectWork = Number(newRow.projectWork || 0);
+        const exams = Number(newRow.exams || 0);
+        const total = cat1 + cat2 + projectWork + (exams / 2);
+        const classWorkTotal = cat1 + cat2 + projectWork;
+
+        const updatedStudentScore: MyStudentScore = {
+            id: newRow.scoreId || crypto.randomUUID(), // Use existing ID or generate new
+            studentId: newRow.id,
+            subjectId: selectedSubjectId,
+            classId: selectedClassId,
+            userId: userId,
+            cat1: cat1,
+            cat2: cat2,
+            projectWork: projectWork,
+            exams: exams,
+            total: parseFloat(total.toFixed(2)),
+            classWorkTotal: parseFloat(classWorkTotal.toFixed(2)),
+            position: newRow.position || null, // Will be updated by handleSaveAll
+            remarks: newRow.remarks || null,
+            grade: newRow.grade || null,
+        };
+
+        try {
+            // Check if score entry already exists
+            const existingScore = studentScores.find(s => s.id === newRow.scoreId);
+
+            if (existingScore) {
+                // Update existing score
+                const { error } = await supabase
+                    .from('user_student_scores') // Updated table name
+                    .update(updatedStudentScore)
+                    .eq('id', updatedStudentScore.id)
+                    .eq('userId', userId); // Ensure user owns the record
+                if (error) throw error;
+            } else {
+                // Insert new score entry
+                const { data, error } = await supabase
+                    .from('user_student_scores') // Updated table name
+                    .insert(updatedStudentScore)
+                    .select(); // Select to get the new ID
+                if (error) throw error;
+                updatedStudentScore.id = data[0].id; // Update the ID if it was new
+            }
+
+            // Update student's profile details if they were edited in the grid (e.g., imageUrl, overallRemarks)
+            // This assumes these fields are also editable directly in the DataGrid,
+            // which might be an unintended side effect if primary editing is via the report card dialog.
+            // For now, I'll add logic to update `user_students` table, but consider if these fields should be editable here.
+            const { error: studentUpdateError } = await supabase
+                .from('user_students') // Updated table name
+                .update({
+                    imageUrl: newRow.imageUrl || null,
+                    overallRemarks: newRow.overallRemarks || null,
+                    attendance: newRow.attendance || null,
+                    house: newRow.house || null,
+                    positionInClass: newRow.positionInClass || null,
+                })
+                .eq('id', newRow.id)
+                .eq('classId', selectedClassId)
+                .eq('userId', userId);
+            if (studentUpdateError) {
+                console.warn("Could not update student profile fields:", studentUpdateError.message);
+                toast.warn(`Failed to update student profile fields: ${studentUpdateError.message}`);
+            }
+
+            toast.success("Row updated successfully.");
+
+            const finalUpdatedRow: StudentRow = {
+                ...newRow,
+                cat1: updatedStudentScore.cat1 ?? undefined,
+                cat2: updatedStudentScore.cat2 ?? undefined,
+                projectWork: updatedStudentScore.projectWork ?? undefined,
+                exams: updatedStudentScore.exams ?? undefined,
+                total: updatedStudentScore.total ?? undefined,
+                classWorkTotal: updatedStudentScore.classWorkTotal ?? undefined,
+                position: updatedStudentScore.position ?? undefined,
+                remarks: updatedStudentScore.remarks ?? undefined,
+                grade: updatedStudentScore.grade ?? undefined,
+                isNew: false,
+                scoreId: updatedStudentScore.id,
+            };
+            setRows(currentRows => {
+                const newRows = currentRows.map((row) => (row.id === finalUpdatedRow.id ? finalUpdatedRow : row));
+                calculateAndSetAverage(newRows);
+                return newRows;
+            });
+
+            return finalUpdatedRow;
+        } catch (error: Error | unknown) {
+            console.error("Error processing row update:", error instanceof Error ? error.message : String(error));
+            toast.error(`Failed to update row: ${error instanceof Error ? error.message : String(error)}`);
+            return oldRow; // Revert to old row on error
+        }
+    };
+
+
+    const handleRowEditStop: GridEventListener<"rowEditStop"> = (params, event) => {
+        if (params.reason === GridRowEditStopReasons.rowFocusOut) {
+            event.defaultMuiPrevented = true;
+        }
+    };
+
+    const handleSaveAll = async () => {
+        if (!userId || !selectedClassId || !selectedSubjectId || rows.length === 0) {
+            toast.error("Cannot save results: User not authenticated, class/subject not selected, or no data.");
+            return;
+        }
+
+        try {
+            const updates: MyStudentScore[] = [];
+            const newScores: MyStudentScore[] = [];
+
+            // Step 1: Prepare data for saving (calculate derived fields)
+            const rowsWithCalculations = rows.map(row => {
+                const cat1 = row.cat1 || 0;
+                const cat2 = row.cat2 || 0;
+                const projectWork = row.projectWork || 0;
+                const exams = row.exams || 0;
+                const total = cat1 + cat2 + projectWork + (exams / 2);
+                const classWorkTotal = cat1 + cat2 + projectWork;
+
+                return {
+                    ...row,
+                    total: parseFloat(total.toFixed(2)),
+                    classWorkTotal: parseFloat(classWorkTotal.toFixed(2)),
+                };
+            });
+
+            // Step 2: Sort and calculate position and remarks
+            const sortedRows = [...rowsWithCalculations].sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
+            const positionedRows = sortedRows.map((row, index) => {
+                const position = index + 1;
+                const total = row.total ?? 0;
+                const remarks = total < 40 ? "WEAK" : total < 60 ? "AVERAGE" : "GOOD";
+                // Add simple grading logic (example)
+                let grade = '';
+                if (total >= 80) grade = 'A';
+                else if (total >= 70) grade = 'B';
+                else if (total >= 60) grade = 'C';
+                else if (total >= 50) grade = 'D';
+                else if (total >= 40) grade = 'E';
+                else grade = 'F';
+
+                const scoreEntry: MyStudentScore = {
+                    id: row.scoreId || crypto.randomUUID(),
+                    studentId: row.id,
+                    subjectId: selectedSubjectId,
+                    classId: selectedClassId,
+                    userId: userId,
+                    cat1: row.cat1 || null,
+                    cat2: row.cat2 || null,
+                    projectWork: row.projectWork || null,
+                    exams: row.exams || null,
+                    total: row.total || null,
+                    classWorkTotal: row.classWorkTotal || null,
+                    position: `${position}${getOrdinalSuffix(position)}`,
+                    remarks: remarks,
+                    grade: grade, // Save grade
+                };
+
+                if (row.scoreId) {
+                    updates.push(scoreEntry);
+                } else {
+                    newScores.push(scoreEntry);
+                }
+
+                // Return updated row for local state (UI)
+                return {
+                    ...row,
+                    position: `${position}${getOrdinalSuffix(position)}`,
+                    remarks: remarks,
+                    grade: grade,
+                    scoreId: scoreEntry.id // Ensure local UI has the scoreId for new entries
+                };
+            });
+
+            // Step 3: Perform batch updates/inserts to Supabase
+            if (newScores.length > 0) {
+                const { error: insertError, data: insertedData } = await supabase
+                    .from('user_student_scores') // Updated table name
+                    .insert(newScores)
+                    .select(); // Select to get IDs for new entries
+                if (insertError) throw insertError;
+                // Update the `rows` with the new IDs for newly inserted scores
+                insertedData.forEach(insertedScore => {
+                    const rowIndex = positionedRows.findIndex(r => r.id === insertedScore.studentId && !r.scoreId);
+                    if (rowIndex !== -1) {
+                        positionedRows[rowIndex].scoreId = insertedScore.id;
+                    }
+                });
+            }
+
+            // Batch update existing scores
+            for (const update of updates) {
+                const { error } = await supabase
+                    .from('user_student_scores') // Updated table name
+                    .update(update)
+                    .eq('id', update.id)
+                    .eq('userId', userId);
+                if (error) {
+                    console.warn(`Failed to update score for student ${update.studentId}: ${error.message}`);
+                    // Don't throw, allow other updates to proceed
+                }
+            }
+
+            // Update the local rows state
+            setRows(positionedRows);
+            calculateAndSetAverage(positionedRows);
+            toast.success("Results saved, positions and remarks updated.");
+            handleViewAllReportCardsForPrinting(); // Auto open all reports
+        } catch (error: any) {
+            console.error("Error saving all results:", error.message);
+            toast.error(`Failed to save results: ${error.message}`);
+        }
+    };
+
+
+    const handleClearResults = async () => {
+        if (!userId || !selectedClassId || !selectedSubjectId) {
+            toast.error("Cannot clear results: User not authenticated, or class/subject not selected.");
+            return;
+        }
+
+        if (window.confirm(`ARE YOU SURE?\n\nThis will permanently clear ALL results (scores, positions, remarks) for the subject "${subjectName}" in class "${className}".\n\nThis action cannot be undone.`)) {
+            try {
+                // Delete all user_student_scores entries for the current class and subject
+                const { error } = await supabase
+                    .from('user_student_scores') // Updated table name
+                    .delete()
+                    .eq('classId', selectedClassId)
+                    .eq('subjectId', selectedSubjectId)
+                    .eq('userId', userId);
+
+                if (error) throw error;
+
+                // Reset local state for current subject to reflect cleared scores
+                const studentsInCurrentClass = students.filter(s => s.classId === selectedClassId);
+                const clearedRows: StudentRow[] = studentsInCurrentClass.map(student => ({
+                    ...student,
+                    cat1: undefined, cat2: undefined, projectWork: undefined, exams: undefined,
+                    total: undefined, position: undefined, remarks: undefined, grade: undefined,
+                    classWorkTotal: undefined, scoreId: undefined
+                }));
+                setRows(clearedRows);
+                calculateAndSetAverage(clearedRows);
+
+                toast.success(`Results for subject "${subjectName}" in class "${className}" cleared.`);
+            } catch (error: any) {
+                console.error("Error clearing results:", error.message);
+                toast.error(`Failed to clear results: ${error.message}. Check RLS policies.`);
+            }
+        }
+    };
+
+
+    // --- Excel Export Handler (Subject Specific) ---
+    const exportToExcel = async () => {
+        if (!rows.length || !selectedClassId || !selectedSubjectId || !XLSX || !FileSaver) {
+            toast.info("No student data or required libraries to export.");
+            return;
+        }
+        try {
+            const worksheetData = [
+                ['Name of Students', 'CAT 1 (10)', 'CAT 2 (20)', 'Project Work (20)', 'Class Score (50)',
+                    'Exams (100)', 'Total (100%)', 'Position', 'Remarks'],
+                ...rows.map(row => [
+                    row.name,
+                    row.cat1 || 0,
+                    row.cat2 || 0,
+                    row.projectWork || 0,
+                    row.classWorkTotal || 0,
+                    row.exams || 0,
+                    row.total || 0,
+                    row.position || '',
+                    row.remarks || ''
+                ])
+            ];
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Subject Results");
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+
+            const currentClassName = classes.find(c => c.id === selectedClassId)?.name || "Class";
+            const currentSubjectName = subjects.find(s => s.id === selectedSubjectId)?.name || "Subject";
+            const filename = `Student_Results_${currentClassName}_${currentSubjectName}.xlsx`;
+            FileSaver.saveAs(dataBlob, filename);
+            toast.success("Subject results exported to Excel successfully.");
+        } catch (error) {
+            console.error("Excel export failed:", error);
+            toast.error(`Failed to export data to Excel: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    // --- Excel Export Handler (Overall Ranking) ---
+    const handleExportOverallToExcel = async () => {
+        if (!overallResults.length || !selectedClassId || !XLSX || !FileSaver) {
+            toast.info("No overall ranking data or required libraries to export.");
+            return;
+        }
+        try {
+            const headers = overallColumns.map(col => col.headerName);
+            const worksheetData = [
+                headers,
+                ...overallResults.map(row => {
+                    return overallColumns.map(col => {
+                        if (row.subjectTotals.hasOwnProperty(col.field)) {
+                            return row.subjectTotals[col.field] ?? 0;
+                        }
+                        return (row as OverallStudentRow)[col.field] ?? '';
+                    });
+                })
+            ];
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Overall Ranking");
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+
+            const currentClassName = classes.find(c => c.id === selectedClassId)?.name || "Class";
+            const filename = `${currentClassName}_Overall_Ranking.xlsx`;
+            FileSaver.saveAs(dataBlob, filename);
+            toast.success("Overall ranking exported to Excel successfully.");
+        } catch (error) {
+            console.error("Overall ranking Excel export failed:", error);
+            toast.error(`Failed to export overall ranking data to Excel: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    // --- Print Handler for Overall Results ---
+    const handlePrintOverallResults = () => {
+        if (overallRankingRef.current) {
+            const printContent = overallRankingRef.current.innerHTML;
+            const originalContent = document.body.innerHTML;
+            const originalTitle = document.title;
+
+            document.body.innerHTML = printContent;
+            document.title = `Overall Class Ranking - ${className}`;
+
+            const printStyles = `
+                <style>
+                    @media print {
+                        body > *:not(#overall-ranking-content) { display: none !important; }
+                        #overall-ranking-content {
+                            display: block !important; width: 100%; margin: 0 auto; padding: 10mm;
+                            box-sizing: border-box; font-family: sans-serif; color: #000;
+                        }
+                        .MuiCard-root, .MuiCardContent-root { border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
+                        h1, h6, p, strong { color: #000 !important; margin-bottom: 0.5em; }
+                        h6 { font-size: 1.2em; margin-top: 1em; }
+                        p { font-size: 0.9em; }
+                        .MuiDataGrid-root { border: 1px solid #ccc !important; }
+                        .MuiDataGrid-columnHeaders, .MuiDataGrid-row { border-bottom: 1px solid #eee !important; }
+                        .MuiDataGrid-cell, .MuiDataGrid-columnHeaderTitleContainer { padding: 8px !important; }
+                        .MuiDataGrid-footerContainer { display: none !important; }
+                        .print-hide { display: none !important; }
+                        .print-only { display: block !important; }
+                    }
+                </style>
+            `;
+            const styleElement = document.createElement('style');
+            styleElement.innerHTML = printStyles;
+            document.head.appendChild(styleElement);
+            window.print();
+            document.body.innerHTML = originalContent;
+            document.title = originalTitle;
+            if (document.head.contains(styleElement)) {
+                 document.head.removeChild(styleElement);
+            }
+            setTimeout(() => {}, 50);
+        } else {
+            toast.error("Overall ranking content not available for printing.");
+        }
+    };
+
+    const handleViewAllReportCardsForPrinting = React.useCallback(async () => {
+        if (!selectedClassId || !userId) {
+            toast.error("Please select a class and ensure authentication is ready.");
+            return;
+        }
+
+        const currentClass = classes.find(c => c.id === selectedClassId);
+        const studentsInClass = students.filter(s => s.classId === selectedClassId);
+
+        if (!currentClass || studentsInClass.length === 0) {
+            toast.info("No students found in the selected class to generate reports.");
+            return;
+        }
+
+        const subjectsForClass = subjects.filter(s => s.classId === selectedClassId);
+        const allReports: StudentReportCardData[] = [];
+
+        for (const student of studentsInClass) {
+            const aggregatedSubjectResults: StudentReportCardData['subjectResults'] = [];
+
+            for (const subject of subjectsForClass) {
+                const scoreData = studentScores.find(score =>
+                    score.studentId === student.id && score.subjectId === subject.id && score.classId === selectedClassId
+                );
+
+                if (scoreData) {
+                    const classWorkTotal = (scoreData.cat1 ?? 0) + (scoreData.cat2 ?? 0) + (scoreData.projectWork ?? 0);
+                    aggregatedSubjectResults.push({
+                        subjectId: subject.id,
+                        subjectName: subject.name,
+                        subjectTeacher: subject.subjectTeacher,
+                        cat1: scoreData.cat1,
+                        cat2: scoreData.cat2,
+                        projectWork: scoreData.projectWork,
+                        exams: scoreData.exams,
+                        total: scoreData.total,
+                        position: scoreData.position,
+                        grade: scoreData.grade,
+                        remarks: scoreData.remarks,
+                        classWorkTotal: classWorkTotal,
+                    });
+                } else {
+                    // Include subject even if no scores exist for it
+                    aggregatedSubjectResults.push({
+                        subjectId: subject.id,
+                        subjectName: subject.name,
+                        subjectTeacher: subject.subjectTeacher,
+                        cat1: null, cat2: null, projectWork: null, exams: null, total: null,
+                        position: null, grade: null, remarks: null, classWorkTotal: null,
+                    });
+                }
+            }
+
+            const studentOverallData = overallResults.find(result => result.id === student.id);
+
+            const anySubjectInClass = subjectsForClass.length > 0 ? subjectsForClass[0] : null;
+            const term = anySubjectInClass?.term || "N/A";
+            const year = anySubjectInClass?.year || "N/A";
+
+            allReports.push({
+                studentId: student.id,
+                studentName: student.name,
+                className: currentClass.name,
+                term: term,
+                year: year,
+                imageUrl: student.imageUrl || null,
+                overallRemarks: student.overallRemarks || null,
+                subjectResults: aggregatedSubjectResults,
+                studentOverallPercentage: studentOverallData?.overallAverage,
+                overallPosition: studentOverallData?.overallRank,
+                attendance: student.attendance || null,
+                positionInClass: student.positionInClass || null,
+                house: student.house || null,
+                formMistressReport: "",
+                conduct: "",
+                interest: "",
+                housemistressReport: "",
+                headmasterReport: "",
+                studentOverallGrade: "",
+            });
+        }
+
+        if (allReports.length > 0) {
+            setAllStudentsReports(allReports);
+            setOpenAllReportsDialog(true);
+        } else {
+            toast.info("No complete report card data found for any student in this class.");
+        }
+    }, [selectedClassId, classes, students, subjects, studentScores, overallResults, userId]);
+
+    const handleCopyData = () => {
+        if (rows.length === 0) {
+            toast.info("No student data to copy.");
+            return;
+        }
+        if (typeof window === 'undefined') {
+            toast.error("Copy to clipboard is not supported in this environment.");
+            return;
+        }
+
+        try {
+            const headers = ["Student Name", "Class Score (50)", "Exams (100)"];
+            const dataRows = rows.map(row => [
+                row.name,
+                row.classWorkTotal || 0,
+                row.exams || 0,
+            ].join('\t'));
+            const textToCopy = [headers.join('\t'), ...dataRows].join('\n');
+
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = textToCopy;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            toast.success("Student data copied to clipboard!");
+        } catch (error) {
+            console.error("Failed to copy data:", error);
+            toast.error("Failed to copy data to clipboard.");
+        }
+    };
+
+
+    // --- Derived Data for Rendering ---
+    const availableSubjects = React.useMemo(() => {
+        return subjects.filter(s => s.classId === selectedClassId);
+    }, [subjects, selectedClassId]);
+
+    // Show loading indicator
+    if (!isAuthReady || isLoadingInitialData) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <p className="text-lg text-gray-700">Loading application data...</p>
+            </div>
+        );
+    }
+
+    // --- JSX Rendering ---
+    return (
+        <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset>
+                <header className="flex h-16 items-center gap-2 border-b bg-white px-4 sticky top-0 z-30">
+                    <SidebarTrigger className="-ml-1" />
+                    <Separator orientation="vertical" className="mr-2 h-4" />
+                    <Breadcrumb>
+                        <BreadcrumbList>
+                            <BreadcrumbItem><BreadcrumbLink href="#">Dashboard</BreadcrumbLink></BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem><BreadcrumbPage>Student Results</BreadcrumbPage></BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                </header>
+
+                <div className="flex flex-col flex-1 bg-gray-100 p-4 space-y-4">
+                    <div className="flex flex-wrap items-center gap-4 p-4 bg-white rounded shadow">
+                        <FormControl sx={{ minWidth: 200 }}>
+                            <InputLabel id="class-select-label">Select Class</InputLabel>
+                            <Select
+                                labelId="class-select-label"
+                                id="class-select"
+                                value={selectedClassId || ""}
+                                onChange={handleClassSelection}
+                                label="Select Class"
+                            >
+                                {classes.map((c) => (
+                                    <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Button onClick={handleCreateClass} variant="contained" color="primary">
+                            Create Class
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={handleDeleteClass}
+                            disabled={!selectedClassId}
+                            startIcon={<DeleteIcon />}
+                        >
+                            Delete Class
+                        </Button>
+
+                        {selectedClassId && (
+                            <>
+                                <FormControl sx={{ minWidth: 200 }} disabled={!selectedClassId}>
+                                    <InputLabel id="subject-select-label">Select Subject</InputLabel>
+                                    <Select
+                                        labelId="subject-select-label"
+                                        id="subject-select"
+                                        value={selectedSubjectId || ""}
+                                        onChange={handleSubjectSelection}
+                                        label="Select Subject"
+                                    >
+                                        {availableSubjects.map((s) => (
+                                            <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                <Button
+                                    onClick={handleAddSubject}
+                                    variant="contained"
+                                    color="secondary"
+                                    disabled={!selectedClassId}
+                                >
+                                    Add Subject
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={handleDeleteSubject}
+                                    disabled={!selectedSubjectId}
+                                    startIcon={<DeleteIcon />}
+                                >
+                                    Delete Subject
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => setShowOverallResults(!showOverallResults)}
+                                    disabled={!selectedClassId}
+                                >
+                                    {showOverallResults ? 'View Subject Results' : 'View Overall Class Ranking'}
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleViewAllReportCardsForPrinting}
+                                    disabled={!selectedClassId || students.filter(s => s.classId === selectedClassId).length === 0}
+                                >
+                                    View All Report Cards for Printing
+                                </Button>
+                            </>
+                        )}
+                    </div>
+
+                    {selectedClassId && selectedSubjectId && !showOverallResults && (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-white rounded shadow relative">
+                                <Button
+                                    onClick={handleEditSubjectDetails}
+                                    className="absolute top-2 right-2 z-40 print-hide"
+                                    variant="contained"
+                                    size="small"
+                                    startIcon={<EditIcon />}
+                                    sx={{ backgroundColor: 'rgb(30 58 138)', '&:hover': { backgroundColor: 'rgb(30 64 175)' } }}
+                                >
+                                    Edit Details
+                                </Button>
+                                <div className="text-sm">Class: <strong className="font-semibold">{className}</strong></div>
+                                <div className="text-sm">Subject: <strong className="font-semibold">{subjectName}</strong></div>
+                                <div className="text-sm">Term: <strong className="font-semibold">{term}</strong></div>
+                                <div className="text-sm">Year: <strong className="font-semibold">{year}</strong></div>
+                                <div className="text-sm">Subject Teacher: <strong className="font-semibold">{subjectTeacher}</strong></div>
+                                <div className="text-sm">Class Average: <strong className="font-semibold">{overallClassAverage}%</strong></div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-between mb-4 gap-2 print-hide">
+                                <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddStudent}>
+                                    Add Student
+                                </Button>
+                                <Button variant="outlined" onClick={handleOpenPasteNamesDialog}>
+                                    Paste Names
+                                </Button>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        variant="contained" color="error" startIcon={<DeleteIcon />}
+                                        onClick={handleDeleteSelected} disabled={rows.length === 0} // Disabled if no rows to delete
+                                    >
+                                        Delete All Visible
+                                    </Button>
+                                    <Button
+                                        variant="outlined" color="warning" startIcon={<ClearIcon />}
+                                        onClick={handleClearResults} disabled={rows.length === 0}
+                                    >
+                                        Clear Results
+                                    </Button>
+                                    <Button
+                                        variant="contained" color="success" startIcon={<SaveIcon />}
+                                        onClick={handleSaveAll} disabled={rows.length === 0}
+                                    >
+                                        Save Results
+                                    </Button>
+                                    <Button
+                                        variant="contained" color="secondary" onClick={exportToExcel}
+                                        disabled={rows.length === 0}
+                                        startIcon={<DownloadIcon />}
+                                    >
+                                        Export to Excel
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color="info"
+                                        onClick={handleCopyData}
+                                        disabled={rows.length === 0}
+                                        startIcon={<ContentCopyIcon />}
+                                    >
+                                        Copy Data
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {rows.length > 0 ? (
+                                <div style={{ height: 600, width: '100%' }}>
+                                    <DataGrid
+                                        rows={rows}
+                                        columns={columns}
+                                        getRowId={(row) => row.id}
+                                        processRowUpdate={processRowUpdate}
+                                        onRowEditStop={handleRowEditStop}
+                                        disableRowSelectionOnClick
+                                    />
+                                </div>
+                            ) : (
+                                <Typography variant="body1" color="text.secondary" className="text-center p-4 bg-white rounded shadow">
+                                    No student data for this subject. Add students to get started.
+                                </Typography>
+                            )}
+                        </>
+                    )}
+
+                    {selectedClassId && showOverallResults && (
+                        <Card className="p-4 mt-4" ref={overallRankingRef} id="overall-ranking-content">
+                            <CardContent>
+                                <div className="flex justify-between items-center mb-4 print-hide">
+                                    <Typography variant="h6">
+                                        Overall Class Ranking for {className}
+                                    </Typography>
+                                     <div className="flex flex-wrap gap-2">
+                                         <Button
+                                             variant="outlined"
+                                             startIcon={<PrintIcon />}
+                                             onClick={handlePrintOverallResults}
+                                             disabled={overallResults.length === 0}
+                                         >
+                                             Print Ranking
+                                         </Button>
+                                         <Button
+                                             variant="contained" color="secondary" onClick={handleExportOverallToExcel}
+                                             disabled={overallResults.length === 0}
+                                             startIcon={<DownloadIcon />}
+                                         >
+                                             Export to Excel
+                                         </Button>
+                                     </div>
+                                </div>
+                                <Typography variant="h6" className="print-only text-center mb-4">
+                                     Overall Class Ranking for {className}
+                                </Typography>
+
+                                {overallResults.length > 0 ? (
+                                    <div style={{ height: 600, width: '100%' }}>
+                                        <DataGrid
+                                            rows={overallResults}
+                                            columns={overallColumns}
+                                            getRowId={(row) => row.id}
+                                            disableRowSelectionOnClick
+                                            hideFooter
+                                        />
+                                    </div>
+                                ) : (
+                                    <Typography variant="body1" color="text.secondary">
+                                        No overall results available for this class. Ensure subjects have been added and results saved.
+                                    </Typography>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {selectedClassId && !selectedSubjectId && !showOverallResults && (
+                        <div className="text-center p-6 bg-white rounded shadow text-gray-600">
+                            Please select or add a subject for the class &quot;{className}&quot; to view or manage student results.
+                            You can also view the <Button variant="text" onClick={() => setShowOverallResults(true)}>Overall Class Ranking</Button> if subjects and results are available.
+                        </div>
+                    )}
+
+                    {!selectedClassId && (
+                        <div className="text-center p-6 bg-white rounded shadow text-gray-600">
+                            Please select or create a class to begin.
+                        </div>
+                    )}
+
+                </div>
+
+                {/* Add Student Dialog */}
+                <Dialog open={openAddStudentDialog} onClose={handleCloseAddStudentDialog} maxWidth="xs" fullWidth>
+                    <DialogTitle>Add New Student to {className}</DialogTitle>
+                    <DialogContent>
+                        <TextField autoFocus margin="dense" id="new-student-name" label="Student Name" type="text" fullWidth variant="outlined"
+                            value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseAddStudentDialog}>Cancel</Button>
+                        <Button onClick={handleSaveNewStudent} variant="contained">Add Student</Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Paste Names Dialog */}
+                <Dialog open={openPasteNamesDialog} onClose={handleClosePasteNamesDialog} maxWidth="sm" fullWidth>
+                    <DialogTitle>Paste Student Names for {className}</DialogTitle>
+                    <DialogContent>
+                        <TextareaAutosize minRows={10} placeholder="Paste student names here, one name per line..."
+                            style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }}
+                            value={pastedNames} onChange={(e) => setPastedNames(e.target.value)} />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleClosePasteNamesDialog}>Cancel</Button>
+                        <Button onClick={handleAddPastedNames} variant="contained">Add Names to Class</Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Edit Subject Details Dialog */}
+                <Dialog open={openEditSubjectDialog} onClose={handleCloseEditSubjectDialog} maxWidth="sm" fullWidth>
+                    <DialogTitle>Edit Subject Details for {subjectName}</DialogTitle>
+                    <DialogContent>
+                        <TextField autoFocus margin="dense" id="edit-subjectName" label="Subject Name" type="text" fullWidth variant="outlined"
+                            value={subjectEditData.name} onChange={(e) => setSubjectEditData({ ...subjectEditData, name: e.target.value })} />
+                        <TextField margin="dense" id="edit-subjectTeacher" label="Subject Teacher" type="text" fullWidth variant="outlined"
+                            value={subjectEditData.subjectTeacher} onChange={(e) => setSubjectEditData({ ...subjectEditData, subjectTeacher: e.target.value })} />
+                        <TextField margin="dense" id="edit-term" label="Term" type="text" fullWidth variant="outlined"
+                            value={subjectEditData.term} onChange={(e) => setSubjectEditData({ ...subjectEditData, term: e.target.value })} />
+                        <TextField margin="dense" id="edit-year" label="Year" type="text" fullWidth variant="outlined"
+                            value={subjectEditData.year} onChange={(e) => setSubjectEditData({ ...subjectEditData, year: e.target.value })} />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseEditSubjectDialog}>Cancel</Button>
+                        <Button onClick={handleSaveSubjectDetails} variant="contained">Save Changes</Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Create Class Dialog */}
+                <Dialog open={openCreateClassDialog} onClose={handleCloseCreateClassDialog} maxWidth="xs" fullWidth>
+                    <DialogTitle>Create New Class</DialogTitle>
+                    <DialogContent>
+                        <TextField autoFocus margin="dense" id="create-className" label="Class Name" type="text" fullWidth variant="outlined"
+                            value={newClassData.name} onChange={(e) => setNewClassData({ name: e.target.value })} />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseCreateClassDialog}>Cancel</Button>
+                        <Button onClick={handleSaveNewClass} variant="contained">Create</Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Add Subject Dialog */}
+                <Dialog open={openAddSubjectDialog} onClose={handleCloseAddSubjectDialog} maxWidth="sm" fullWidth>
+                    <DialogTitle>Add New Subject to &quot;{className}&quot;</DialogTitle>
+                    <DialogContent>
+                        <TextField autoFocus margin="dense" id="add-newSubjectName" label="Subject Name" type="text" fullWidth variant="outlined"
+                            value={newSubjectData.name} onChange={(e) => setNewSubjectData({ ...newSubjectData, name: e.target.value })} />
+                        <TextField margin="dense" id="add-newSubjectTeacher" label="Subject Teacher" type="text" fullWidth variant="outlined"
+                            value={newSubjectData.subjectTeacher} onChange={(e) => setNewSubjectData({ ...newSubjectData, subjectTeacher: e.target.value })} />
+                        <TextField margin="dense" id="add-newTerm" label="Term" type="text" fullWidth variant="outlined"
+                            value={newSubjectData.term} onChange={(e) => setNewSubjectData({ ...newSubjectData, term: e.target.value })} />
+                        <TextField margin="dense" id="add-newYear" label="Year" type="text" fullWidth variant="outlined"
+                            value={newSubjectData.year} onChange={(e) => setNewSubjectData({ ...newSubjectData, year: e.target.value })} />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseAddSubjectDialog}>Cancel</Button>
+                        <Button onClick={handleSaveNewSubject} variant="contained">Add Subject</Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Report Card Dialog (Single Student) */}
+                <Dialog open={openReportCardDialog} onClose={handleCloseReportCardDialog} maxWidth="md" fullWidth>
+                    <DialogTitle>Report Card for {currentStudentReport?.studentName}</DialogTitle>
+                    <DialogContent dividers sx={{ p: 0 }}>
+                        <div id="report-card-content" ref={reportCardRef} className="p-6">
+                            {currentStudentReport && (
+                                <Card variant="outlined" className="p-4">
+                                    <CardContent>
+                                        <div className="flex flex-col md:flex-row items-center gap-6 mb-6">
+                                            <div className="flex-shrink-0">
+                                                {reportCardImage ? (
+                                                    <CardMedia
+                                                        component="img"
+                                                        sx={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '2px solid #3b82f6' }}
+                                                        image={reportCardImage}
+                                                        alt={`${currentStudentReport.studentName}'s photo`}
+                                                    />
+                                                ) : (
+                                                    <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 border-2 border-gray-300">
+                                                        No Image
+                                                    </div>
+                                                )}
+                                                <Button
+                                                    variant="outlined"
+                                                    component="label"
+                                                    size="small"
+                                                    className="mt-2 print-hide w-full"
+                                                >
+                                                    Upload Image
+                                                    <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
+                                                </Button>
+                                            </div>
+
+                                            <div className="flex-grow space-y-1">
+                                                <Typography variant="h6" gutterBottom={false}>
+                                                    {currentStudentReport.studentName}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Class: <strong className="text-gray-800">{currentStudentReport.className}</strong>
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Term: <strong className="text-gray-800">{currentStudentReport.term}</strong>
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Year: <strong className="text-gray-800">{currentStudentReport.year}</strong>
+                                                </Typography>
+                                                <TextField
+                                                    margin="dense"
+                                                    label="Attendance"
+                                                    type="text"
+                                                    fullWidth
+                                                    variant="outlined"
+                                                    value={reportCardAttendance}
+                                                    onChange={handleReportCardAttendanceChange}
+                                                    className="print-hide"
+                                                />
+                                                <TextField
+                                                    margin="dense"
+                                                    label="House"
+                                                    type="text"
+                                                    fullWidth
+                                                    variant="outlined"
+                                                    value={reportCardHouse}
+                                                    onChange={handleReportCardHouseChange}
+                                                    className="print-hide"
+                                                />
+                                                <TextField
+                                                    margin="dense"
+                                                    label="Position in Class"
+                                                    type="text"
+                                                    fullWidth
+                                                    variant="outlined"
+                                                    value={reportCardPositionInClass}
+                                                    onChange={handleReportCardPositionInClassChange}
+                                                    className="print-hide"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <Separator className="my-4" />
+
+                                        <Typography variant="h6" gutterBottom>
+                                            Subject Results
+                                        </Typography>
+                                        {currentStudentReport.subjectResults.length > 0 ? (
+                                                <div className="space-y-4">
+                                                    {currentStudentReport.subjectResults.map(subjectResult => (
+                                                        <Card key={subjectResult.subjectId} variant="outlined" className="p-3">
+                                                            <CardContent className="p-0">
+                                                                <Typography variant="subtitle1" gutterBottom>
+                                                                    {subjectResult.subjectName} - <span className="text-sm text-gray-600">Teacher: {subjectResult.subjectTeacher}</span>
+                                                                </Typography>
+                                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                                                    <Typography variant="body2">CAT 1 (10): <strong>{subjectResult.cat1 ?? 0}</strong></Typography>
+                                                                    <Typography variant="body2">CAT 2 (20): <strong>{subjectResult.cat2 ?? 0}</strong></Typography>
+                                                                    <Typography variant="body2">Project (20): <strong>{subjectResult.projectWork ?? 0}</strong></Typography>
+                                                                    <Typography variant="body2">Class Score (50): <strong>{subjectResult.classWorkTotal ?? 0}</strong></Typography>
+                                                                    <Typography variant="body2">Exams (100): <strong>{subjectResult.exams ?? 0}</strong></Typography>
+                                                                    <Typography variant="body2">Total (100%): <strong>{subjectResult.total ?? 0}</strong></Typography>
+                                                                    <Typography variant="body2">Position: <strong>{subjectResult.position ?? 'N/A'}</strong></Typography>
+                                                                </div>
+                                                            </CardContent>
+                                                        </Card>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <Typography variant="body1" color="text.secondary">
+                                                    No subject results found for this student in this class.
+                                                </Typography>
+                                            )}
+
+                                        <Separator className="my-4" />
+
+                                        <Typography variant="h6" gutterBottom>
+                                            Overall Remarks
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            multiline
+                                            rows={4}
+                                            variant="outlined"
+                                            label="Overall Remarks"
+                                            value={reportCardOverallRemarks ?? ''}
+                                            onChange={handleReportCardOverallRemarksChange}
+                                            className="print-hide"
+                                        />
+                                        <Typography variant="body1" className="print-only p-2 border rounded bg-gray-50">
+                                            <strong>Overall Remarks:</strong> {reportCardOverallRemarks ?? 'N/A'}
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    </DialogContent>
+                    <DialogActions className="print-hide">
+                        <Button onClick={handleCloseReportCardDialog}>Close</Button>
+                        <Button onClick={handlePrintReportCard} variant="outlined" startIcon={<PrintIcon />}>Print</Button>
+                        <Button onClick={handleSaveReportCard} variant="contained" color="primary">Save Report Card</Button>
+                    </DialogActions>
+                </Dialog>
+
+                {openAllReportsDialog && (
+                    <AllReportCardsPrintView
+                        reports={allStudentsReports}
+                        onClose={() => setOpenAllReportsDialog(false)}
+                    />
+                )}
+            </SidebarInset>
+        </SidebarProvider>
+    );
+}
