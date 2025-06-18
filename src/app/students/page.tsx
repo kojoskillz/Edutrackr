@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Dispatch, SetStateAction } from "react";
 import {
     DataGrid,
     GridColDef,
@@ -60,7 +61,7 @@ type ClassRow = {
   user_id?: string;
 };
 
-type StudentRow = {
+type StudentRow = GridRowModel & {
   id: string;
   name: string;
   dob: string;
@@ -311,7 +312,11 @@ export default function ClassesPage() {
 
     try {
       const updated: ClassRow = {
-        ...newRow,
+        id: newRow.id as string,
+        name: newRow.name as string,
+        teacher: newRow.teacher as string,
+        description: newRow.description,
+        capacity: newRow.capacity,
         isNew: false,
         user_id: user.id
       };
@@ -363,12 +368,17 @@ export default function ClassesPage() {
       const dob = newRow.dob ? new Date(newRow.dob).toISOString() : new Date().toISOString();
       
       const updated: StudentRow = {
-        ...newRow,
+        id: newRow.id as string,
+        name: newRow.name as string,
         dob,
         age: calculateAge(dob),
+        class: selectedClassName || newRow.class as string,
+        gender: newRow.gender as string | undefined,
+        image: newRow.image as string | undefined,
+        parentPhoneNumber: newRow.parentPhoneNumber as string | undefined,
+        parentEmail: newRow.parentEmail as string | undefined,
         isNew: false,
-        user_id: user.id,
-        class: selectedClassName || newRow.class
+        user_id: user.id
       };
 
       if (newRow.isNew) {
@@ -818,7 +828,7 @@ export default function ClassesPage() {
                     slots={{ toolbar: ClassEditToolbar }}
                     slotProps={{ 
                       toolbar: { 
-                        setRows: setClassRows, 
+                        setRows: setClassRows as Dispatch<SetStateAction<readonly GridRowModel[]>>, 
                         setRowModesModel: setClassRowModesModel 
                       } 
                     }}
@@ -883,7 +893,7 @@ export default function ClassesPage() {
                     processRowUpdate={processStudentRowUpdate}
                     slots={{ toolbar: StudentEditToolbar }}
                     slotProps={{ toolbar: {
-                      setRows: setAllStudents,
+                      setRows: setAllStudents as Dispatch<SetStateAction<readonly GridRowModel[]>>,
                       setRowModesModel: setStudentRowModesModel,
                       className: selectedClassName || '',
                       onCopyAllStudentNames: handleCopyAllStudentNames,
