@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from "next/image";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import Link from 'next/link'; // Import Link from next/link
+import Link from 'next/link';
 
 import { AppSidebar } from "@/components/app-sidebar";
 import {
@@ -23,10 +23,19 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar as CalendarIcon } from "lucide-react";
 
-import { useAuth } from "@/context/AuthContext"; // Assuming AuthContext is correctly implemented
-import { useStudent } from "@/context/StudentContext"; // Assuming StudentContext is correctly implemented
-import useFeesStore from "../dashboard/useFeesStore"; // Assuming useFeesStore is correctly implemented
+import { useAuth } from "@/context/AuthContext";
+import { useStudent } from "@/context/StudentContext";
+import useFeesStore from "../dashboard/useFeesStore";
 
 import { Bar, Pie } from "react-chartjs-2";
 import {
@@ -41,12 +50,12 @@ import {
   TooltipItem
 } from "chart.js";
 
-import { supabase } from "../Authentication-supabase/lib/supabase/supabaseClient"; // Updated Supabase client import path
+import { Calendar } from "@/components/ui/calendar";
+import { supabase } from "../Authentication-supabase/lib/supabase/supabaseClient";
 
 // Register Chart.js components
 ChartJS.register(ArcElement, ChartTooltip, Legend, BarElement, CategoryScale, LinearScale, ChartTitle);
 
-// Define the structure for student data by class (local state structure)
 interface StudentData {
   [className: string]: {
     male: number;
@@ -54,7 +63,6 @@ interface StudentData {
   };
 }
 
-// Interfaces for Supabase table data
 interface ClassesUpdate {
   id: string;
   class_name: string;
@@ -71,7 +79,13 @@ interface SupabaseAdminProfile {
   updated_at: string;
 }
 
-// Constants for image paths (replaces magic strings)
+interface CalendarEvent {
+  id?: string;
+  title: string;
+  date: Date;
+  description?: string;
+}
+
 const PROFILE_PLACEHOLDER_IMAGE = "/profile-placeholder.png";
 const CLOCK_IMAGE = "/clock.png";
 const MALE_TEACHER_IMAGE = "/male_teacher.png";
@@ -80,35 +94,31 @@ const MALE_STUDENT_IMAGE = "/male_student.png";
 const FEMALE_STUDENT_IMAGE = "/female_student.png";
 const ALL_IMAGE = "/all.png";
 
-// Main page component for the Dashboard
 export default function Page() {
-  // State variables for dashboard data
   const [adminName, setAdminName] = useState("Admin");
   const [adminImage, setAdminImage] = useState(PROFILE_PLACEHOLDER_IMAGE);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedClass, setSelectedClass] = useState("");
-
-  // Global counts for teachers and students from school_statistics
   const [maleTeachers, setMaleTeachers] = useState(0);
   const [femaleTeachers, setFemaleTeachers] = useState(0);
   const [maleStudentsGlobal, setMaleStudentsGlobal] = useState(0);
   const [femaleStudentsGlobal, setFemaleStudentsGlobal] = useState(0);
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [newEvent, setNewEvent] = useState<Omit<CalendarEvent, 'id'>>({ 
+    title: '', 
+    date: new Date(), 
+    description: '' 
+  });
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
-  // Student data (class-specific) from StudentContext
   const { studentData, setStudentData } = useStudent();
-
-  // Fees data from Zustand store
   const { paidFees, unpaidFees, setPaidFees, setUnpaidFees } = useFeesStore();
-  // useLoadFees(); // If useLoadFees already fetches from Supabase, keep it.
-                   // Otherwise, the fetches in this component will handle it.
-                   // Let's assume this component fetches all needed data now.
 
-
-  // Calculate total teachers and students
   const totalTeachers = maleTeachers + femaleTeachers;
   const totalStudentsGlobal = maleStudentsGlobal + femaleStudentsGlobal;
 
-  // Authentication check and redirection
   interface AuthContextType {
     user: { id: string; name: string; email: string } | null;
   }
@@ -116,32 +126,28 @@ export default function Page() {
   const user = auth?.user;
   const router = useRouter();
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (user === null) {
       router.push('../Authentication-supabase/login');
     }
   }, [user, router]);
 
-  // Effect for current time display
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // --- Supabase Data Fetching Effects ---
-
   // Fetch Admin Profile
   useEffect(() => {
     const fetchAdminProfile = async () => {
-          try {
-            const { data, error } = await supabase
-              .from<"admin_profiles", SupabaseAdminProfile>("admin_profiles")
-              .select("admin_name, admin_image_url")
-              .limit(1)
-              .single(); // Assuming a single admin profile entry
+      try {
+        const { data, error } = await supabase
+          .from<"admin_profiles", SupabaseAdminProfile>("admin_profiles")
+          .select("admin_name, admin_image_url")
+          .limit(1)
+          .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 means no row found
+        if (error && error.code !== 'PGRST116') {
           throw error;
         }
 
@@ -149,7 +155,6 @@ export default function Page() {
           setAdminName(data.admin_name || "Admin");
           setAdminImage(data.admin_image_url || PROFILE_PLACEHOLDER_IMAGE);
         } else {
-          // If no profile exists, ensure default values are used
           setAdminName("Admin");
           setAdminImage(PROFILE_PLACEHOLDER_IMAGE);
         }
@@ -164,7 +169,7 @@ export default function Page() {
     fetchAdminProfile();
   }, []);
 
-  // Fetch School Statistics (Teachers, Overall Students, Fees)
+  // Fetch School Statistics
   useEffect(() => {
     const fetchSchoolStatistics = async () => {
       try {
@@ -172,9 +177,9 @@ export default function Page() {
           .from("school_statistics")
           .select("*")
           .limit(1)
-          .single(); // Assuming a single row for all school statistics
+          .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 means no row found
+        if (error && error.code !== 'PGRST116') {
           throw error;
         }
 
@@ -186,7 +191,6 @@ export default function Page() {
           setPaidFees(data.paid_fees_percentage);
           setUnpaidFees(data.unpaid_fees_percentage);
         } else {
-          // Initialize with default zeros if no record found
           setMaleTeachers(0);
           setFemaleTeachers(0);
           setMaleStudentsGlobal(0);
@@ -203,7 +207,7 @@ export default function Page() {
       }
     };
     fetchSchoolStatistics();
-  }, [setPaidFees, setUnpaidFees]); // Include useFeesStore setters as dependencies
+  }, [setPaidFees, setUnpaidFees]);
 
   // Fetch Class-Specific Student Data
   useEffect(() => {
@@ -227,7 +231,6 @@ export default function Page() {
           });
           setStudentData(transformedData);
 
-          // Set the current class to the first one found, or empty
           const firstClass = Object.keys(transformedData)[0];
           if (firstClass) {
             setSelectedClass(firstClass);
@@ -244,12 +247,91 @@ export default function Page() {
       }
     };
     fetchClassStudentData();
-  }, [setStudentData]); // Dependency array includes setStudentData
+  }, [setStudentData]);
 
-  // Render nothing if user is not authenticated yet
-  if (user === null) return null;
+  // Fetch Calendar Events
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('calendar_events')
+          .select('*');
 
-  // Prepare data for the bar chart (Students Enrollment Per Class)
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setEvents(data.map(event => ({
+            ...event,
+            date: new Date(event.date)
+          })));
+        }
+      } catch (error) {
+        console.error("Error fetching events:", error);
+        toast.error("Failed to load calendar events");
+      }
+    };
+    fetchEvents();
+  }, []);
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    setNewEvent(prev => ({ ...prev, date }));
+    setIsPopoverOpen(true);
+  };
+
+  const handleAddEvent = async () => {
+    if (!newEvent.title || !newEvent.date) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .insert([{
+          title: newEvent.title,
+          date: newEvent.date.toISOString(),
+          description: newEvent.description || null
+        }])
+        .select();
+
+      if (error) throw error;
+
+      if (data) {
+        const addedEvent = {
+          ...data[0],
+          date: new Date(data[0].date)
+        };
+        setEvents([...events, addedEvent]);
+        setNewEvent({ title: '', date: new Date(), description: '' });
+        setIsPopoverOpen(false);
+        toast.success("Event added successfully!");
+      }
+    } catch (error) {
+      console.error("Error adding event:", error);
+      toast.error("Failed to add event");
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('id', eventId);
+
+      if (error) throw error;
+
+      setEvents(events.filter(event => event.id !== eventId));
+      toast.success("Event deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast.error("Failed to delete event");
+    }
+  };
+
   const barChartData = {
     labels: ["Male", "Female"],
     datasets: [
@@ -259,18 +341,18 @@ export default function Page() {
           studentData?.[selectedClass]?.male || 0,
           studentData?.[selectedClass]?.female || 0,
         ],
-        backgroundColor: ["#3B82F6", "#EC4899"], // Tailwind blue-500, pink-500
-        borderColor: ["#2563EB", "#DB2777"], // Darker shades
+        backgroundColor: ["#3B82F6", "#EC4899"],
+        borderColor: ["#2563EB", "#DB2777"],
         borderWidth: 1,
         borderRadius: 8,
-        barThickness: 50, // Adjust bar thickness
+        barThickness: 50,
       },
     ],
   };
 
   const barChartOptions = {
     responsive: true,
-    maintainAspectRatio: false, // Allow chart to fill container height
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: "top" as const,
@@ -279,7 +361,7 @@ export default function Page() {
             size: 14,
             family: "Inter, sans-serif",
           },
-          color: '#4B5563', // Tailwind gray-600
+          color: '#4B5563',
         },
       },
       title: {
@@ -290,17 +372,17 @@ export default function Page() {
           weight: 'bold' as const,
           family: "Inter, sans-serif",
         },
-        color: '#1F2937', // Tailwind gray-800
+        color: '#1F2937',
         padding: {
           top: 10,
           bottom: 20,
         }
       },
       tooltip: {
-        backgroundColor: '#FFFFFF', // White background for tooltip
-        titleColor: '#1F2937', // Dark text for title
-        bodyColor: '#4B5563', // Medium text for body
-        borderColor: '#E5E7EB', // Light gray border
+        backgroundColor: '#FFFFFF',
+        titleColor: '#1F2937',
+        bodyColor: '#4B5563',
+        borderColor: '#E5E7EB',
         borderWidth: 1,
         padding: 10,
         cornerRadius: 6,
@@ -310,46 +392,43 @@ export default function Page() {
       y: {
         beginAtZero: true,
         ticks: {
-          precision: 0, // Ensure whole numbers for student count
-          color: '#4B5563', // Tailwind gray-600
+          precision: 0,
+          color: '#4B5563',
           font: {
             family: "Inter, sans-serif",
           }
         },
         grid: {
-          color: '#E5E7EB', // Lighter grid lines
+          color: '#E5E7EB',
         },
       },
       x: {
         ticks: {
-          color: '#4B5563', // Tailwind gray-600
-            font: {
+          color: '#4B5563',
+          font: {
             family: "Inter, sans-serif",
           }
         },
         grid: {
-          display: false, // Hide vertical grid lines for cleaner look
+          display: false,
         },
       },
     },
   };
 
-
-  // Prepare data for the pie chart (Fee Payment)
   const pieData = {
     labels: ["Paid Fees", "Unpaid Fees"],
     datasets: [
       {
         data: [paidFees, unpaidFees],
-        backgroundColor: ["#10B981", "#EF4444"], // Tailwind green-500, red-500
-        borderColor: ["#FFFFFF", "#FFFFFF"], // White border for separation
+        backgroundColor: ["#10B981", "#EF4444"],
+        borderColor: ["#FFFFFF", "#FFFFFF"],
         borderWidth: 3,
         hoverOffset: 8,
       },
     ],
   };
 
-  // Options for the pie chart
   const pieOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -361,12 +440,12 @@ export default function Page() {
             size: 12,
             family: "Inter, sans-serif",
           },
-          color: '#4B5563', // Tailwind gray-600
+          color: '#4B5563',
           boxWidth: 15,
           padding: 20,
         },
       },
-      title: { // Added title for Pie chart for consistency
+      title: {
         display: true,
         text: 'Fee Payment Status',
         font: {
@@ -374,7 +453,7 @@ export default function Page() {
           weight: 'bold' as const,
           family: "Inter, sans-serif",
         },
-        color: '#1F2937', // Tailwind gray-800
+        color: '#1F2937',
         padding: {
           top: 10,
           bottom: 10,
@@ -382,14 +461,12 @@ export default function Page() {
       },
       tooltip: {
         callbacks: {
-          // Use TooltipItem type for the context parameter
           label: function(context: TooltipItem<'pie'>) {
             let label = context.label || '';
             if (label) {
               label += ': ';
             }
             if (context.parsed !== null) {
-              // Format the value as a percentage
               label += `${context.parsed}%`;
             }
             return label;
@@ -406,18 +483,18 @@ export default function Page() {
     },
   };
 
+  if (user === null) return null;
+
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        {/* Header section */}
         <header className="flex h-16 items-center gap-2 border-b bg-white px-4 sticky top-0 z-10">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-6" />
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                {/* Use Next.js Link component for client-side navigation */}
                 <Link href="/dashboard" passHref legacyBehavior>
                   <BreadcrumbLink>Dashboard</BreadcrumbLink>
                 </Link>
@@ -430,7 +507,6 @@ export default function Page() {
           </Breadcrumb>
         </header>
 
-        {/* Main content area */}
         <main className="flex-1 bg-slate-100 p-4 md:p-6 lg:p-8">
           {/* Welcome & Clock Container */}
           <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -481,7 +557,6 @@ export default function Page() {
                 { icon: ALL_IMAGE, label: "Total", value: totalStudentsGlobal },
               ]}
             />
-            {/* Fee Payment Chart Container */}
             <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
               <div style={{ height: "250px" }}>
                 <Pie data={pieData} options={pieOptions} />
@@ -489,33 +564,154 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Bar Chart Container */}
-          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
-            <div className="mb-4 flex flex-col sm:flex-row gap-2 items-center justify-between">
-              <div></div> {/* Placeholder for alignment if needed */}
-              <div className="flex gap-2 items-center">
-                <label htmlFor="classSelect" className="font-medium text-sm text-gray-700">Select Class:</label>
-                <select
-                  id="classSelect"
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="p-2 rounded-md bg-slate-50 border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  {studentData && Object.keys(studentData).length > 0 ? (
-                    Object.keys(studentData).map((className) => (
-                      <option key={className} value={className}>
-                        {className}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No classes available</option>
-                  )}
-                </select>
+          {/* Calendar and Bar Chart Container */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            {/* Bar Chart Section */}
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg lg:col-span-2">
+              <div className="mb-4 flex flex-col sm:flex-row gap-2 items-center justify-between">
+                <div></div>
+                <div className="flex gap-2 items-center">
+                  <label htmlFor="classSelect" className="font-medium text-sm text-gray-700">Select Class:</label>
+                  <select
+                    id="classSelect"
+                    value={selectedClass}
+                    onChange={(e) => setSelectedClass(e.target.value)}
+                    className="p-2 rounded-md bg-slate-50 border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  >
+                    {studentData && Object.keys(studentData).length > 0 ? (
+                      Object.keys(studentData).map((className) => (
+                        <option key={className} value={className}>
+                          {className}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No classes available</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="w-full h-[350px] md:h-[400px]">
+                <Bar data={barChartData} options={barChartOptions} />
               </div>
             </div>
 
-            <div className="w-full h-[350px] md:h-[400px]">
-              <Bar data={barChartData} options={barChartOptions} />
+            {/* Calendar Section */}
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">School Calendar</h2>
+              
+              <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <div>
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={(date) => {
+                        if (date) {
+                          setDate(date);
+                          handleDateClick(date);
+                        }
+                      }}
+                      className="rounded-md border mb-4"
+                      modifiers={{
+                        hasEvent: events.map(event => event.date),
+                      }}
+                      modifiersStyles={{
+                        hasEvent: {
+                          border: '2px solid #3B82F6',
+                          borderRadius: '4px',
+                        }
+                      }}
+                    />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-4" align="start" side="bottom">
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-lg">Add Event</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
+                        <Input
+                          placeholder="Enter event title"
+                          value={newEvent.title}
+                          onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <div className="flex items-center gap-2 p-2 border rounded-md">
+                          <CalendarIcon className="h-4 w-4 opacity-70" />
+                          <span className="text-sm">
+                            {selectedDate?.toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+                        <Textarea
+                          placeholder="Enter event description"
+                          value={newEvent.description || ''}
+                          onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setIsPopoverOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddEvent}>
+                        Save Event
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {/* Event List */}
+              <div className="mt-4">
+                <h3 className="font-medium text-gray-700 mb-2">Upcoming Events</h3>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                  {events.length > 0 ? (
+                    events
+                      .sort((a, b) => a.date.getTime() - b.date.getTime())
+                      .map((event, index) => (
+                        <div key={index} className="p-3 border rounded-md hover:bg-gray-50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium text-blue-600">{event.title}</div>
+                              <div className="text-sm text-gray-500 mt-1">
+                                {event.date.toLocaleDateString('en-US', {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </div>
+                              {event.description && (
+                                <div className="text-sm text-gray-600 mt-1">{event.description}</div>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700"
+                              onClick={() => event.id && handleDeleteEvent(event.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="text-gray-500 text-sm p-2">No upcoming events</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </main>
@@ -524,13 +720,12 @@ export default function Page() {
   );
 }
 
-// StatCard component with improved styling
 interface StatCardProps {
   title: string;
-  bgColor: string; // e.g., 'bg-blue-500'
-  textColor: string; // e.g., 'text-blue-100'
+  bgColor: string;
+  textColor: string;
   stats: { icon: string; label: string; value: number }[];
-  borderRadius?: string; // Optional: '10px', '1rem', etc.
+  borderRadius?: string;
 }
 
 function StatCard({ title, bgColor, textColor, stats, borderRadius }: StatCardProps) {
@@ -549,7 +744,6 @@ function StatCard({ title, bgColor, textColor, stats, borderRadius }: StatCardPr
   );
 }
 
-// Single Stat Item component
 interface StatItemProps {
   icon: string;
   label: string;
