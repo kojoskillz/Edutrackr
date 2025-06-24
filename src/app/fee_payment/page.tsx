@@ -21,6 +21,10 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { createClient } from '@supabase/supabase-js';
 import PrintIcon from '@mui/icons-material/Print';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import FilterListIcon from '@mui/icons-material/FilterList';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -76,6 +80,7 @@ const FeePaymentSystem: React.FC = () => {
     const [isLoadingFees, setIsLoadingFees] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
     const [totalFeesPaid, setTotalFeesPaid] = React.useState<number>(0);
+    const [paymentFilter, setPaymentFilter] = React.useState<'all' | 'paid' | 'unpaid'>('all');
 
     React.useEffect(() => {
         const total = fees.reduce((sum, fee) => sum + fee.amountPaid, 0);
@@ -587,11 +592,113 @@ const FeePaymentSystem: React.FC = () => {
         }
     };
 
+    const exportToExcel = () => {
+        const data = students.map(student => {
+            const studentFees = fees.filter(fee => fee.studentId === student.id);
+            const totalDue = studentFees.reduce((sum, fee) => sum + fee.amount, 0);
+            const totalPaid = studentFees.reduce((sum, fee) => sum + fee.amountPaid, 0);
+            const balance = totalDue - totalPaid;
+            const paymentStatus = balance <= 0 ? 'Paid' : 'Unpaid';
+
+            return {
+                'Student Name': student.name,
+                'Class': student.studentClass,
+                'Total Fees Due (₵)': totalDue,
+                'Total Paid (₵)': totalPaid,
+                'Balance (₵)': balance,
+                'Payment Status': paymentStatus,
+                'Last Payment Date': studentFees.flatMap(f => f.payments)
+                    .reduce((latest, payment) => {
+                        return payment.date > latest ? payment.date : latest;
+                    }, '') || 'No payments'
+            };
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Fee Payments');
+        XLSX.writeFile(workbook, 'fee_payments.xlsx');
+    };
+
+    const exportToPDF = () => {
+        const doc = new jsPDF();
+        
+        // Title
+        doc.setFontSize(18);
+        doc.text('Fee Payment Report', 105, 15, { align: 'center' });
+        
+        // Date
+        doc.setFontSize(10);
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 22, { align: 'center' });
+        
+        // Summary
+        doc.setFontSize(12);
+        doc.text(`Total Students: ${students.length}`, 14, 35);
+        doc.text(`Total Fees Paid: ₵${totalFeesPaid.toFixed(2)}`, 14, 45);
+        doc.text(`Total Outstanding: ₵${(fees.reduce((sum, fee) => sum + fee.amount, 0) - totalFeesPaid).toFixed(2)}`, 14, 55);
+        
+        // Table data
+        const tableData = students.map(student => {
+            const studentFees = fees.filter(fee => fee.studentId === student.id);
+            const totalDue = studentFees.reduce((sum, fee) => sum + fee.amount, 0);
+            const totalPaid = studentFees.reduce((sum, fee) => sum + fee.amountPaid, 0);
+            const balance = totalDue - totalPaid;
+            
+            return [
+                student.name,
+                student.studentClass,
+                `₵${totalDue.toFixed(2)}`,
+                `₵${totalPaid.toFixed(2)}`,
+                `₵${balance.toFixed(2)}`,
+                balance <= 0 ? 'Paid' : 'Unpaid'
+            ];
+        });
+        
+        // Table headers
+        const headers = [
+            'Student Name',
+            'Class',
+            'Total Due',
+            'Total Paid',
+            'Balance',
+            'Status'
+        ];
+        
+        // Add table
+        (doc as any).autoTable({
+            startY: 65,
+            head: [headers],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            styles: { cellPadding: 3, fontSize: 10 },
+            columnStyles: {
+                0: { cellWidth: 40 },
+                1: { cellWidth: 30 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: 25 },
+                4: { cellWidth: 25 },
+                5: { cellWidth: 20 }
+            }
+        });
+        
+        doc.save('fee_payments.pdf');
+    };
+
     const uniqueFeeNames = Array.from(new Set(fees.map(fee => fee.name)));
     const filteredStudents = students.filter(student =>
         student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.studentClass.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ).filter(student => {
+        if (paymentFilter === 'all') return true;
+        
+        const studentFees = fees.filter(fee => fee.studentId === student.id);
+        const totalDue = studentFees.reduce((sum, fee) => sum + fee.amount, 0);
+        const totalPaid = studentFees.reduce((sum, fee) => sum + fee.amountPaid, 0);
+        const balance = totalDue - totalPaid;
+        
+        return paymentFilter === 'paid' ? balance <= 0 : balance > 0;
+    });
     const selectedStudent = students.find(student => student.id === selectedStudentId);
     const selectedStudentFees = fees.filter(fee => fee.studentId === selectedStudentId);
 
@@ -628,8 +735,24 @@ const FeePaymentSystem: React.FC = () => {
                 </div>
             </div>
 
-            {/* Clear All Data Button */}
-            <div className="mb-4 text-right">
+            {/* Export and Clear Data Buttons */}
+            <div className="mb-4 flex justify-between">
+                <div className="flex gap-2">
+                    <button
+                        onClick={exportToExcel}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
+                        disabled={isSaving || students.length === 0}
+                    >
+                        Export to Excel
+                    </button>
+                    {/* <button
+                        onClick={exportToPDF}
+                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
+                        disabled={isSaving || students.length === 0}
+                    >
+                        Export to PDF
+                    </button> */}
+                </div>
                 <button
                     onClick={clearAllData}
                     className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
@@ -639,16 +762,29 @@ const FeePaymentSystem: React.FC = () => {
                 </button>
             </div>
 
-            {/* Search Bar */}
-            <div className="mb-4">
+            {/* Search and Filter Bar */}
+            <div className="mb-4 flex gap-2">
                 <input
                     type="text"
                     placeholder="Search student by name or class..."
-                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     disabled={isSaving}
                 />
+                <div className="relative">
+                    <button
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-opacity-50 flex items-center gap-2"
+                        onClick={() => setPaymentFilter(prev => {
+                            if (prev === 'all') return 'paid';
+                            if (prev === 'paid') return 'unpaid';
+                            return 'all';
+                        })}
+                    >
+                        <FilterListIcon style={{ fontSize: 18 }} />
+                        {paymentFilter === 'all' ? 'All Students' : paymentFilter === 'paid' ? 'Paid Only' : 'Unpaid Only'}
+                    </button>
+                </div>
             </div>
 
             {/* Receipt Display */}
@@ -765,7 +901,7 @@ const FeePaymentSystem: React.FC = () => {
                                 placeholder="New Amount (₵)"
                                 className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 value={newAmountForAll > 0 ? newAmountForAll : ''}
-                                onChange={(e) => setNewAmountForAll(parseFloat(e.target.value) || 0)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAmountForAll(parseFloat(e.target.value) || 0)}
                                 min="0"
                                 disabled={isSaving || !selectedFeeTypeToEdit}
                             />
