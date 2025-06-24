@@ -22,7 +22,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { createClient } from '@supabase/supabase-js';
 import PrintIcon from '@mui/icons-material/Print';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import FilterListIcon from '@mui/icons-material/FilterList';
 
@@ -620,70 +619,6 @@ const FeePaymentSystem: React.FC = () => {
         XLSX.writeFile(workbook, 'fee_payments.xlsx');
     };
 
-    const exportToPDF = () => {
-        const doc = new jsPDF();
-        
-        // Title
-        doc.setFontSize(18);
-        doc.text('Fee Payment Report', 105, 15, { align: 'center' });
-        
-        // Date
-        doc.setFontSize(10);
-        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 22, { align: 'center' });
-        
-        // Summary
-        doc.setFontSize(12);
-        doc.text(`Total Students: ${students.length}`, 14, 35);
-        doc.text(`Total Fees Paid: ₵${totalFeesPaid.toFixed(2)}`, 14, 45);
-        doc.text(`Total Outstanding: ₵${(fees.reduce((sum, fee) => sum + fee.amount, 0) - totalFeesPaid).toFixed(2)}`, 14, 55);
-        
-        // Table data
-        const tableData = students.map(student => {
-            const studentFees = fees.filter(fee => fee.studentId === student.id);
-            const totalDue = studentFees.reduce((sum, fee) => sum + fee.amount, 0);
-            const totalPaid = studentFees.reduce((sum, fee) => sum + fee.amountPaid, 0);
-            const balance = totalDue - totalPaid;
-            
-            return [
-                student.name,
-                student.studentClass,
-                `₵${totalDue.toFixed(2)}`,
-                `₵${totalPaid.toFixed(2)}`,
-                `₵${balance.toFixed(2)}`,
-                balance <= 0 ? 'Paid' : 'Unpaid'
-            ];
-        });
-        
-        // Table headers
-        const headers = [
-            'Student Name',
-            'Class',
-            'Total Due',
-            'Total Paid',
-            'Balance',
-            'Status'
-        ];
-        
-        // Add table
-        (doc as any).autoTable({
-            startY: 65,
-            head: [headers],
-            body: tableData,
-            theme: 'grid',
-            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-            styles: { cellPadding: 3, fontSize: 10 },
-            columnStyles: {
-                0: { cellWidth: 40 },
-                1: { cellWidth: 30 },
-                2: { cellWidth: 25 },
-                3: { cellWidth: 25 },
-                4: { cellWidth: 25 },
-                5: { cellWidth: 20 }
-            }
-        });
-        
-        doc.save('fee_payments.pdf');
-    };
 
     const uniqueFeeNames = Array.from(new Set(fees.map(fee => fee.name)));
     const filteredStudents = students.filter(student =>
@@ -753,6 +688,7 @@ const FeePaymentSystem: React.FC = () => {
                         Export to PDF
                     </button> */}
                 </div>
+                
                 <button
                     onClick={clearAllData}
                     className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
