@@ -25,7 +25,6 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import SchoolIcon from "@mui/icons-material/School";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CancelIcon from "@mui/icons-material/Close";
-import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -40,7 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
 import "react-toastify/dist/ReactToastify.css";
 import {
-    Button, Typography, Modal, Box, Tooltip, Snackbar, Alert, CircularProgress
+    Button, Typography, Modal, Box, Tooltip, Snackbar, Alert
 } from "@mui/material";
 
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -224,7 +223,6 @@ export default function ClassesPage() {
   const [snackbarMessage, setSnackbarMessage] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [retryCount, setRetryCount] = React.useState(0);
 
   React.useEffect(() => {
     const fetchUser = async () => {
@@ -242,62 +240,46 @@ export default function ClassesPage() {
     fetchUser();
   }, []);
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-      
-      // Fetch classes with timeout
-      const classPromise = supabase
-        .from('classes')
-        .select('*')
-        .eq('user_id', user.id)
-        .timeout(10000); // 10 second timeout
-      
-      // Fetch students with timeout and limit
-      const studentPromise = supabase
-        .from('students')
-        .select('*')
-        .eq('user_id', user.id)
-        .timeout(10000); // 10 second timeout
-      
-      // Execute both queries in parallel
-      const [classResult, studentResult] = await Promise.all([classPromise, studentPromise]);
-      
-      if (classResult.error) throw new Error(`Class fetch error: ${classResult.error.message}`);
-      if (studentResult.error) throw new Error(`Student fetch error: ${studentResult.error.message}`);
-
-      setClassRows(classResult.data || []);
-      setAllStudents(studentResult.data || []);
-
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to load data";
-      setError(errorMessage);
-      
-      // Check if timeout occurred
-      if (error instanceof Error && (error.message.includes('timeout') || error.message.includes('cancelling statement'))) {
-        handleSnackbarOpen("Request timed out. Please try again.");
-      } else {
-        handleSnackbarOpen(errorMessage);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   React.useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!user) {
+          throw new Error("User not authenticated");
+        }
+        
+        const { data: classData, error: classError } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (classError) throw new Error(`Class fetch error: ${classError.message}`);
+        
+        const { data: studentData, error: studentError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (studentError) throw new Error(`Student fetch error: ${studentError.message}`);
+
+        setClassRows(classData || []);
+        setAllStudents(studentData || []);
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to load data";
+        setError(errorMessage);
+        handleSnackbarOpen(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     if (user) {
       fetchData();
     }
-  }, [user, retryCount]);
-
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-  };
+  }, [user]);
 
   const handleClassRowEditStop: GridEventListener<"rowEditStop"> = (params, event) => {
     if (params.reason === GridRowEditStopReasons.rowFocusOut) {
@@ -343,8 +325,7 @@ export default function ClassesPage() {
         const { data, error } = await supabase
           .from('classes')
           .insert(updated)
-          .select()
-          .timeout(5000);
+          .select();
         
         if (error) throw new Error(`Insert failed: ${error.message}`);
         
@@ -358,8 +339,7 @@ export default function ClassesPage() {
           .from('classes')
           .update(updated)
           .eq('id', newRow.id)
-          .select()
-          .timeout(5000);
+          .select();
         
         if (error) throw new Error(`Update failed: ${error.message}`);
         
@@ -405,8 +385,7 @@ export default function ClassesPage() {
         const { data, error } = await supabase
           .from('students')
           .insert(updated)
-          .select()
-          .timeout(5000);
+          .select();
         
         if (error) throw new Error(`Insert failed: ${error.message}`);
         
@@ -422,8 +401,7 @@ export default function ClassesPage() {
           .from('students')
           .update(updated)
           .eq('id', newRow.id)
-          .select()
-          .timeout(5000);
+          .select();
         
         if (error) throw new Error(`Update failed: ${error.message}`);
         
@@ -463,8 +441,7 @@ export default function ClassesPage() {
         const { error } = await supabase
           .from('classes')
           .delete()
-          .eq('id', id)
-          .timeout(5000);
+          .eq('id', id);
         
         if (error) throw new Error(`Delete failed: ${error.message}`);
         
@@ -569,8 +546,7 @@ export default function ClassesPage() {
         const { error } = await supabase
           .from('students')
           .delete()
-          .eq('id', id)
-          .timeout(5000);
+          .eq('id', id);
         
         if (error) throw new Error(`Delete failed: ${error.message}`);
         
@@ -770,9 +746,8 @@ export default function ClassesPage() {
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
-            <div className="flex flex-col items-center justify-center h-full gap-4">
-              <CircularProgress />
-              <Typography variant="h6">Loading data...</Typography>
+            <div className="flex items-center justify-center h-full">
+              <Typography variant="h6">Loading...</Typography>
             </div>
           </SidebarInset>
         </SidebarProvider>
@@ -786,18 +761,8 @@ export default function ClassesPage() {
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
-            <div className="flex flex-col items-center justify-center h-full gap-4 p-4">
-              <Typography variant="h6" color="error" className="text-center">
-                {error}
-              </Typography>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<RefreshIcon />}
-                onClick={handleRetry}
-              >
-                Retry
-              </Button>
+            <div className="flex items-center justify-center h-full">
+              <Typography variant="h6" color="error">{error}</Typography>
             </div>
           </SidebarInset>
         </SidebarProvider>
