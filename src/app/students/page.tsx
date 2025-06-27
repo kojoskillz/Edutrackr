@@ -25,6 +25,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import SchoolIcon from "@mui/icons-material/School";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CancelIcon from "@mui/icons-material/Close";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -39,7 +41,8 @@ import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
 import "react-toastify/dist/ReactToastify.css";
 import {
-    Button, Typography, Modal, Box, Tooltip, Snackbar, Alert
+    Button, Typography, Modal, Box, Tooltip, Snackbar, Alert,
+    IconButton, Stack
 } from "@mui/material";
 
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -92,6 +95,10 @@ declare module "@mui/x-data-grid" {
     onCopyAllStudentNames: () => void;
     onCopyStudentContactInfo: () => void;
     onCopyStudentNameClassContactInfo: () => void;
+    onPageChange: (newPage: number) => void;
+    page: number;
+    rowCount: number;
+    pageSize: number;
   }
 }
 
@@ -129,10 +136,26 @@ function ClassEditToolbar(props: GridSlotProps["toolbar"]) {
 }
 
 function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
-  const { setRows, setRowModesModel, className, onCopyAllStudentNames, onCopyStudentContactInfo, onCopyStudentNameClassContactInfo } = props;
+  const { 
+    setRows, 
+    setRowModesModel, 
+    className, 
+    onCopyAllStudentNames, 
+    onCopyStudentContactInfo, 
+    onCopyStudentNameClassContactInfo,
+    onPageChange,
+    page,
+    rowCount,
+    pageSize
+  } = props;
+
+  const totalPages = Math.ceil(rowCount / pageSize);
+  const isFirstPage = page === 0;
+  const isLastPage = page >= totalPages - 1;
+
   return (
     <GridToolbarContainer className="flex justify-between w-full">
-      <div>
+      <div className="flex items-center gap-4">
         <Tooltip title={`Add Student to ${className}`}>
           <ToolbarButton
             color="primary"
@@ -164,6 +187,26 @@ function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
             <AddIcon fontSize="small" /> Add Student
           </ToolbarButton>
         </Tooltip>
+
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <IconButton 
+            onClick={() => onPageChange(page - 1)} 
+            disabled={isFirstPage}
+            size="small"
+          >
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+          <Typography variant="body2">
+            Page {page + 1} of {totalPages}
+          </Typography>
+          <IconButton 
+            onClick={() => onPageChange(page + 1)} 
+            disabled={isLastPage}
+            size="small"
+          >
+            <ArrowForwardIcon fontSize="small" />
+          </IconButton>
+        </Stack>
       </div>
       <div className="flex gap-2">
         <Tooltip title={`Copy All Student Names in ${className}`}>
@@ -228,7 +271,7 @@ export default function ClassesPage() {
   const [studentPagination, setStudentPagination] = React.useState({
     page: 0,
     pageSize: 25,
-    hasMore: true,
+    totalCount: 0,
     loading: false
   });
 
@@ -285,7 +328,7 @@ export default function ClassesPage() {
       
       return {
         data: studentData || [],
-        hasMore: (count || 0) > to + 1
+        count: count || 0
       };
     } catch (error) {
       console.error("Error fetching students:", error);
@@ -319,12 +362,12 @@ export default function ClassesPage() {
       // Then try to fetch students with pagination
       attempts = 0;
       let students: StudentRow[] = [];
-      let hasMore = true;
-      while (attempts < retries && hasMore) {
+      let totalCount = 0;
+      while (attempts < retries) {
         try {
           const result = await fetchStudents(studentPagination.page, studentPagination.pageSize);
           students = result.data;
-          hasMore = result.hasMore;
+          totalCount = result.count;
           break;
         } catch (error) {
           attempts++;
@@ -337,7 +380,7 @@ export default function ClassesPage() {
       setAllStudents(students);
       setStudentPagination(prev => ({
         ...prev,
-        hasMore,
+        totalCount,
         loading: false
       }));
       
@@ -602,6 +645,23 @@ export default function ClassesPage() {
     }
   };
 
+  const handleStudentPageChange = (newPage: number) => {
+    setStudentPagination(prev => ({
+      ...prev,
+      page: newPage,
+      loading: true
+    }));
+  };
+
+  const handleStudentPageSizeChange = (newPageSize: number) => {
+    setStudentPagination(prev => ({
+      ...prev,
+      pageSize: newPageSize,
+      page: 0, // Reset to first page
+      loading: true
+    }));
+  };
+
   const studentActions = {
     edit: (id: GridRowId) => () =>
       setStudentRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.Edit } })),
@@ -670,23 +730,6 @@ export default function ClassesPage() {
       );
     });
   }, [allStudents, selectedClassName, studentSearchText]);
-
-  const handleStudentPageChange = (newPage: number) => {
-    setStudentPagination(prev => ({
-      ...prev,
-      page: newPage,
-      loading: true
-    }));
-  };
-
-  const handleStudentPageSizeChange = (newPageSize: number) => {
-    setStudentPagination(prev => ({
-      ...prev,
-      pageSize: newPageSize,
-      page: 0, // Reset to first page
-      loading: true
-    }));
-  };
 
   const classColumns: GridColDef[] = [
     { field: "name", headerName: "Class Name", width: 180, editable: true },
@@ -999,13 +1042,21 @@ export default function ClassesPage() {
                       className: selectedClassName || '',
                       onCopyAllStudentNames: handleCopyAllStudentNames,
                       onCopyStudentContactInfo: handleCopyStudentContactInfo,
-                      onCopyStudentNameClassContactInfo: handleCopyStudentNameClassContactInfo
+                      onCopyStudentNameClassContactInfo: handleCopyStudentNameClassContactInfo,
+                      onPageChange: handleStudentPageChange,
+                      page: studentPagination.page,
+                      rowCount: studentPagination.totalCount,
+                      pageSize: studentPagination.pageSize
                     }}}
                     showToolbar={true}
                     pagination
                     paginationMode="server"
-                    rowCount={allStudents.length}
+                    rowCount={studentPagination.totalCount}
                     pageSizeOptions={[25, 50, 100]}
+                    paginationModel={{
+                      page: studentPagination.page,
+                      pageSize: studentPagination.pageSize
+                    }}
                     onPaginationModelChange={(model) => {
                       handleStudentPageChange(model.page);
                       if (model.pageSize !== studentPagination.pageSize) {
