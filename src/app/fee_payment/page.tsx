@@ -87,121 +87,135 @@ const FeePaymentSystem: React.FC = () => {
     }, [fees]);
 
     React.useEffect(() => {
+        const initializeAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    setUser_id(session.user.id);
+                } else {
+                    const { data, error } = await supabase.auth.signInAnonymously();
+                    if (error) throw error;
+                    if (data.user) setUser_id(data.user.id);
+                }
+                setIsAuthReady(true);
+            } catch (error: any) {
+                console.error("Authentication error:", error.message);
+                toast.error("Authentication failed. Please try again.");
+            }
+        };
+
+        initializeAuth();
+
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
                 setUser_id(session.user.id);
             } else {
                 try {
                     const { data, error } = await supabase.auth.signInAnonymously();
-                    if (error) {
-                        console.error("Supabase anonymous sign-in failed:", error.message);
-                        toast.error("Failed to sign in to Supabase. Please try again.");
-                        setUser_id(null);
-                    } else if (data.user) {
-                        setUser_id(data.user.id);
-                    } else {
-                        setUser_id(null);
-                    }
+                    if (error) throw error;
+                    if (data.user) setUser_id(data.user.id);
                 } catch (error: any) {
-                    console.error("Supabase anonymous sign-in failed (catch block):", error.message);
-                    toast.error("Failed to sign in to Supabase. Please try again.");
-                    setUser_id(null);
+                    console.error("Auth state change error:", error.message);
                 }
             }
-            setIsAuthReady(true);
-        });
-
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                setUser_id(session.user.id);
-            }
-            setIsAuthReady(true);
         });
 
         return () => {
-            authListener.subscription.unsubscribe();
+            authListener?.subscription?.unsubscribe();
         };
     }, []);
 
     React.useEffect(() => {
-        if (!user_id || !isAuthReady) return;
+        if (!user_id) return;
 
         const fetchStudents = async () => {
             setIsLoadingStudents(true);
-            const { data, error } = await supabase
-                .from('students')
-                .select('*')
-                .eq('user_id', user_id);
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('*')
+                    .eq('user_id', user_id);
 
-            if (error) {
+                if (error) throw error;
+                setStudents(data || []);
+            } catch (error: any) {
                 console.error("Error fetching students:", error.message);
                 toast.error("Failed to load students.");
-            } else {
-                setStudents(data as Student[]);
+            } finally {
+                setIsLoadingStudents(false);
             }
-            setIsLoadingStudents(false);
         };
 
         const fetchFees = async () => {
             setIsLoadingFees(true);
-            const { data, error } = await supabase
-                .from('fees')
-                .select('*')
-                .eq('user_id', user_id);
+            try {
+                const { data, error } = await supabase
+                    .from('fees')
+                    .select('*')
+                    .eq('user_id', user_id);
 
-            if (error) {
+                if (error) throw error;
+                setFees(data || []);
+            } catch (error: any) {
                 console.error("Error fetching fees:", error.message);
                 toast.error("Failed to load fees.");
-            } else {
-                setFees(data as Fee[]);
+            } finally {
+                setIsLoadingFees(false);
             }
-            setIsLoadingFees(false);
         };
 
         fetchStudents();
         fetchFees();
 
         const studentsChannel = supabase
-            .channel('public:students_changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, (payload) => {
-                if (payload.new && (payload.new as Student).user_id === user_id) {
+            .channel('students_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'students',
+                    filter: `user_id=eq.${user_id}`
+                },
+                (payload) => {
                     if (payload.eventType === 'INSERT') {
                         setStudents(prev => [...prev, payload.new as Student]);
-                        toast.info(`New student added: ${(payload.new as Student).name}`);
                     } else if (payload.eventType === 'UPDATE') {
                         setStudents(prev => prev.map(s => s.id === (payload.new as Student).id ? (payload.new as Student) : s));
-                        toast.info(`Student updated: ${(payload.new as Student).name}`);
                     } else if (payload.eventType === 'DELETE') {
                         setStudents(prev => prev.filter(s => s.id !== (payload.old as Student).id));
-                        toast.info(`Student deleted: ${(payload.old as Student).name}`);
                     }
                 }
-            })
+            )
             .subscribe();
 
         const feesChannel = supabase
-            .channel('public:fees_changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'fees' }, (payload) => {
-                if (payload.new && (payload.new as Fee).user_id === user_id) {
+            .channel('fees_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'fees',
+                    filter: `user_id=eq.${user_id}`
+                },
+                (payload) => {
                     if (payload.eventType === 'INSERT') {
                         setFees(prev => [...prev, payload.new as Fee]);
-                        toast.info(`New fee added: ${(payload.new as Fee).name}`);
                     } else if (payload.eventType === 'UPDATE') {
                         setFees(prev => prev.map(f => f.id === (payload.new as Fee).id ? (payload.new as Fee) : f));
-                        toast.info(`Fee updated: ${(payload.new as Fee).name}`);
                     } else if (payload.eventType === 'DELETE') {
                         setFees(prev => prev.filter(f => f.id !== (payload.old as Fee).id));
-                        toast.info(`Fee deleted: ${(payload.old as Fee).name}`);
                     }
                 }
-            })
+            )
             .subscribe();
 
         return () => {
             supabase.removeChannel(studentsChannel);
             supabase.removeChannel(feesChannel);
         };
-    }, [user_id, isAuthReady]);
+    }, [user_id]);
 
     const handlePaymentInputChange = (feeId: string, value: string) => {
         const amount = parseFloat(value);
@@ -229,11 +243,13 @@ const FeePaymentSystem: React.FC = () => {
                 date: paymentDate,
             };
 
+            const updatedPayments = [...(currentFee.payments || []), newPaymentRecord];
+
             const { error } = await supabase
                 .from('fees')
                 .update({
                     amountPaid: newAmountPaid,
-                    payments: [...currentFee.payments, newPaymentRecord],
+                    payments: updatedPayments,
                 })
                 .eq('id', feeId)
                 .eq('user_id', user_id);
@@ -277,13 +293,14 @@ const FeePaymentSystem: React.FC = () => {
 
         setIsSaving(true);
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('students')
                 .insert({
                     name: trimmedName,
                     studentClass: trimmedClass,
                     user_id: user_id,
-                });
+                })
+                .select();
 
             if (error) throw error;
 
@@ -292,7 +309,7 @@ const FeePaymentSystem: React.FC = () => {
             toast.success(`Added new student: ${trimmedName}`);
         } catch (error: any) {
             console.error("Error adding student:", error.message);
-            toast.error(`Failed to add student: ${error.message}. Check RLS policies for 'students' table.`);
+            toast.error(`Failed to add student: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
@@ -328,7 +345,7 @@ const FeePaymentSystem: React.FC = () => {
             toast.success("Student and all associated fees deleted.");
         } catch (error: any) {
             console.error("Error deleting student and fees:", error.message);
-            toast.error(`Failed to delete student and fees: ${error.message}. Check RLS policies.`);
+            toast.error(`Failed to delete student and fees: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
@@ -373,7 +390,7 @@ const FeePaymentSystem: React.FC = () => {
             toast.success("Fee amount updated successfully!");
         } catch (error: any) {
             console.error("Error saving edited fee:", error.message);
-            toast.error(`Failed to save edited fee: ${error.message}. Check RLS policies.`);
+            toast.error(`Failed to save edited fee: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
@@ -427,7 +444,7 @@ const FeePaymentSystem: React.FC = () => {
             setNewAmountForAll(0);
         } catch (error: any) {
             console.error("Error updating fee for all students:", error.message);
-            toast.error(`Failed to update fee for all students: ${error.message}. Check RLS policies.`);
+            toast.error(`Failed to update fee for all students: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
@@ -471,7 +488,7 @@ const FeePaymentSystem: React.FC = () => {
             toast.success("All data cleared successfully!");
         } catch (error: any) {
             console.error("Error clearing all data:", error.message);
-            toast.error(`Failed to clear all data: ${error.message}. Check RLS policies.`);
+            toast.error(`Failed to clear all data: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
@@ -585,7 +602,7 @@ const FeePaymentSystem: React.FC = () => {
             toast.success(`Added fee type "${trimmedFeeName}" for all students.`);
         } catch (error: any) {
             console.error("Error adding fee type to all students:", error.message);
-            toast.error(`Failed to add fee type: ${error.message}. Check RLS policies for 'fees' table.`);
+            toast.error(`Failed to add fee type: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
@@ -618,7 +635,6 @@ const FeePaymentSystem: React.FC = () => {
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Fee Payments');
         XLSX.writeFile(workbook, 'fee_payments.xlsx');
     };
-
 
     const uniqueFeeNames = Array.from(new Set(fees.map(fee => fee.name)));
     const filteredStudents = students.filter(student =>
@@ -680,13 +696,6 @@ const FeePaymentSystem: React.FC = () => {
                     >
                         Export to Excel
                     </button>
-                    {/* <button
-                        onClick={exportToPDF}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
-                        disabled={isSaving || students.length === 0}
-                    >
-                        Export to PDF
-                    </button> */}
                 </div>
                 
                 <button
