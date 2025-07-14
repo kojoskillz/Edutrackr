@@ -23,6 +23,8 @@ import PrintIcon from '@mui/icons-material/Print';
 import ClearIcon from '@mui/icons-material/Clear';
 import DownloadIcon from '@mui/icons-material/Download';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'
+
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -2132,6 +2134,9 @@ export default function ClassPage() {
         return subjects.filter(s => s.classId === selectedClassId);
     }, [subjects, selectedClassId]);
 
+    const [openUploadExcelDialog, setOpenUploadExcelDialog] = React.useState(false);
+    const [excelFile, setExcelFile] = React.useState<File | null>(null);
+
     // Show loading indicator
     if (!isAuthReady || isLoadingInitialData) {
         return (
@@ -2140,6 +2145,154 @@ export default function ClassPage() {
             </div>
         );
     }
+
+// Add these handler functions
+const handleOpenUploadExcelDialog = () => {
+    if (!selectedClassId) {
+        toast.error("Please select a class first before uploading data.");
+        return;
+    }
+    setExcelFile(null);
+    setOpenUploadExcelDialog(true);
+};
+
+const handleCloseUploadExcelDialog = () => {
+    setOpenUploadExcelDialog(false);
+    setExcelFile(null);
+};
+
+const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+        setExcelFile(files[0]);
+    }
+};
+
+const handleUploadExcel = async () => {
+    if (!excelFile || !selectedClassId || !selectedSubjectId || !userId || !XLSX) {
+        toast.error("Please select a file and ensure class/subject is selected.");
+        return;
+    }
+
+    try {
+        const data = await excelFile.arrayBuffer();
+        const workbook = XLSX.read(data);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (jsonData.length === 0) {
+            toast.error("No data found in the Excel file.");
+            return;
+        }
+
+        // Validate required columns
+        const requiredColumns = ['Name of Students', 'CAT 1 (10)', 'CAT 2 (20)', 'Project Work (20)', 'Exams (100)'];
+        const firstRow = jsonData[0];
+        const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+        
+        if (missingColumns.length > 0) {
+            toast.error(`Missing required columns: ${missingColumns.join(', ')}`);
+            return;
+        }
+
+        // Process each row
+        const updates: MyStudentScore[] = [];
+        const newStudents: MyStudent[] = [];
+        const newScores: MyStudentScore[] = [];
+
+        for (const row of jsonData) {
+            const studentName = row['Name of Students'];
+            if (!studentName) continue;
+
+            // Find or create student
+            let student = students.find(s => 
+                s.name.toLowerCase() === studentName.toLowerCase() && 
+                s.classId === selectedClassId
+            );
+
+            if (!student) {
+                // Create new student
+                const { data: newStudentData, error: studentError } = await supabase
+                    .from('user_students')
+                    .insert({
+                        name: studentName,
+                        classId: selectedClassId,
+                        userId: userId,
+                    })
+                    .select();
+                
+                if (studentError) throw studentError;
+                student = newStudentData[0] as MyStudent;
+                newStudents.push(student);
+            }
+
+            // Prepare score data
+            const cat1 = Number(row['CAT 1 (10)']) || 0;
+            const cat2 = Number(row['CAT 2 (20)']) || 0;
+            const projectWork = Number(row['Project Work (20)']) || 0;
+            const exams = Number(row['Exams (100)']) || 0;
+            const total = cat1 + cat2 + projectWork + (exams / 2);
+            const classWorkTotal = cat1 + cat2 + projectWork;
+
+            const scoreEntry: MyStudentScore = {
+                id: crypto.randomUUID(),
+                studentId: student.id,
+                subjectId: selectedSubjectId,
+                classId: selectedClassId,
+                userId: userId,
+                cat1: cat1,
+                cat2: cat2,
+                projectWork: projectWork,
+                exams: exams,
+                total: parseFloat(total.toFixed(2)),
+                classWorkTotal: parseFloat(classWorkTotal.toFixed(2)),
+                position: null, // Will be calculated when saved
+                remarks: null,
+                grade: null,
+            };
+
+            // Check if score already exists
+            const existingScore = studentScores.find(s => 
+                s.studentId === student.id && 
+                s.subjectId === selectedSubjectId
+            );
+
+            if (existingScore) {
+                updates.push({ ...scoreEntry, id: existingScore.id });
+            } else {
+                newScores.push(scoreEntry);
+            }
+        }
+
+        // Batch insert new scores
+        if (newScores.length > 0) {
+            const { error: insertError } = await supabase
+                .from('user_student_scores')
+                .insert(newScores);
+            if (insertError) throw insertError;
+        }
+
+        // Batch update existing scores
+        for (const update of updates) {
+            const { error } = await supabase
+                .from('user_student_scores')
+                .update(update)
+                .eq('id', update.id);
+            if (error) console.warn(`Failed to update score: ${error.message}`);
+        }
+
+        toast.success(`Successfully imported ${jsonData.length} student records`);
+        handleCloseUploadExcelDialog();
+    } catch (error) {
+        console.error("Error importing Excel data:", error);
+        toast.error(`Failed to import data: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+
+
+
+
 
     // --- JSX Rendering ---
     return (
@@ -2293,6 +2446,15 @@ export default function ClassPage() {
                                     >
                                         Export to Excel
                                     </Button>
+                                               <Button
+                                                variant="contained"
+                                                color="primary"
+                                                onClick={handleOpenUploadExcelDialog}
+                                                startIcon={<CloudUploadIcon />}
+                                                disabled={!selectedClassId || !selectedSubjectId}
+                                            >
+                                                Import from Excel
+                                        </Button>
                                     <Button
                                         variant="outlined"
                                         color="info"
@@ -2605,6 +2767,53 @@ export default function ClassPage() {
                         <Button onClick={handleSaveReportCard} variant="contained" color="primary">Save Report Card</Button>
                     </DialogActions>
                 </Dialog>
+
+                <Dialog open={openUploadExcelDialog} onClose={handleCloseUploadExcelDialog} maxWidth="sm" fullWidth>
+                        <DialogTitle>Import Student Results from Excel</DialogTitle>
+                        <DialogContent>
+                            <Typography variant="body1" paragraph>
+                                Upload an Excel file with student results. The file should include these columns:
+                            </Typography>
+                            <Typography variant="body2" component="div" sx={{ mb: 2 }}>
+                                <ul>
+                                    <li>Name of Students</li>
+                                    <li>CAT 1 (10)</li>
+                                    <li>CAT 2 (20)</li>
+                                    <li>Project Work (20)</li>
+                                    <li>Exams (100)</li>
+                                </ul>
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                component="label"
+                                fullWidth
+                                startIcon={<CloudUploadIcon />}
+                            >
+                                Select Excel File
+                                <input 
+                                    type="file" 
+                                    hidden 
+                                    accept=".xlsx,.xls" 
+                                    onChange={handleFileChange}
+                                />
+                            </Button>
+                            {excelFile && (
+                                <Typography variant="body2" sx={{ mt: 2 }}>
+                                    Selected file: {excelFile.name}
+                                </Typography>
+                            )}
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={handleCloseUploadExcelDialog}>Cancel</Button>
+                            <Button 
+                                onClick={handleUploadExcel} 
+                                variant="contained"
+                                disabled={!excelFile}
+                            >
+                                Import Data
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
 
                 {openAllReportsDialog && (
                     <AllReportCardsPrintView
