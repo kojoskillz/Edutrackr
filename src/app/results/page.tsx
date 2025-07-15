@@ -193,188 +193,388 @@ interface AllReportCardsPrintViewProps {
 }
 
 const AllReportCardsPrintView: React.FC<AllReportCardsPrintViewProps> = ({ reports, onClose }) => {
-    const printRef = React.useRef<HTMLDivElement>(null);
+  const printRef = React.useRef<HTMLDivElement>(null);
 
-    const handlePrint = () => {
-        if (printRef.current) {
-            const printContent = printRef.current.innerHTML;
-            const originalContent = document.body.innerHTML;
-            const originalTitle = document.title;
+  const handlePrint = () => {
+    if (printRef.current) {
+      const printContent = printRef.current.innerHTML;
+      const originalContent = document.body.innerHTML;
+      const originalTitle = document.title;
 
-            document.body.innerHTML = printContent;
-            document.title = `All Report Cards - Class: ${reports[0]?.className || 'Unknown'}`;
+      document.body.innerHTML = printContent;
+      document.title = `All Report Cards - Class: ${reports[0]?.className || 'Unknown'}`;
 
-            const printStyles = `
-                <style>
-                    @media print {
-                        body > *:not(#all-report-cards-content) {
-                            display: none !important;
-                        }
-                        #all-report-cards-content {
-                            display: block !important;
-                            width: 100%;
-                            margin: 0 auto;
-                            padding: 10mm;
-                            box-sizing: border-box;
-                            font-family: sans-serif;
-                            color: #000;
-                        }
-                        .report-card-page-break {
-                            page-break-after: always;
-                        }
-                        /* Ensure card elements don't add extra space/borders in print */
-                        .MuiCard-root, .MuiCardContent-root {
-                            border: none !important;
-                            box-shadow: none !important;
-                            padding: 0 !important;
-                            margin: 0 !important;
-                        }
-                        /* Basic typography reset/styling */
-                        h1, h2, h6, p, strong {
-                           color: #000 !important; /* Force black text */
-                           margin-bottom: 0.5em; /* Add some space below headings/paragraphs */
-                        }
-                         h6 { font-size: 1.1em; margin-top: 1em; }
-                         p { font-size: 0.9em; }
-                        .flex { display: flex !important; }
-                        .grid { display: grid !important; }
-                                <ReportCardModule.default
-                                    initialSchoolInfo={{ name: "", address: "", cityPostal: "", phone: "", email: "", website: "", logoUrl: report.imageUrl || "https://placehold.co/100x100/EFEFEF/AEAEAE?text=School+Logo" }}
-                                    studentInfo={{
-                                        name: report.studentName,
-                                        id: report.studentId,
-                         .mb-6 { margin-bottom: 1.5rem !important; }
-                         .p-4 { padding: 1rem !important; }
-                         .p-3 { padding: 0.75rem !important; }
-                         .p-2 { padding: 0.5rem !important; }
-                         .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem !important; margin-bottom: 0 !important; }
-                         .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-                         .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-                         .flex-shrink-0 { flex-shrink: 0 !important; }
-                         .flex-grow { flex-grow: 1 !important; }
-                         .justify-center { justify-content: center !important; }
-                        img {
-                             display: block !important;
-                             max-width: 100% !important;
-                             height: auto !important;
-                             object-fit: cover !important;
-                         }
-                         .rounded-full { border-radius: 9999px !important; }
-                         .h-32 { height: 8rem !important; }
-                         .w-32 { width: 8rem !important; }
-                         .border-2 { border-width: 2px !important; }
-                         .border-blue-500 { border-color: #3b82f6 !important; }
-                        .MuiDivider-root, .separator {
-                            border-top: 1px solid #ccc !important;
-                            margin: 1em 0 !important;
-                        }
-                        .print-hide {
-                            display: none !important;
-                        }
-                        .print-only {
-                            display: block !important;
-                        }
-                        .MuiDialog-container, .MuiDialog-paper, .MuiModal-backdrop {
-                             display: none !important;
-                        }
-                    }
-                </style>
-            `;
-            const styleElement = document.createElement('style');
-            styleElement.innerHTML = printStyles;
-            document.head.appendChild(styleElement);
-
-            window.print();
-
-            document.body.innerHTML = originalContent;
-            document.title = originalTitle;
-            if (document.head.contains(styleElement)) {
-                 document.head.removeChild(styleElement);
+      const printStyles = `
+        <style>
+          @media print {
+            body > *:not(#all-report-cards-content) {
+              display: none !important;
             }
-            setTimeout(() => {}, 50);
-        } else {
-            toast.error("Report card content not available for printing.");
-        }
-    };
+            #all-report-cards-content {
+              display: block !important;
+              width: 100%;
+              margin: 0 auto;
+              padding: 10mm;
+              box-sizing: border-box;
+              font-family: sans-serif;
+              color: #000;
+            }
+            .report-card-page-break {
+              page-break-after: always;
+            }
+            .MuiCard-root, .MuiCardContent-root {
+              border: none !important;
+              box-shadow: none !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            h1, h2, h6, p, strong {
+              color: #000 !important;
+              margin-bottom: 0.5em;
+            }
+            h6 { font-size: 1.1em; margin-top: 1em; }
+            p { font-size: 0.9em; }
+            .flex { display: flex !important; }
+            .grid { display: grid !important; }
+            .mb-6 { margin-bottom: 1.5rem !important; }
+            .p-4 { padding: 1rem !important; }
+            .p-3 { padding: 0.75rem !important; }
+            .p-2 { padding: 0.5rem !important; }
+            .space-y-4 > :not([hidden]) ~ :not([hidden]) { 
+              margin-top: 1rem !important; 
+              margin-bottom: 0 !important; 
+            }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+            .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+            .flex-shrink-0 { flex-shrink: 0 !important; }
+            .flex-grow { flex-grow: 1 !important; }
+            .justify-center { justify-content: center !important; }
+            img {
+              display: block !important;
+              max-width: 100% !important;
+              height: auto !important;
+              object-fit: cover !important;
+            }
+            .rounded-full { border-radius: 9999px !important; }
+            .h-32 { height: 8rem !important; }
+            .w-32 { width: 8rem !important; }
+            .border-2 { border-width: 2px !important; }
+            .border-blue-500 { border-color: #3b82f6 !important; }
+            .MuiDivider-root, .separator {
+              border-top: 1px solid #ccc !important;
+              margin: 1em 0 !important;
+            }
+            .print-hide {
+              display: none !important;
+            }
+            .print-only {
+              display: block !important;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f2f2f2;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+          }
+        </style>
+      `;
+      const styleElement = document.createElement('style');
+      styleElement.innerHTML = printStyles;
+      document.head.appendChild(styleElement);
 
-    return (
-        <Dialog open={true} onClose={onClose} maxWidth="lg" fullWidth>
-            <DialogTitle>All Report Cards for Printing</DialogTitle>
-            <DialogContent dividers sx={{ p: 0 }}>
-                <div id="all-report-cards-content" ref={printRef} className="p-6">
-                    {reports.length > 0 ? (
-                        reports.map((report, index) => (
-                            <React.Fragment key={report.studentId}>
-                                {(ReportCard as any)({
-                                    initialSchoolInfo: { name: "", address: "", cityPostal: "", phone: "", email: "", website: "", logoUrl: report.imageUrl || "https://placehold.co/100x100/EFEFEF/AEAEAE?text=School+Logo" },
-                                    studentInfo: {
-                                        name: report.studentName,
-                                        id: report.studentId,
-                                        gradeLevel: report.className,
-                                        attendance: report.attendance || "",
-                                        nextTermBegins: "",
-                                        house: report.house || "",
-                                        positionInClass: report.positionInClass || "",
-                                        imageUrl: report.imageUrl || "https://placehold.co/100x100/EFEFEF/AEAEAE?text=Student+Image",
-                                        dateOfBirth: "",
-                                        homeroom: "",
-                                    },
-                                    academicPerformance: report.subjectResults.map(sr => ({
-                                        subject: sr.subjectName,
-                                        classScore: sr.classWorkTotal?.toString() || "",
-                                        examScore: sr.exams?.toString() || "",
-                                        totalScore: sr.total?.toString() || "",
-                                        grade: sr.grade || "",
-                                        classAverage: "",
-                                        subjectPosition: sr.position || "",
-                                        overallSubjectPosition: "",
-                                        remarks: sr.remarks ? [sr.remarks] : [],
-                                        teacher: sr.subjectTeacher,
-                                    })),
-                                    overallSummary: {
-                                        academicYear: report.year,
-                                        termSemester: report.term,
-                                        dateIssued: "",
-                                        overallPercentage: report.studentOverallPercentage?.toString() || "",
-                                        overallGrade: report.studentOverallGrade || "",
-                                        overallPosition: report.overallPosition || "",
-                                        attendance: report.attendance || "",
-                                        conduct: report.conduct || "",
-                                    },
-                                    commentsRecommendations: {
-                                        formMistressMasterReport: report.formMistressReport || "",
-                                        formTeacherName: "",
-                                        conduct: report.conduct || "",
-                                        interest: "",
-                                        housemistressMasterReport: "",
-                                        houseTeacherName: "",
-                                        headmasterReport: "",
-                                        headmasterName: "",
-                                        parentGuardianNotes: "",
-                                        teacherComments: "",
-                                        principalComments: "",
-                                    },
-                                    gradingScale: { grades: [], percentageRanges: "", effortScale: "", otherSymbols: "" },
-                                    isPrintView: true
-                                })}
-                                {index < reports.length - 1 && (
-                                    <div className="report-card-page-break my-8"></div>
-                                )}
-                            </React.Fragment>
-                        ))
-                    ) : (
-                        <Typography variant="body1" color="text.secondary" className="text-center p-4">
-                            No report cards available for printing.
-                        </Typography>
-                    )}
-                </div>
-            </DialogContent>
-            <DialogActions className="print-hide">
-                <Button onClick={onClose}>Close</Button>
-                <Button onClick={handlePrint} variant="contained" startIcon={<PrintIcon />}>Print All</Button>
-            </DialogActions>
-        </Dialog>
-    );
+      window.print();
+
+      document.body.innerHTML = originalContent;
+      document.title = originalTitle;
+      if (document.head.contains(styleElement)) {
+        document.head.removeChild(styleElement);
+      }
+    } else {
+      toast.error("Report card content not available for printing.");
+    }
+  };
+// ReportCard.tsx
+
+
+interface ReportCardProps {
+  initialSchoolInfo: {
+    name: string;
+    address: string;
+    cityPostal: string;
+    phone: string;
+    email: string;
+    website: string;
+    logoUrl: string;
+  };
+  studentInfo: {
+    name: string;
+    id: string;
+    gradeLevel: string;
+    attendance: string;
+    nextTermBegins: string;
+    house: string;
+    positionInClass: string;
+    imageUrl: string;
+    dateOfBirth: string;
+    homeroom: string;
+  };
+  academicPerformance: Array<{
+    subject: string;
+    classScore: string;
+    examScore: string;
+    totalScore: string;
+    grade: string;
+    classAverage: string;
+    subjectPosition: string;
+    overallSubjectPosition: string;
+    remarks: string[];
+    teacher: string;
+  }>;
+  overallSummary: {
+    academicYear: string;
+    termSemester: string;
+    dateIssued: string;
+    overallPercentage: string;
+    overallGrade: string;
+    overallPosition: string;
+    attendance: string;
+    conduct: string;
+  };
+  commentsRecommendations: {
+    formMistressMasterReport: string;
+    formTeacherName: string;
+    conduct: string;
+    interest: string;
+    housemistressMasterReport: string;
+    houseTeacherName: string;
+    headmasterReport: string;
+    headmasterName: string;
+    parentGuardianNotes: string;
+    teacherComments: string;
+    principalComments: string;
+  };
+  gradingScale: {
+    grades: string[];
+    percentageRanges: string;
+    effortScale: string;
+    otherSymbols: string;
+  };
+  isPrintView?: boolean;
+}
+
+const ReportCard: React.FC<ReportCardProps> = ({
+  initialSchoolInfo,
+  studentInfo,
+  academicPerformance,
+  overallSummary,
+  commentsRecommendations,
+  gradingScale,
+  isPrintView = false
+}) => {
+  return (
+    <div className={`p-4 ${isPrintView ? 'print-view' : ''}`}>
+      {/* School header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">{initialSchoolInfo.name}</h1>
+          <p>{initialSchoolInfo.address}</p>
+          <p>{initialSchoolInfo.cityPostal}</p>
+          <p>Tel: {initialSchoolInfo.phone} | Email: {initialSchoolInfo.email}</p>
+          <p>Website: {initialSchoolInfo.website}</p>
+        </div>
+        <img 
+          src={initialSchoolInfo.logoUrl} 
+          alt="School Logo" 
+          className="w-24 h-24 object-contain"
+        />
+      </div>
+
+      {/* Student info */}
+      <div className="flex flex-col md:flex-row gap-6 mb-6">
+        <div className="flex-shrink-0">
+          <img 
+            src={studentInfo.imageUrl} 
+            alt={`${studentInfo.name}'s photo`} 
+            className="w-32 h-32 rounded-full border-2 border-blue-500 object-cover"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4 flex-grow">
+          <div>
+            <p><strong>Name:</strong> {studentInfo.name}</p>
+            <p><strong>Class:</strong> {studentInfo.gradeLevel}</p>
+            <p><strong>Term:</strong> {overallSummary.termSemester}</p>
+          </div>
+          <div>
+            <p><strong>Position:</strong> {studentInfo.positionInClass}</p>
+            <p><strong>House:</strong> {studentInfo.house}</p>
+            <p><strong>Attendance:</strong> {studentInfo.attendance}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Academic performance */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-4">Academic Performance</h2>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border p-2">Subject</th>
+              <th className="border p-2">Class Score</th>
+              <th className="border p-2">Exam Score</th>
+              <th className="border p-2">Total</th>
+              <th className="border p-2">Grade</th>
+              <th className="border p-2">Position</th>
+              <th className="border p-2">Teacher</th>
+            </tr>
+          </thead>
+          <tbody>
+            {academicPerformance.map((subject, index) => (
+              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <td className="border p-2">{subject.subject}</td>
+                <td className="border p-2 text-center">{subject.classScore}</td>
+                <td className="border p-2 text-center">{subject.examScore}</td>
+                <td className="border p-2 text-center">{subject.totalScore}</td>
+                <td className="border p-2 text-center">{subject.grade}</td>
+                <td className="border p-2 text-center">{subject.subjectPosition}</td>
+                <td className="border p-2">{subject.teacher}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Overall summary */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gray-100 p-4 rounded">
+          <h3 className="font-semibold mb-2">Overall Summary</h3>
+          <p><strong>Average:</strong> {overallSummary.overallPercentage}%</p>
+          <p><strong>Grade:</strong> {overallSummary.overallGrade}</p>
+          <p><strong>Position:</strong> {overallSummary.overallPosition}</p>
+        </div>
+        <div className="bg-gray-100 p-4 rounded">
+          <h3 className="font-semibold mb-2">Form Teacher&apos;s Remarks</h3>
+          <p>{commentsRecommendations.formMistressMasterReport}</p>
+        </div>
+        <div className="bg-gray-100 p-4 rounded">
+          <h3 className="font-semibold mb-2">Headmaster&apos;s Remarks</h3>
+          <p>{commentsRecommendations.headmasterReport}</p>
+        </div>
+      </div>
+
+      {/* Grading scale */}
+      {!isPrintView && (
+        <div className="mt-6">
+          <h3 className="font-semibold mb-2">Grading Scale</h3>
+          <div dangerouslySetInnerHTML={{ __html: gradingScale.percentageRanges }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+  return (
+    <Dialog open={true} onClose={onClose} maxWidth="lg" fullWidth>
+      <DialogTitle>All Report Cards for Printing</DialogTitle>
+      <DialogContent dividers sx={{ p: 0 }}>
+        <div id="all-report-cards-content" ref={printRef} className="p-6">
+          {reports.length > 0 ? (
+            reports.map((report, index) => (
+              <React.Fragment key={report.studentId}>
+                <ReportCard
+                  initialSchoolInfo={{ 
+                    name: "Your School Name", 
+                    address: "School Address",
+                    cityPostal: "City, Postal Code",
+                    phone: "Phone Number",
+                    email: "school@email.com",
+                    website: "www.schoolwebsite.com",
+                    logoUrl: report.imageUrl || "https://placehold.co/100x100/EFEFEF/AEAEAE?text=School+Logo" 
+                  }}
+                  studentInfo={{
+                    name: report.studentName,
+                    id: report.studentId,
+                    gradeLevel: report.className,
+                    attendance: report.attendance || "",
+                    nextTermBegins: "",
+                    house: report.house || "",
+                    positionInClass: report.positionInClass || "",
+                    imageUrl: report.imageUrl || "https://placehold.co/100x100/EFEFEF/AEAEAE?text=Student+Image",
+                    dateOfBirth: "",
+                    homeroom: "",
+                  }}
+                  academicPerformance={report.subjectResults.map(subject => ({
+                    subject: subject.subjectName,
+                    classScore: subject.classWorkTotal?.toString() || "0",
+                    examScore: subject.exams?.toString() || "0",
+                    totalScore: subject.total?.toString() || "0",
+                    grade: subject.grade || "N/A",
+                    classAverage: "",
+                    subjectPosition: subject.position || "N/A",
+                    overallSubjectPosition: "",
+                    remarks: subject.remarks ? [subject.remarks] : [],
+                    teacher: subject.subjectTeacher,
+                  }))}
+                  overallSummary={{
+                    academicYear: report.year,
+                    termSemester: report.term,
+                    dateIssued: new Date().toLocaleDateString(),
+                    overallPercentage: report.studentOverallPercentage?.toString() || "0",
+                    overallGrade: report.studentOverallGrade || "N/A",
+                    overallPosition: report.overallPosition || "N/A",
+                    attendance: report.attendance || "N/A",
+                    conduct: report.conduct || "",
+                  }}
+                  commentsRecommendations={{
+                    formMistressMasterReport: report.formMistressReport || "",
+                    formTeacherName: "",
+                    conduct: report.conduct || "",
+                    interest: report.interest || "",
+                    housemistressMasterReport: report.housemistressReport || "",
+                    houseTeacherName: "",
+                    headmasterReport: report.headmasterReport || "",
+                    headmasterName: "",
+                    parentGuardianNotes: "",
+                    teacherComments: "",
+                    principalComments: "",
+                  }}
+                  gradingScale={{
+                    grades: ["A", "B", "C", "D", "E", "F"],
+                    percentageRanges: "A: 80-100%, B: 70-79%, C: 60-69%, D: 50-59%, E: 40-49%, F: Below 40%",
+                    effortScale: "1: Excellent, 2: Good, 3: Satisfactory, 4: Needs Improvement",
+                    otherSymbols: "",
+                  }}
+                  isPrintView={true}
+                />
+                {index < reports.length - 1 && (
+                  <div className="report-card-page-break my-8"></div>
+                )}
+              </React.Fragment>
+            ))
+          ) : (
+            <Typography variant="body1" color="text.secondary" className="text-center p-4">
+              No report cards available for printing.
+            </Typography>
+          )}
+        </div>
+      </DialogContent>
+      <DialogActions className="print-hide">
+        <Button onClick={onClose}>Close</Button>
+        <Button onClick={handlePrint} variant="contained" startIcon={<PrintIcon />}>
+          Print All
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 };
 
 
@@ -723,7 +923,7 @@ export default function ClassPage() {
             const projectWork = row.projectWork || 0;
             const exams = row.exams || 0;
 
-            const total = row.total ?? (cat1 + cat2 + projectWork + (exams / 2));
+            const total = row.total ?? (cat1 + cat2 + projectWork + (exams));
             totalOfTotals += total;
         });
         const calculatedAverage = (totalOfTotals / currentRows.length).toFixed(2);
@@ -1010,60 +1210,187 @@ export default function ClassPage() {
         }
     };
 
-    const handlePrintReportCard = () => {
-        if (reportCardRef.current) {
-            const printContent = reportCardRef.current.innerHTML;
-            const originalContent = document.body.innerHTML;
-            const originalTitle = document.title;
+   const handlePrintReportCard = () => {
+  if (!currentStudentReport) {
+    toast.error("No student report data available for printing.");
+    return;
+  }
 
-            document.body.innerHTML = printContent;
-            document.title = `Report Card - ${currentStudentReport?.studentName || 'Student'}`;
+  // Format the data for the ReportCard component
+  const reportCardData = {
+    initialSchoolInfo: {
+      name: "Your School Name",
+      address: "School Address",
+      cityPostal: "City, Postal Code",
+      phone: "Phone Number",
+      email: "school@email.com",
+      website: "www.schoolwebsite.com",
+      logoUrl: reportCardImage || "https://placehold.co/100x100/EFEFEF/AEAEAE?text=School+Logo",
+    },
+    studentInfo: {
+      name: currentStudentReport.studentName,
+      id: currentStudentReport.studentId,
+      gradeLevel: currentStudentReport.className,
+      attendance: reportCardAttendance || "N/A",
+      nextTermBegins: "",
+      house: reportCardHouse || "N/A",
+      positionInClass: reportCardPositionInClass || "N/A",
+      imageUrl: reportCardImage || "https://placehold.co/100x100/EFEFEF/AEAEAE?text=Student+Image",
+      dateOfBirth: "",
+      homeroom: "",
+    },
+    academicPerformance: currentStudentReport.subjectResults.map(subject => ({
+      subject: subject.subjectName,
+      classScore: subject.classWorkTotal?.toString() || "0",
+      examScore: subject.exams?.toString() || "0",
+      totalScore: subject.total?.toString() || "0",
+      grade: subject.grade || "N/A",
+      classAverage: "",
+      subjectPosition: subject.position || "N/A",
+      overallSubjectPosition: "",
+      remarks: subject.remarks ? [subject.remarks] : [],
+      teacher: subject.subjectTeacher,
+    })),
+    overallSummary: {
+      academicYear: currentStudentReport.year,
+      termSemester: currentStudentReport.term,
+      dateIssued: new Date().toLocaleDateString(),
+      overallPercentage: currentStudentReport.studentOverallPercentage?.toString() || "0",
+      overallGrade: currentStudentReport.studentOverallGrade || "N/A",
+      overallPosition: currentStudentReport.overallPosition || "N/A",
+      attendance: reportCardAttendance || "N/A",
+      conduct: "",
+    },
+    commentsRecommendations: {
+      formMistressMasterReport: currentStudentReport.formMistressReport || "",
+      formTeacherName: "",
+      conduct: currentStudentReport.conduct || "",
+      interest: currentStudentReport.interest || "",
+      housemistressMasterReport: currentStudentReport.housemistressReport || "",
+      houseTeacherName: "",
+      headmasterReport: currentStudentReport.headmasterReport || "",
+      headmasterName: "",
+      parentGuardianNotes: "",
+      teacherComments: "",
+      principalComments: "",
+    },
+    gradingScale: {
+      grades: ["A", "B", "C", "D", "E", "F"],
+      percentageRanges: "A: 80-100%, B: 70-79%, C: 60-69%, D: 50-59%, E: 40-49%, F: Below 40%",
+      effortScale: "1: Excellent, 2: Good, 3: Satisfactory, 4: Needs Improvement",
+      otherSymbols: "",
+    },
+    isPrintView: true
+  };
 
-            const printStyles = `
-                <style>
-                    @media print {
-                        body > *:not(#report-card-content) { display: none !important; }
-                        #report-card-content {
-                            display: block !important; width: 100%; margin: 0 auto; padding: 10mm;
-                            box-sizing: border-box; font-family: sans-serif; color: #000;
-                        }
-                        .MuiCard-root, .MuiCardContent-root { border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
-                        h1, h2, h6, p, strong { color: #000 !important; margin-bottom: 0.5em; }
-                        h6 { font-size: 1.1em; margin-top: 1em; }
-                        p { font-size: 0.9em; }
-                        .flex { display: flex !important; } .grid { display: grid !important; } .flex-col { flex-direction: column !important; }
-                        .md\\:flex-row { flex-direction: row !important; } .items-start { align-items: flex-start !important; }
-                        .items-center { align-items: center !important; } .gap-6 { gap: 1.5rem !important; } .mb-6 { margin-bottom: 1.5rem !important; }
-                        .p-4 { padding: 1rem !important; } .p-3 { padding: 0.75rem !important; } .p-2 { padding: 0.5rem !important; }
-                        .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem !important; margin-bottom: 0 !important; }
-                        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-                        .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-                        .flex-shrink-0 { flex-shrink: 0 !important; } .flex-grow { flex-grow: 1 !important; }
-                        .justify-center { justify-content: center !important; }
-                        img { display: block !important; max-width: 100% !important; height: auto !important; object-fit: cover !important; }
-                        .rounded-full { border-radius: 9999px !important; } .h-32 { height: 8rem !important; } .w-32 { width: 8rem !important; }
-                        .border-2 { border-width: 2px !important; } .border-blue-500 { border-color: #3b82f6 !important; }
-                        .MuiDivider-root, .separator { border-top: 1px solid #ccc !important; margin: 1em 0 !important; }
-                        .print-hide { display: none !important; }
-                        .print-only { display: block !important; }
-                        .MuiDialog-container, .MuiDialog-paper, .MuiModal-backdrop { display: none !important; }
-                    }
-                </style>
-            `;
-            const styleElement = document.createElement('style');
-            styleElement.innerHTML = printStyles;
-            document.head.appendChild(styleElement);
-            window.print();
-            document.body.innerHTML = originalContent;
-            document.title = originalTitle;
-            if (document.head.contains(styleElement)) {
-                 document.head.removeChild(styleElement);
-            }
-            setTimeout(() => {}, 50);
-        } else {
-            toast.error("Report card content not available for printing.");
+  // Now you can print this data
+  if (reportCardRef.current) {
+    const printContent = reportCardRef.current.innerHTML;
+    const originalContent = document.body.innerHTML;
+    const originalTitle = document.title;
+
+    document.body.innerHTML = printContent;
+    document.title = `Report Card - ${currentStudentReport.studentName}`;
+
+    const printStyles = `
+      <style>
+        @media print {
+          body > *:not(#report-card-content) { display: none !important; }
+          #report-card-content {
+            display: block !important;
+            width: 100%;
+            margin: 0 auto;
+            padding: 10mm;
+            box-sizing: border-box;
+            font-family: sans-serif;
+            color: #000;
+          }
+          .MuiCard-root, .MuiCardContent-root { 
+            border: none !important; 
+            box-shadow: none !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+          }
+          h1, h2, h6, p, strong { 
+            color: #000 !important; 
+            margin-bottom: 0.5em; 
+          }
+          h6 { font-size: 1.1em; margin-top: 1em; }
+          p { font-size: 0.9em; }
+          .flex { display: flex !important; }
+          .grid { display: grid !important; }
+          .flex-col { flex-direction: column !important; }
+          .md\\:flex-row { flex-direction: row !important; }
+          .items-start { align-items: flex-start !important; }
+          .items-center { align-items: center !important; }
+          .gap-6 { gap: 1.5rem !important; }
+          .mb-6 { margin-bottom: 1.5rem !important; }
+          .p-4 { padding: 1rem !important; }
+          .p-3 { padding: 0.75rem !important; }
+          .p-2 { padding: 0.5rem !important; }
+          .space-y-4 > :not([hidden]) ~ :not([hidden]) { 
+            margin-top: 1rem !important; 
+            margin-bottom: 0 !important; 
+          }
+          .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+          .flex-shrink-0 { flex-shrink: 0 !important; }
+          .flex-grow { flex-grow: 1 !important; }
+          .justify-center { justify-content: center !important; }
+          img { 
+            display: block !important; 
+            max-width: 100% !important; 
+            height: auto !important; 
+            object-fit: cover !important; 
+          }
+          .rounded-full { border-radius: 9999px !important; }
+          .h-32 { height: 8rem !important; }
+          .w-32 { width: 8rem !important; }
+          .border-2 { border-width: 2px !important; }
+          .border-blue-500 { border-color: #3b82f6 !important; }
+          .MuiDivider-root, .separator { 
+            border-top: 1px solid #ccc !important; 
+            margin: 1em 0 !important; 
+          }
+          .print-hide { display: none !important; }
+          .print-only { display: block !important; }
+          .MuiDialog-container, .MuiDialog-paper, .MuiModal-backdrop { 
+            display: none !important; 
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f2f2f2;
+          }
+          tr:nth-child(even) {
+            background-color: #f9f9f9;
+          }
         }
-    };
+      </style>
+    `;
+    const styleElement = document.createElement('style');
+    styleElement.innerHTML = printStyles;
+    document.head.appendChild(styleElement);
+
+    window.print();
+
+    // Restore original content
+    document.body.innerHTML = originalContent;
+    document.title = originalTitle;
+    if (document.head.contains(styleElement)) {
+      document.head.removeChild(styleElement);
+    }
+  } else {
+    toast.error("Report card content not available for printing.");
+  }
+};
 
 
     const handleDeleteSingle = React.useCallback( (studentId: string) => async () => {
@@ -1129,7 +1456,7 @@ export default function ClassPage() {
             },
         },
         {
-            field: "exams", headerName: "Exams (100)", width: 100, editable: true, type: "number",
+            field: "exams", headerName: "Exams (100/2)", width: 100, editable: true, type: "number",
             valueParser: (value) => Number(value) || 0,
         },
         {
@@ -1139,7 +1466,7 @@ export default function ClassPage() {
                 const cat2 = row.cat2 || 0;
                 const projectWork = row.projectWork || 0;
                 const exams = row.exams || 0;
-                const total = cat1 + cat2 + projectWork + (exams / 2);
+                const total = cat1 + cat2 + projectWork + (exams);
                 return parseFloat(total.toFixed(2));
             },
         },
@@ -1303,6 +1630,8 @@ export default function ClassPage() {
         }
     };
 
+
+    
 
     // --- Subject Management Handlers ---
     const handleAddSubject = () => {
@@ -1632,7 +1961,7 @@ export default function ClassPage() {
         const cat2 = Number(newRow.cat2 || 0);
         const projectWork = Number(newRow.projectWork || 0);
         const exams = Number(newRow.exams || 0);
-        const total = cat1 + cat2 + projectWork + (exams / 2);
+        const total = cat1 + cat2 + projectWork + (exams);
         const classWorkTotal = cat1 + cat2 + projectWork;
 
         const updatedStudentScore: MyStudentScore = {
@@ -1748,7 +2077,7 @@ export default function ClassPage() {
                 const cat2 = row.cat2 || 0;
                 const projectWork = row.projectWork || 0;
                 const exams = row.exams || 0;
-                const total = cat1 + cat2 + projectWork + (exams / 2);
+                const total = cat1 + cat2 + projectWork + (exams);
                 const classWorkTotal = cat1 + cat2 + projectWork;
 
                 return {
@@ -2137,6 +2466,9 @@ export default function ClassPage() {
     const [openUploadExcelDialog, setOpenUploadExcelDialog] = React.useState(false);
     const [excelFile, setExcelFile] = React.useState<File | null>(null);
 
+    // --- Place all hooks before any early returns ---
+    const [schoolLogo, setSchoolLogo] = React.useState<string | null>(null);
+
     // Show loading indicator
     if (!isAuthReady || isLoadingInitialData) {
         return (
@@ -2286,13 +2618,75 @@ const handleUploadExcel = async () => {
     } catch (error) {
         console.error("Error importing Excel data:", error);
         toast.error(`Failed to import data: ${error instanceof Error ? error.message : String(error)}`);
+// (moved above, so remove this duplicate declaration if present here)
+
+const handleSchoolLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !userId) {
+        toast.error("No file selected or user not authenticated.");
+        return;
+    }
+
+    const filePath = `${userId}/school_logo/${Date.now()}_${file.name}`;
+
+    try {
+        const { error } = await supabase.storage
+            .from('school_images')
+            .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+        if (error) throw error;
+
+        const { data: publicUrlData } = supabase.storage
+            .from('school_images')
+            .getPublicUrl(filePath);
+
+        if (!publicUrlData || !publicUrlData.publicUrl) {
+            throw new Error("Failed to get public URL for the uploaded logo.");
+        }
+
+        setSchoolLogo(publicUrlData.publicUrl);
+        toast.success("School logo uploaded successfully!");
+    } catch (error: Error | unknown) {
+        console.error("Error uploading school logo:", error instanceof Error ? error.message : String(error));
+        toast.error(`Failed to upload logo: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+        toast.error(`Failed to upload logo: ${error instanceof Error ? error.message : String(error)}`);
     }
 };
 
 
+    const handleSchoolLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !userId) {
+            toast.error("No file selected or user not authenticated.");
+            return;
+        }
 
+        const filePath = `${userId}/school_logo/${Date.now()}_${file.name}`;
 
+        try {
+            const { error } = await supabase.storage
+                .from('school_images')
+                .upload(filePath, file, { cacheControl: '3600', upsert: true });
 
+            if (error) throw error;
+
+            const { data: publicUrlData } = supabase.storage
+                .from('school_images')
+                .getPublicUrl(filePath);
+
+            if (!publicUrlData || !publicUrlData.publicUrl) {
+                throw new Error("Failed to get public URL for the uploaded logo.");
+            }
+
+            setSchoolLogo(publicUrlData.publicUrl);
+            toast.success("School logo uploaded successfully!");
+        } catch (error: Error | unknown) {
+            console.error("Error uploading school logo:", error instanceof Error ? error.message : String(error));
+            toast.error(`Failed to upload logo: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
 
     // --- JSX Rendering ---
     return (
@@ -2633,7 +3027,7 @@ const handleUploadExcel = async () => {
                     <DialogContent dividers sx={{ p: 0 }}>
                         <div id="report-card-content" ref={reportCardRef} className="p-6">
                             {currentStudentReport && (
-                                <Card variant="outlined" className="p-4">
+                                <Card variant="outlined" className="p-2">
                                     <CardContent>
                                         <div className="flex flex-col md:flex-row items-center gap-6 mb-6">
                                             <div className="flex-shrink-0">
@@ -2649,15 +3043,7 @@ const handleUploadExcel = async () => {
                                                         No Image
                                                     </div>
                                                 )}
-                                                <Button
-                                                    variant="outlined"
-                                                    component="label"
-                                                    size="small"
-                                                    className="mt-2 print-hide w-full"
-                                                >
-                                                    Upload Image
-                                                    <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
-                                                </Button>
+                                           
                                             </div>
 
                                             <div className="flex-grow space-y-1">
