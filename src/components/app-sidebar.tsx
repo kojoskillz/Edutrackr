@@ -25,8 +25,8 @@ import {
   FileText,
   Clock,
   LogOut,
-  Notebook,
   Megaphone,
+  ClipboardCheck
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -41,11 +41,11 @@ const sidebarNavigationData = {
         { title: "Profile", url: "/profile", icon: <User size={16} />, isActive: false },
         { title: "Teachers", url: "/teachers", icon: <Users size={16} />, isActive: false },
         { title: "Class/Students", url: "/students", icon: <Users size={16} />, isActive: false },
-        { title: "Fee payment", url: "/fee_payment", icon: <DollarSign size={16} />, isActive: false },
+        { title: "Fee Payment", url: "/fee_payment", icon: <DollarSign size={16} />, isActive: false },
         { title: "Results", url: "/results", icon: <FileText size={16} />, isActive: false },
         { title: "View Previous Results", url: "/previous_results", icon: <Clock size={16} />, isActive: false },
-        { title: "Report Card", url: "/Report_card", icon: <Notebook size={16} />, isActive: false },
         { title: "Announcement", url: "/Announcement", icon: <Megaphone size={16} />, isActive: false },
+        { title: "AI Exams Center", url: "/exams_center", icon: <ClipboardCheck size={16} />, isActive: false }, 
         { title: "Sign Out", url: "#", icon: <LogOut size={16} />, isActive: false },
       ],
     },
