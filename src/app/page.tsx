@@ -25,7 +25,7 @@ const Homepage = () => {
         <div className="flex flex-col md:flex-row items-center justify-between">
           <div className="text-center md:text-left space-y-4 max-w-md mx-auto md:mx-0">
             <h1 className="text-5xl font-bold text-[#313ABC] leading-tight">
-              EDUTRACK
+              EDUTRACKR
             </h1>
             <h3 className="text-2xl font-semibold text-gray-700">
               School Management System
@@ -46,7 +46,7 @@ const Homepage = () => {
               src="/img1.png"
               width={500}
               height={500}
-              alt="Edutrack illustration"
+              alt="Edutrackr illustration"
               className="object-cover h-[20rem] w-[20rem] md:h-[25rem] md:w-[25rem] rounded-lg"
             />
           </div>
