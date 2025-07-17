@@ -52,9 +52,6 @@ const FileSaver = typeof window !== 'undefined' ? require('file-saver') : null;
 const XLSX = typeof window !== 'undefined' ? require('xlsx') : null;
 
 
-// Import the ReportCard component from reportcard.txt (assuming it's in the correct path)
-import ReportCard from '../Report_card/page'; // Adjust path if necessary
-
 // Supabase imports
 import { createClient } from '@supabase/supabase-js';
 
