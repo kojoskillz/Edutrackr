@@ -1,6 +1,6 @@
 
 
-# 📚 **Edutrack – School Management System**
+# 📚 **Edutrackr – School Management System**
 
 **Edutrack** is a modern, web-based school management platform designed to help schools streamline administrative tasks, enhance communication, and centralize data handling. Built with **Next.js**, **React**, and **Tailwind CSS**, it is modular, responsive, and easy to extend.
 
