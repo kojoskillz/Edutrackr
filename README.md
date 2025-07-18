@@ -96,7 +96,7 @@ npm run dev
 - Parent portal access (view results, pay fees)
 - Timetable and attendance modules
 - Multi-school account support
-- Export to Excel or PDF across modules
+
 
 ---
 
