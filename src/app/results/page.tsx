@@ -425,13 +425,13 @@ const ReportCard: React.FC<ReportCardProps> = ({
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border p-2">Subject</th>
-              <th className="border p-2">Class Score (50%)</th>
-              <th className="border p-2">Exam Score (50%)</th>
-              <th className="border p-2">Total (100%)</th>
-              <th className="border p-2">Grade</th>
-              <th className="border p-2">Position</th>
-              <th className="border p-2">Teacher</th>
+              <th className="border p-2">SUBJECT</th>
+              <th className="border p-2">CLASS SCORE (50%)</th>
+              <th className="border p-2">EXAMS SCORE (50%)</th>
+              <th className="border p-2">TOTAL (100%)</th>
+              <th className="border p-2">GRADE</th>
+              <th className="border p-2">POSITION</th>
+              <th className="border p-2">REMARKS</th>
             </tr>
           </thead>
           <tbody>
