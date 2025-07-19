@@ -426,9 +426,9 @@ const ReportCard: React.FC<ReportCardProps> = ({
           <thead>
             <tr className="bg-gray-100">
               <th className="border p-2">Subject</th>
-              <th className="border p-2">Class Score (50)</th>
-              <th className="border p-2">Exam Score (50)</th>
-              <th className="border p-2">Total (100)</th>
+              <th className="border p-2">Class Score (50%)</th>
+              <th className="border p-2">Exam Score (50%)</th>
+              <th className="border p-2">Total (100%)</th>
               <th className="border p-2">Grade</th>
               <th className="border p-2">Position</th>
               <th className="border p-2">Teacher</th>
