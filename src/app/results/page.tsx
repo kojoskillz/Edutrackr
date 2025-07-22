@@ -1272,8 +1272,8 @@ export default function ClassPage() {
       principalComments: "",
     },
     gradingScale: {
-      grades: ["A", "B", "C", "D", "E", "F"],
-      percentageRanges: "A: 80-100%, B: 70-79%, C: 60-69%, D: 50-59%, E: 40-49%, F: Below 40%",
+      grades: ["A", "P", "AP", "D", "B"],
+      percentageRanges: "A: 80-100%, P: 75-79%, AP: 70-74%, D: 65-69%, B: Below 64%",
       effortScale: "1: Excellent, 2: Good, 3: Satisfactory, 4: Needs Improvement",
       otherSymbols: "",
     },
