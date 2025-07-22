@@ -431,7 +431,7 @@ const ReportCard: React.FC<ReportCardProps> = ({
               <th className="border p-2">TOTAL (100%)</th>
               <th className="border p-2">GRADE</th>
               <th className="border p-2">POSITION</th>
-              <th className="border p-2">REMARKS</th>
+              <th className="border p-2">TEACHERS</th>
             </tr>
           </thead>
           <tbody>
