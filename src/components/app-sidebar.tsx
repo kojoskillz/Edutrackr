@@ -29,6 +29,7 @@ import {
   ClipboardCheck
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { useAuth } from "@/context/AuthContext"; // Adjust the path as necessary
 
 const sidebarNavigationData = {
   versions: [],
@@ -54,14 +55,44 @@ const sidebarNavigationData = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter();
+  useAuth(); // Call useAuth for side effects if needed, but don't destructure unused values
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error('Error signing out: ' + error.message, { position: "top-right" });
-      console.error('Error signing out:', error.message);
-    } else {
+    try {
+      // Show loading state immediately
+      toast.info('Signing out...', { 
+        position: "top-right",
+        autoClose: 1000,
+        hideProgressBar: true
+      });
+      // Perform the sign out
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Success feedback
+      toast.success('Signed out successfully', { 
+        position: "top-right",
+        autoClose: 2000
+      });
+      
+      // Redirect to home page
       router.push('/');
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      toast.error(`Sign out failed: ${errorMessage}`, { 
+        position: "top-right",
+        autoClose: 3000
+      });
+      
+      console.error('Sign out error:', error);
+      
+      // Force redirect even if sign out failed
+      router.push('/');
+    } finally {
+      // Ensure any loading states are cleared
+      // setLoading(false); // Ensure setLoading is defined as well
     }
   };
 
