@@ -1,69 +1,82 @@
-// context/AuthContext.tsx
+// contexts/AuthContext.tsx
 'use client'
-import { createContext, useContext, useState, useEffect } from "react";
 
-interface AuthContextProps {
+import { createContext, useContext, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '../app/Authentication-supabase/lib/supabase/supabaseClient'
+
+import { User } from '@supabase/supabase-js'
+
+type AuthContextType = {
   user: User | null;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
-  signup: (username: string, password: string) => boolean;
+  loading: boolean;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextProps | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-interface AuthProviderProps {
-  children: React.ReactNode;
-}
-
-interface User {
-  username: string;
-  password: string;
-}
-
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("currentUser");
-    if (storedUser) setUser(JSON.parse(storedUser));
-  }, []);
-
-  const login = (username: string, password: string): boolean => {
-    const users: User[] = JSON.parse(localStorage.getItem("users") || "[]");
-    const foundUser = users.find(
-      (u) => u.username === username && u.password === password
-    );
-    if (foundUser) {
-      localStorage.setItem("currentUser", JSON.stringify(foundUser));
-      setUser(foundUser);
-      return true;
+    // Check initial auth state
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user ?? null)
+      setLoading(false)
     }
-    return false;
-  };
+    checkAuth()
 
-  const signup = (username: string, password: string) => {
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const userExists: User | undefined = users.find((u: User) => u.username === username);
-    if (userExists) return false;
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+      
+      // Redirect to login after sign out
+      if (event === 'SIGNED_OUT') {
+        router.push('/login')
+      }
+    })
 
-    const newUser = { username, password };
-    users.push(newUser);
-    localStorage.setItem("users", JSON.stringify(users));
-    localStorage.setItem("currentUser", JSON.stringify(newUser));
-    setUser(newUser);
-    return true;
-  };
+    return () => subscription.unsubscribe()
+  }, [router])
 
-  const logout = () => {
-    localStorage.removeItem("currentUser");
-    setUser(null);
-  };
+  const signOut = async () => {
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      
+      // Clear local user state immediately
+      setUser(null)
+      
+      // The auth listener will handle the redirect
+    } catch (error) {
+      console.error('Error signing out:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const value = {
+    user,
+    loading,
+    signOut
+  }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, signup }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
-  );
-};
+  )
+}
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}
