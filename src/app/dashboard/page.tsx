@@ -345,7 +345,7 @@ export default function Page() {
         borderColor: ["#2563EB", "#DB2777"],
         borderWidth: 1,
         borderRadius: 8,
-        barThickness: 50,
+        barThickness: 100,
       },
     ],
   };
