@@ -2,11 +2,10 @@
 'use client';
 
 import * as React from "react";
-import { Dispatch, SetStateAction } from "react";
+import { useState, useEffect } from "react";
 import {
     DataGrid,
     GridColDef,
-    GridRowsProp,
     GridRowModes,
     GridRowModesModel,
     GridActionsCellItem,
@@ -14,21 +13,21 @@ import {
     GridEventListener,
     GridRowModel,
     GridRowId,
-    GridSlotProps,
-    ToolbarButton,
     GridToolbarContainer,
+    GridValidRowModel
 } from "@mui/x-data-grid";
-import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/DeleteOutlined";
-import EditIcon from "@mui/icons-material/Edit";
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import CloseIcon from '@mui/icons-material/Close';
-import SaveIcon from '@mui/icons-material/Save';
-
+import { 
+    Add as AddIcon,
+    Delete as DeleteIcon,
+    Save as SaveIcon,
+    Edit as EditIcon,
+    Visibility as VisibilityIcon,
+    ContentCopy as ContentCopyIcon,
+    Close as CancelIcon,
+    ArrowBack as ArrowBackIcon,
+    ArrowForward as ArrowForwardIcon,
+    Description as DescriptionIcon
+} from "@mui/icons-material";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
     Breadcrumb,
@@ -40,34 +39,36 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
-import "react-toastify/dist/ReactToastify.css";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import Modal from "@mui/material/Modal";
-import Box from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
-import IconButton from "@mui/material/IconButton";
-import Stack from "@mui/material/Stack";
-import Link from "next/link";
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
-
+import {
+    Button,
+    Typography,
+    Box,
+    Tooltip,
+    Snackbar,
+    Alert,
+    IconButton,
+    Stack,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    TextField,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Avatar
+} from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { randomId } from "@mui/x-data-grid-generator";
-import Image from "next/image";
 import { supabase } from '../Authentication-supabase/lib/supabase/supabaseClient';
 import { User } from "@supabase/supabase-js";
 
-type TeacherRow = {
+type TeacherRow = GridValidRowModel & {
   id: string;
   teacherId: string;
   name: string;
@@ -95,10 +96,21 @@ const calculateAge = (dob: string) => {
   return age;
 };
 
-function TeacherEditToolbar(props: GridSlotProps["toolbar"]) {
+function TeacherEditToolbar(props: {
+  setRows: (newRows: (oldRows: TeacherRow[]) => TeacherRow[]) => void;
+  setRowModesModel: (newModel: (oldModel: GridRowModesModel) => GridRowModesModel) => void;
+  onCopyAllTeacherNames: () => void;
+  onCopyTeacherContactInfo: () => void;
+  onPageChange: (newPage: number) => void;
+  page: number;
+  rowCount: number;
+  pageSize: number;
+}) {
   const { 
-    onAddTeacher,
-    onCopyContactInfo,
+    setRows, 
+    setRowModesModel, 
+    onCopyAllTeacherNames, 
+    onCopyTeacherContactInfo,
     onPageChange,
     page,
     rowCount,
@@ -110,17 +122,44 @@ function TeacherEditToolbar(props: GridSlotProps["toolbar"]) {
   const isLastPage = page >= totalPages - 1;
 
   return (
-    <GridToolbarContainer className="flex justify-between w-full">
-      <div className="flex items-center gap-4">
+    <GridToolbarContainer sx={{ justifyContent: 'space-between', padding: '8px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <Tooltip title="Add Teacher">
-          <ToolbarButton
+          <Button
             color="primary"
             size="small"
-            className=" hover:bg-blue-600 transition-colors duration-200"
-            onClick={onAddTeacher}
+            startIcon={<AddIcon />}
+            onClick={() => {
+              const id = randomId();
+              setRows((oldRows) => [
+                ...oldRows,
+                {
+                  id,
+                  teacherId: `TCH-${Math.floor(1000 + Math.random() * 9000)}`,
+                  name: "",
+                  age: 0,
+                  subject: "",
+                  image: "",
+                  dob: dayjs().format('YYYY-MM-DD'),
+                  appointmentDate: dayjs().format('YYYY-MM-DD'),
+                  appointmentLetter: "",
+                  ssnitId: "",
+                  bankAccount: "",
+                  firstRankDate: dayjs().format('YYYY-MM-DD'),
+                  contact: "",
+                  email: "",
+                  user_id: "",
+                  created_at: ""
+                },
+              ]);
+              setRowModesModel((oldModel) => ({
+                ...oldModel,
+                [id]: { mode: GridRowModes.Edit, fieldToFocus: "name" },
+              }));
+            }}
           >
-            <AddIcon fontSize="small" /> Add Teacher
-          </ToolbarButton>
+            Add Teacher
+          </Button>
         </Tooltip>
 
         <Stack direction="row" alignItems="center" spacing={1}>
@@ -143,17 +182,28 @@ function TeacherEditToolbar(props: GridSlotProps["toolbar"]) {
           </IconButton>
         </Stack>
       </div>
-      <div className="flex gap-2">
-        <Tooltip title="Copy Teacher Contact Info">
-          <ToolbarButton
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <Tooltip title="Copy All Teacher Names">
+          <Button
             color="primary"
             size="small"
-            className="rounded-lg hover:bg-gray-200 transition-colors duration-200"
-            onClick={onCopyContactInfo}
+            startIcon={<ContentCopyIcon />}
+            onClick={onCopyAllTeacherNames}
+            sx={{ textTransform: 'none' }}
           >
-            <ContentCopyIcon fontSize="small" />
+            Names
+          </Button>
+        </Tooltip>
+        <Tooltip title="Copy Teacher Contact Info">
+          <Button
+            color="primary"
+            size="small"
+            startIcon={<ContentCopyIcon />}
+            onClick={onCopyTeacherContactInfo}
+            sx={{ textTransform: 'none' }}
+          >
             Contact Info
-          </ToolbarButton>
+          </Button>
         </Tooltip>
       </div>
     </GridToolbarContainer>
@@ -161,29 +211,46 @@ function TeacherEditToolbar(props: GridSlotProps["toolbar"]) {
 }
 
 export default function TeachersPage() {
-  const [user, setUser] = React.useState<User | null>(null);
-  const [teacherRows, setTeacherRows] = React.useState<TeacherRow[]>([]);
-  const [teacherSearchText, setTeacherSearchText] = React.useState("");
-  const [viewTeacherRow, setViewTeacherRow] = React.useState<TeacherRow | null>(null);
-  const [editTeacher, setEditTeacher] = React.useState<TeacherRow | null>(null);
-  const [openDialog, setOpenDialog] = React.useState(false);
-  const [imagePreview, setImagePreview] = React.useState<string | null>(null);
-  const [pdfPreview, setPdfPreview] = React.useState<string | null>(null);
-  const [isTeacherIdValid, setIsTeacherIdValid] = React.useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [teacherRows, setTeacherRows] = useState<TeacherRow[]>([]);
+  const [rowModesModel, setRowModesModel] = useState<GridRowModesModel>({});
+  const [searchText, setSearchText] = useState("");
+  const [viewRow, setViewRow] = useState<TeacherRow | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [teacherToDelete, setTeacherToDelete] = useState<string | null>(null);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [teacherToSave, setTeacherToSave] = useState<TeacherRow | null>(null);
+  const [addTeacherOpen, setAddTeacherOpen] = useState(false);
+  const [newTeacher, setNewTeacher] = useState<Partial<TeacherRow>>({
+    teacherId: `TCH-${Math.floor(1000 + Math.random() * 9000)}`,
+    name: "",
+    age: 0,
+    subject: "",
+    image: "",
+    dob: dayjs().format('YYYY-MM-DD'),
+    appointmentDate: dayjs().format('YYYY-MM-DD'),
+    appointmentLetter: "",
+    ssnitId: "",
+    bankAccount: "",
+    firstRankDate: dayjs().format('YYYY-MM-DD'),
+    contact: "",
+    email: "",
+  });
 
-  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
-  const [snackbarMessage, setSnackbarMessage] = React.useState("");
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [pagination, setPagination] = React.useState({
+  // Pagination state
+  const [pagination, setPagination] = useState({
     page: 0,
     pageSize: 25,
     totalCount: 0,
     loading: false
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchUser = async () => {
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
@@ -267,11 +334,17 @@ export default function TeachersPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
       fetchDataWithRetry();
     }
   }, [user, pagination.page, pagination.pageSize]);
+
+  const handleRowEditStop: GridEventListener<"rowEditStop"> = (params, event) => {
+    if (params.reason === GridRowEditStopReasons.rowFocusOut) {
+      event.defaultMuiPrevented = true;
+    }
+  };
 
   const handleSnackbarOpen = (message: string) => {
     setSnackbarMessage(message);
@@ -283,9 +356,103 @@ export default function TeachersPage() {
     setSnackbarOpen(false);
   };
 
+  const processRowUpdate = async (newRow: GridRowModel) => {
+    if (!user) {
+      const errorMsg = "User not authenticated";
+      handleSnackbarOpen(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    try {
+      const dob = newRow.dob ? new Date(newRow.dob).toISOString() : new Date().toISOString();
+      const appointmentDate = newRow.appointmentDate ? new Date(newRow.appointmentDate).toISOString() : new Date().toISOString();
+      const firstRankDate = newRow.firstRankDate ? new Date(newRow.firstRankDate).toISOString() : new Date().toISOString();
+      
+      const updated: TeacherRow = {
+        id: newRow.id as string,
+        teacherId: newRow.teacherId as string,
+        name: newRow.name as string,
+        age: calculateAge(dob),
+        subject: newRow.subject as string,
+        image: newRow.image as string,
+        dob,
+        appointmentDate,
+        appointmentLetter: newRow.appointmentLetter as string,
+        ssnitId: newRow.ssnitId as string,
+        bankAccount: newRow.bankAccount as string,
+        firstRankDate,
+        contact: newRow.contact as string,
+        email: newRow.email as string,
+        created_at: newRow.created_at || new Date().toISOString(),
+        user_id: user.id
+      };
+
+      setTeacherToSave(updated);
+      setSaveModalOpen(true);
+      
+      return updated;
+    } catch (error) {
+      console.error("Error preparing teacher update:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to prepare teacher update";
+      handleSnackbarOpen(errorMessage);
+      throw error;
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    if (!teacherToSave) return;
+
+    try {
+      if (teacherToSave) {
+        const { data, error } = await supabase
+          .from('teachers')
+          .insert(teacherToSave)
+          .select();
+        
+        if (error) throw new Error(`Insert failed: ${error.message}`);
+        
+        setTeacherRows(prevTeachers => 
+          prevTeachers.map(teacher => 
+            teacher.id === teacherToSave.id ? data[0] : teacher
+          )
+        );
+        handleSnackbarOpen('Teacher added successfully');
+      } else {
+        const { data, error } = await supabase
+          .from('teachers')
+          .update(teacherToSave)
+          .eq('id', (teacherToSave as { id: string }).id)
+          .select();
+
+        if (error) throw new Error(`Update failed: ${error.message}`);
+        if (data && data.length > 0) {
+          setTeacherRows(prevTeachers => 
+            prevTeachers.map(teacher => 
+              // Ensure teacher has an id property and compare with teacherToSave.id
+              (teacher as { id?: string }).id === (teacherToSave as { id?: string }).id ? data[0] : teacher
+            )
+          );
+        }
+        handleSnackbarOpen('Teacher updated successfully');
+      }
+    } catch (error) {
+      console.error("Error saving teacher:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save teacher";
+      handleSnackbarOpen(errorMessage);
+    } finally {
+      setSaveModalOpen(false);
+      setTeacherToSave(null);
+    }
+  };
+
+  const handleCancelSave = () => {
+    setSaveModalOpen(false);
+    setTeacherToSave(null);
+    handleSnackbarOpen('Changes discarded');
+  };
+
   const handleAddTeacher = () => {
-    setEditTeacher({
-      id: randomId(),
+    setNewTeacher({
       teacherId: `TCH-${Math.floor(1000 + Math.random() * 9000)}`,
       name: "",
       age: 0,
@@ -299,162 +466,115 @@ export default function TeachersPage() {
       firstRankDate: dayjs().format('YYYY-MM-DD'),
       contact: "",
       email: "",
-      created_at: new Date().toISOString(),
-      user_id: user?.id
     });
-    setOpenDialog(true);
+    setAddTeacherOpen(true);
   };
 
-  const handleEditTeacher = (teacher: TeacherRow) => {
-    setEditTeacher(teacher);
-    setOpenDialog(true);
-  };
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setEditTeacher(null);
-    setImagePreview(null);
-    setPdfPreview(null);
-    setIsTeacherIdValid(true);
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-      if (editTeacher) {
-        setEditTeacher({ ...editTeacher, image: reader.result as string });
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPdfPreview(reader.result as string);
-      if (editTeacher) {
-        setEditTeacher({ ...editTeacher, appointmentLetter: reader.result as string });
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const checkTeacherIdUnique = async (teacherId: string, excludeId?: string) => {
-    let query = supabase
-      .from('teachers')
-      .select('teacherId')
-      .eq('teacherId', teacherId);
-
-    if (excludeId) {
-      query = query.neq('id', excludeId);
-    }
-
-    const { data } = await query.single();
-    return !data;
-  };
-
-  const handleSaveTeacher = async () => {
-    if (!editTeacher || !user) {
-      handleSnackbarOpen("Invalid teacher data or user not authenticated");
-      return;
-    }
-
-    if (!editTeacher.teacherId || editTeacher.teacherId.trim() === '') {
-      handleSnackbarOpen("Teacher ID is required");
-      setIsTeacherIdValid(false);
-      return;
-    }
-
-    const isUnique = await checkTeacherIdUnique(
-      editTeacher.teacherId, 
-      editTeacher.id.startsWith('TCH-') ? undefined : editTeacher.id
-    );
-
-    if (!isUnique) {
-      handleSnackbarOpen("Teacher ID already exists");
-      setIsTeacherIdValid(false);
-      return;
-    }
-
-    setIsTeacherIdValid(true);
+  const handleSaveNewTeacher = async () => {
+    if (!user || !newTeacher) return;
 
     try {
-      const dob = editTeacher.dob ? new Date(editTeacher.dob).toISOString() : new Date().toISOString();
-      const appointmentDate = editTeacher.appointmentDate ? new Date(editTeacher.appointmentDate).toISOString() : new Date().toISOString();
-      const firstRankDate = editTeacher.firstRankDate ? new Date(editTeacher.firstRankDate).toISOString() : new Date().toISOString();
+      const dob = newTeacher.dob ? new Date(newTeacher.dob).toISOString() : new Date().toISOString();
+      const appointmentDate = newTeacher.appointmentDate ? new Date(newTeacher.appointmentDate).toISOString() : new Date().toISOString();
+      const firstRankDate = newTeacher.firstRankDate ? new Date(newTeacher.firstRankDate).toISOString() : new Date().toISOString();
       
-      const updated: TeacherRow = {
-        ...editTeacher,
+      const teacherToAdd: TeacherRow = {
+        id: randomId(),
+        teacherId: newTeacher.teacherId || `TCH-${Math.floor(1000 + Math.random() * 9000)}`,
+        name: newTeacher.name || "",
         age: calculateAge(dob),
+        subject: newTeacher.subject || "",
+        image: newTeacher.image || "",
         dob,
         appointmentDate,
+        appointmentLetter: newTeacher.appointmentLetter || "",
+        ssnitId: newTeacher.ssnitId || "",
+        bankAccount: newTeacher.bankAccount || "",
         firstRankDate,
+        contact: newTeacher.contact || "",
+        email: newTeacher.email || "",
+        created_at: new Date().toISOString(),
         user_id: user.id
       };
 
-      if (editTeacher.id.startsWith('TCH-')) {
-        const { data, error } = await supabase
-          .from('teachers')
-          .insert(updated)
-          .select();
-        
-        if (error) throw new Error(`Insert failed: ${error.message}`);
-        
-        setTeacherRows(prev => [...prev, data[0]]);
-        handleSnackbarOpen('Teacher added successfully');
-      } else {
-        const { data, error } = await supabase
-          .from('teachers')
-          .update(updated)
-          .eq('id', editTeacher.id)
-          .select();
-        
-        if (error) throw new Error(`Update failed: ${error.message}`);
-        
-        setTeacherRows(prev => 
-          prev.map(teacher => 
-            teacher.id === editTeacher.id ? data[0] : teacher
-          )
-        );
-        handleSnackbarOpen('Teacher updated successfully');
-      }
+      const { data, error } = await supabase
+        .from('teachers')
+        .insert(teacherToAdd)
+        .select();
       
-      handleCloseDialog();
+      if (error) throw new Error(`Insert failed: ${error.message}`);
+      
+      setTeacherRows(prevTeachers => [...prevTeachers, data[0]]);
+      handleSnackbarOpen('Teacher added successfully');
+      setAddTeacherOpen(false);
     } catch (error) {
-      console.error("Error saving teacher:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save teacher";
+      console.error("Error adding teacher:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to add teacher";
       handleSnackbarOpen(errorMessage);
     }
   };
 
-  const handleDeleteTeacher = async (id: string) => {
+  const handleDeleteClick = (id: string) => {
+    setTeacherToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!teacherToDelete) return;
+
     try {
       const { error } = await supabase
         .from('teachers')
         .delete()
-        .eq('id', id);
+        .eq('id', teacherToDelete);
       
       if (error) throw new Error(`Delete failed: ${error.message}`);
       
-      setTeacherRows(prev => prev.filter(teacher => teacher.id !== id));
+      setTeacherRows((r) => r.filter((x) => x.id !== teacherToDelete));
       handleSnackbarOpen('Teacher deleted successfully');
     } catch (error) {
       console.error("Error deleting teacher:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to delete teacher";
       handleSnackbarOpen(errorMessage);
+    } finally {
+      setDeleteConfirmOpen(false);
+      setTeacherToDelete(null);
     }
   };
 
-  const handleCopyContactInfo = async () => {
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setTeacherToDelete(null);
+  };
+
+  const handleCopySingleTeacherName = async (name: string) => {
+    try {
+      await navigator.clipboard.writeText(name);
+      handleSnackbarOpen(`Copied "${name}"`);
+    } catch (err) {
+      console.error("Failed to copy teacher name: ", err);
+      handleSnackbarOpen("Failed to copy name. Please try again.");
+    }
+  };
+
+  const handleCopyAllTeacherNames = async () => {
+    const names = filteredTeachers.map(teacher => teacher.name);
+    if (names.length > 0) {
+      try {
+        await navigator.clipboard.writeText(names.join('\n'));
+        handleSnackbarOpen(`Copied ${names.length} teacher name(s)`);
+      } catch (err) {
+        console.error("Failed to copy all teacher names: ", err);
+        handleSnackbarOpen("Failed to copy names. Please try again.");
+      }
+    } else {
+      handleSnackbarOpen("No teachers to copy");
+    }
+  };
+
+  const handleCopyTeacherContactInfo = async () => {
     const contactInfo = filteredTeachers.map(teacher => {
-      return `${teacher.name}: ${teacher.contact || 'No phone'}, ${teacher.email || 'No email'}`;
+      return `${teacher.name} - Phone: ${teacher.contact || 'N/A'}, Email: ${teacher.email || 'N/A'}`;
     });
 
     if (contactInfo.length > 0) {
@@ -482,123 +602,245 @@ export default function TeachersPage() {
     setPagination(prev => ({
       ...prev,
       pageSize: newPageSize,
-      page: 0,
+      page: 0, // Reset to first page
       loading: true
     }));
   };
 
-  const filteredTeachers = teacherRows.filter((r) => {
-    const t = teacherSearchText.toLowerCase();
-    const row = r as TeacherRow;
+  const filteredTeachers = teacherRows.filter((teacher) => {
+    const t = searchText.toLowerCase();
     return (
-      (row.name?.toLowerCase() ?? "").includes(t) ||
-      (row.teacherId?.toLowerCase() ?? "").includes(t) ||
-      (row.subject?.toLowerCase() ?? "").includes(t) ||
-      (row.contact?.includes(t) ?? false) ||
-      (row.email?.toLowerCase() ?? "").includes(t) ||
-      (row.ssnitId?.includes(t) ?? false) ||
-      (row.bankAccount?.includes(t) ?? false)
+      (teacher.name?.toLowerCase() ?? "").includes(t) ||
+      (teacher.teacherId?.toLowerCase() ?? "").includes(t) ||
+      (teacher.subject?.toLowerCase() ?? "").includes(t) ||
+      (teacher.contact?.includes(t) ?? false) ||
+      (teacher.email?.toLowerCase() ?? "").includes(t) ||
+      (teacher.ssnitId?.includes(t) ?? false) ||
+      (teacher.bankAccount?.includes(t) ?? false)
     );
   });
 
-  const teacherColumns: GridColDef[] = [
+  const columns: GridColDef[] = [
     {
       field: "image",
       headerName: "Photo",
       width: 100,
-      renderCell: (p) => {
-        if (!p.value) return null;
-        return (
-          <Image 
-            src={p.value} 
-            alt="teacher photo" 
-            width={32} 
-            height={32} 
-            className="h-8 w-8 rounded-full object-cover" 
-          />
-        );
+      editable: true,
+      renderCell: (params) => {
+        if (!params.value) return <Avatar sx={{ width: 32, height: 32 }} />;
+        
+        if (typeof params.value === 'string' && params.value.startsWith('data:image')) {
+          return <Avatar src={params.value} sx={{ width: 32, height: 32 }} />;
+        }
+        
+        if (typeof params.value === 'string') {
+          try {
+            new URL(params.value);
+            return <Avatar src={params.value} sx={{ width: 32, height: 32 }} />;
+          } catch {
+            return <Avatar sx={{ width: 32, height: 32 }} />;
+          }
+        }
+        
+        return <Avatar sx={{ width: 32, height: 32 }} />;
       },
     },
-    { field: "teacherId", headerName: "Teacher ID", width: 120 },
-    { field: "name", headerName: "Name", width: 180 },
+    { field: "teacherId", headerName: "Teacher ID", width: 120, editable: false },
+    { field: "name", headerName: "Name", width: 180, editable: true },
     {
       field: "dob",
       headerName: "Date of Birth",
       width: 160,
-      renderCell: (p) => p.value ? new Date(p.value as string).toLocaleDateString("en-GB") : "",
+      editable: true,
+      renderCell: (params) => params.value ? new Date(params.value as string).toLocaleDateString("en-GB") : "",
+      renderEditCell: (params) => (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            value={params.value ? dayjs(params.value as string) : dayjs()}
+            onChange={(v) => {
+              params.api.setEditCellValue({ 
+                id: params.id, 
+                field: params.field, 
+                value: v?.toISOString() 
+              }, undefined);
+              if (v) {
+                params.api.setEditCellValue({ 
+                  id: params.id, 
+                  field: "age", 
+                  value: calculateAge(v.toISOString()) 
+                }, undefined);
+              }
+            }}
+            slotProps={{ textField: { variant: "standard", fullWidth: true } }}
+          />
+        </LocalizationProvider>
+      ),
     },
-    { field: "age", headerName: "Age", width: 80, type: "number" },
-    { field: "subject", headerName: "Subject", width: 150 },
-    { field: "contact", headerName: "Contact", width: 150 },
-    { field: "email", headerName: "Email", width: 200 },
+    { field: "age", headerName: "Age", width: 80, type: "number", editable: false },
+    { field: "subject", headerName: "Subject", width: 140, editable: true },
+    {
+      field: "appointmentDate",
+      headerName: "Appointment Date",
+      width: 160,
+      editable: true,
+      renderCell: (params) => params.value ? new Date(params.value as string).toLocaleDateString("en-GB") : "",
+      renderEditCell: (params) => (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            value={params.value ? dayjs(params.value as string) : dayjs()}
+            onChange={(v) => {
+              params.api.setEditCellValue({ 
+                id: params.id, 
+                field: params.field, 
+                value: v?.toISOString() 
+              }, undefined);
+            }}
+            slotProps={{ textField: { variant: "standard", fullWidth: true } }}
+          />
+        </LocalizationProvider>
+      ),
+    },
+    {
+      field: "appointmentLetter",
+      headerName: "Appointment Letter",
+      width: 180,
+      editable: true,
+      renderCell: (params) => params.value ? "Available" : "Not Available",
+    },
+    { field: "ssnitId", headerName: "SSNIT ID", width: 120, editable: true },
+    { field: "bankAccount", headerName: "Bank Account", width: 150, editable: true },
+    {
+      field: "firstRankDate",
+      headerName: "First Rank Date",
+      width: 160,
+      editable: true,
+      renderCell: (params) => params.value ? new Date(params.value as string).toLocaleDateString("en-GB") : "",
+      renderEditCell: (params) => (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            value={params.value ? dayjs(params.value as string) : dayjs()}
+            onChange={(v) => {
+              params.api.setEditCellValue({ 
+                id: params.id, 
+                field: params.field, 
+                value: v?.toISOString() 
+              }, undefined);
+            }}
+            slotProps={{ textField: { variant: "standard", fullWidth: true } }}
+          />
+        </LocalizationProvider>
+      ),
+    },
+    { field: "contact", headerName: "Contact", width: 120, editable: true },
+    { field: "email", headerName: "Email", width: 200, editable: true },
     {
       field: "actions",
       type: "actions",
       headerName: "Actions",
       width: 220,
-      getActions: ({ row }) => {
-        return [
-          <GridActionsCellItem 
-            key="viewAppointment" 
-            icon={<PictureAsPdfIcon />} 
-            label="View Appointment" 
-            onClick={() => {
-              if (row.appointmentLetter) {
-                window.open(row.appointmentLetter, '_blank');
-              } else {
-                handleSnackbarOpen('No appointment letter available');
-              }
-            }} 
-            color="inherit" 
-          />,
-          <GridActionsCellItem 
-            key="copyContact" 
-            icon={<ContentCopyIcon />} 
-            label="Copy Contact" 
-            onClick={() => {
-              const contactInfo = `${row.name}: ${row.contact || 'No phone'}, ${row.email || 'No email'}`;
-              navigator.clipboard.writeText(contactInfo)
-                .then(() => handleSnackbarOpen('Copied contact info'))
-                .catch(() => handleSnackbarOpen('Failed to copy contact info'));
-            }} 
-            color="inherit" 
-          />,
-          <GridActionsCellItem 
-            key="view" 
-            icon={<VisibilityIcon />} 
-            label="View Teacher Details" 
-            onClick={() => setViewTeacherRow(row)} 
-          />,
-          <GridActionsCellItem 
-            key="edit" 
-            icon={<EditIcon />} 
-            label="Edit Teacher" 
-            onClick={() => handleEditTeacher(row)} 
-            color="inherit" 
-          />,
-          <GridActionsCellItem 
-            key="delete" 
-            icon={<DeleteIcon />} 
-            label="Delete Teacher" 
-            onClick={() => handleDeleteTeacher(row.id)} 
-            color="inherit" 
-          />,
-        ];
+      getActions: (params) => {
+        const isEdit = rowModesModel[params.id]?.mode === GridRowModes.Edit;
+
+        return isEdit
+          ? [
+              <GridActionsCellItem 
+                key="save" 
+                icon={<SaveIcon />} 
+                label="Save" 
+                onClick={actions.save(params.id)} 
+                color="primary" 
+              />,
+              <GridActionsCellItem 
+                key="cancel" 
+                icon={<CancelIcon />} 
+                label="Cancel" 
+                onClick={actions.cancel(params.id)} 
+              />,
+            ]
+          : [
+              <GridActionsCellItem 
+                key="viewLetter" 
+                icon={<DescriptionIcon />} 
+                label="View Appointment Letter" 
+                onClick={actions.viewAppointmentLetter(params.id)} 
+                color="inherit" 
+              />,
+              <GridActionsCellItem 
+                key="copyName" 
+                icon={<ContentCopyIcon />} 
+                label="Copy Name" 
+                onClick={actions.copyName(params.id)} 
+                color="inherit" 
+              />,
+              <GridActionsCellItem 
+                key="view" 
+                icon={<VisibilityIcon />} 
+                label="View Teacher Details" 
+                onClick={actions.view(params.id)} 
+              />,
+              <GridActionsCellItem 
+                key="edit" 
+                icon={<EditIcon />} 
+                label="Edit Teacher" 
+                onClick={actions.edit(params.id)} 
+                color="inherit" 
+              />,
+              <GridActionsCellItem 
+                key="delete" 
+                icon={<DeleteIcon />} 
+                label="Delete Teacher" 
+                onClick={actions.delete(params.id)} 
+                color="inherit" 
+              />,
+            ];
       },
     },
   ];
 
+  const actions = {
+    edit: (id: GridRowId) => () =>
+      setRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.Edit } })),
+    save: (id: GridRowId) => () =>
+      setRowModesModel((m) => ({ ...m, [id]: { mode: GridRowModes.View } })),
+    cancel: (id: GridRowId) => () => {
+      setRowModesModel((m) => ({
+        ...m,
+        [id]: { mode: GridRowModes.View, ignoreModifications: true },
+      }));
+      const row = teacherRows.find((r) => r.id === id) as TeacherRow;
+      if (row) {
+        setTeacherRows((r) => r.filter((x) => x.id !== id));
+      }
+    },
+    delete: (id: GridRowId) => () => {
+      handleDeleteClick(id as string);
+    },
+    view: (id: GridRowId) => () => {
+      const row = teacherRows.find((r) => r.id === id) as TeacherRow;
+      setViewRow(row);
+    },
+    copyName: (id: GridRowId) => () => {
+      const row = teacherRows.find((r) => r.id === id) as TeacherRow;
+      if (row?.name) {
+        handleCopySingleTeacherName(row.name);
+      }
+    },
+    viewAppointmentLetter: (id: GridRowId) => () => {
+      const row = teacherRows.find((r) => r.id === id) as TeacherRow;
+      if (row?.appointmentLetter) {
+        window.open(row.appointmentLetter, '_blank');
+      } else {
+        handleSnackbarOpen("No appointment letter available");
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <div className="flex items-center justify-center h-full">
-              <Typography variant="h6">Loading...</Typography>
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <Typography variant="h6">Loading...</Typography>
+        </Box>
       </LocalizationProvider>
     );
   }
@@ -606,22 +848,16 @@ export default function TeachersPage() {
   if (error) {
     return (
       <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <div className="flex items-center justify-center h-full">
-              <Typography variant="h6" color="error">{error}</Typography>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                onClick={() => fetchDataWithRetry()}
-                sx={{ ml: 2 }}
-              >
-                Retry
-              </Button>
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="h6" color="error">{error}</Typography>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={() => fetchDataWithRetry()}
+          >
+            Retry
+          </Button>
+        </Box>
       </LocalizationProvider>
     );
   }
@@ -640,410 +876,446 @@ export default function TeachersPage() {
                   <BreadcrumbLink href="#">Dashboard</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Teachers</BreadcrumbPage>
-                </BreadcrumbItem>
+                  <>
+                    <BreadcrumbSeparator className="hidden md:block" />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>Teachers</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
               </BreadcrumbList>
             </Breadcrumb>
           </header>
 
-          <div className="flex flex-1 bg-blue-50 flex-col gap-4 p-4">
-            <div className="flex justify-end mb-2">
-              <input
-                type="text"
-                placeholder="Search Teachers..."
-                value={teacherSearchText}
-                onChange={(e) => setTeacherSearchText(e.target.value)}
-                className="w-full md:w-1/3 px-4 py-2 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="h5" component="h1" sx={{ mb: 2 }}>
+            Teacher Management
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <TextField
+              variant="outlined"
+              size="small"
+              placeholder="Search Teachers..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              sx={{ width: 300 }}
+            />
+            <Button 
+              variant="contained" 
+              startIcon={<AddIcon />}
+              onClick={handleAddTeacher}
+            >
+              Add Teacher
+            </Button>
+          </Box>
+        </Box>
 
-            <Box sx={{ height: 600, width: "100%", "& .actions": { color: "text.secondary" }, "& .textPrimary": { color: "text.primary" } }}>
-              <DataGrid
-                rows={filteredTeachers}
-                columns={teacherColumns}
-                getRowId={(row) => row.id}
-                slots={{ toolbar: TeacherEditToolbar }}
-                slotProps={{ toolbar: {
-                  onAddTeacher: handleAddTeacher,
-                  onCopyContactInfo: handleCopyContactInfo,
-                  onPageChange: handlePageChange,
-                  page: pagination.page,
-                  rowCount: pagination.totalCount,
-                  pageSize: pagination.pageSize
-                }}}
-                showToolbar={true}
-                pagination
-                paginationMode="server"
-                rowCount={pagination.totalCount}
-                pageSizeOptions={[25, 50, 100]}
-                paginationModel={{
-                  page: pagination.page,
-                  pageSize: pagination.pageSize
-                }}
-                onPaginationModelChange={(model) => {
-                  handlePageChange(model.page);
-                  if (model.pageSize !== pagination.pageSize) {
-                    handlePageSizeChange(model.pageSize);
+        <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+          <DataGrid
+            rows={filteredTeachers}
+            columns={columns}
+            getRowId={(row) => row.id}
+            editMode="row"
+            rowModesModel={rowModesModel}
+            onRowModesModelChange={setRowModesModel}
+            onRowEditStop={handleRowEditStop}
+            processRowUpdate={processRowUpdate}
+            slots={{ toolbar: TeacherEditToolbar }}
+            slotProps={{ 
+              toolbar: {
+                setRows: setTeacherRows as React.Dispatch<React.SetStateAction<readonly TeacherRow[]>>, // Fix type to match DataGrid expectations
+                setRowModesModel,
+                page: pagination.page,
+                rowCount: pagination.totalCount,
+                pageSize: pagination.pageSize
+              }
+            }}
+            pagination
+            paginationMode="server"
+            rowCount={pagination.totalCount}
+            pageSizeOptions={[25, 50, 100]}
+            paginationModel={{
+              page: pagination.page,
+              pageSize: pagination.pageSize
+            }}
+            onPaginationModelChange={(model) => {
+              handlePageChange(model.page);
+              if (model.pageSize !== pagination.pageSize) {
+                handlePageSizeChange(model.pageSize);
+              }
+            }}
+            loading={pagination.loading}
+            onProcessRowUpdateError={(error) => {
+              console.error('Row update failed:', error);
+              handleSnackbarOpen('Failed to save teacher changes. Please try again.');
+            }}
+            sx={{
+              '& .MuiDataGrid-cell': {
+                padding: '8px 16px',
+              },
+              '& .MuiDataGrid-columnHeader': {
+                backgroundColor: '#f5f5f5',
+                fontWeight: 'bold',
+              },
+            }}
+          />
+        </Box>
+
+        {/* Add Teacher Dialog */}
+        <Dialog
+          open={addTeacherOpen}
+          onClose={() => setAddTeacherOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Add New Teacher</DialogTitle>
+          <DialogContent>
+            <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+              <TextField
+                label="Teacher ID"
+                value={newTeacher?.teacherId || ''}
+                disabled
+                fullWidth
+              />
+              <TextField
+                label="Name"
+                value={newTeacher?.name || ''}
+                onChange={(e) => setNewTeacher({...newTeacher, name: e.target.value})}
+                fullWidth
+                required
+              />
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Date of Birth"
+                  value={newTeacher?.dob ? dayjs(newTeacher.dob) : dayjs()}
+                  onChange={(date) => setNewTeacher({
+                    ...newTeacher, 
+                    dob: date?.format('YYYY-MM-DD') || '',
+                    age: date ? calculateAge(date.format('YYYY-MM-DD')) : 0
+                  })}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </LocalizationProvider>
+              <TextField
+                label="Age"
+                value={newTeacher?.age || 0}
+                disabled
+                fullWidth
+              />
+              <TextField
+                label="Subject"
+                value={newTeacher?.subject || ''}
+                onChange={(e) => setNewTeacher({...newTeacher, subject: e.target.value})}
+                fullWidth
+              />
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Appointment Date"
+                  value={newTeacher?.appointmentDate ? dayjs(newTeacher.appointmentDate) : dayjs()}
+                  onChange={(date) => setNewTeacher({
+                    ...newTeacher, 
+                    appointmentDate: date?.format('YYYY-MM-DD') || ''
+                  })}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </LocalizationProvider>
+              <TextField
+                label="SSNIT ID"
+                value={newTeacher?.ssnitId || ''}
+                onChange={(e) => setNewTeacher({...newTeacher, ssnitId: e.target.value})}
+                fullWidth
+              />
+              <TextField
+                label="Bank Account"
+                value={newTeacher?.bankAccount || ''}
+                onChange={(e) => setNewTeacher({...newTeacher, bankAccount: e.target.value})}
+                fullWidth
+              />
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="First Rank Date"
+                  value={newTeacher?.firstRankDate ? dayjs(newTeacher.firstRankDate) : dayjs()}
+                  onChange={(date) => setNewTeacher({
+                    ...newTeacher, 
+                    firstRankDate: date?.format('YYYY-MM-DD') || ''
+                  })}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </LocalizationProvider>
+              <TextField
+                label="Contact"
+                value={newTeacher?.contact || ''}
+                onChange={(e) => setNewTeacher({...newTeacher, contact: e.target.value})}
+                fullWidth
+              />
+              <TextField
+                label="Email"
+                value={newTeacher?.email || ''}
+                onChange={(e) => setNewTeacher({...newTeacher, email: e.target.value})}
+                fullWidth
+              />
+              <TextField
+                label="Image URL"
+                value={newTeacher?.image || ''}
+                onChange={(e) => setNewTeacher({...newTeacher, image: e.target.value})}
+                fullWidth
+              />
+              <TextField
+                type="file"
+                label="Appointment Letter"
+                InputLabelProps={{ shrink: true }}
+                onChange={(e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setNewTeacher({...newTeacher, appointmentLetter: reader.result as string});
+                    };
+                    reader.readAsDataURL(file);
                   }
                 }}
-                loading={pagination.loading}
-                sx={{
-                  '& .MuiDataGrid-cell': {
-                      padding: '8px 16px',
-                  },
-                  '& .MuiDataGrid-columnHeader': {
-                    backgroundColor: '#f5f5f5',
-                    fontWeight: 'bold',
-                  },
-                }}
+                fullWidth
               />
             </Box>
-
-            {/* Teacher Edit Dialog */}
-            <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-              <DialogTitle>
-                {editTeacher ? 'Edit Teacher' : 'Add New Teacher'}
-                <IconButton
-                  aria-label="close"
-                  onClick={handleCloseDialog}
-                  sx={{
-                    position: 'absolute',
-                    right: 8,
-                    top: 8,
-                    color: (theme) => theme.palette.grey[500],
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </DialogTitle>
-              <DialogContent dividers sx={{ padding: '24px' }}>
-                {editTeacher && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Column 1 */}
-                    <div className="space-y-4">
-                      <TextField
-                        fullWidth
-                        label="Teacher ID"
-                        value={editTeacher.teacherId}
-                        onChange={(e) => setEditTeacher({...editTeacher, teacherId: e.target.value})}
-                        variant="outlined"
-                        required
-                        error={!isTeacherIdValid}
-                        helperText={!isTeacherIdValid ? "Teacher ID must be unique" : ""}
-                      />
-                      
-                      <TextField
-                        fullWidth
-                        label="Full Name"
-                        value={editTeacher.name}
-                        onChange={(e) => setEditTeacher({...editTeacher, name: e.target.value})}
-                        variant="outlined"
-                        required
-                      />
-                      
-                      <LocalizationProvider dateAdapter={AdapterDayjs}>
-                        <DatePicker
-                          label="Date of Birth"
-                          value={dayjs(editTeacher.dob)}
-                          onChange={(newValue) => {
-                            if (newValue) {
-                              const dob = newValue.format('YYYY-MM-DD');
-                              setEditTeacher({
-                                ...editTeacher,
-                                dob,
-                                age: calculateAge(dob)
-                              });
-                            }
-                          }}
-                          slotProps={{ 
-                            textField: { 
-                              fullWidth: true, 
-                              variant: 'outlined' 
-                            } 
-                          }}
-                        />
-                      </LocalizationProvider>
-                      
-                      <TextField
-                        fullWidth
-                        label="Age"
-                        value={editTeacher.age}
-                        InputProps={{
-                          readOnly: true,
-                        }}
-                        variant="outlined"
-                      />
-                    </div>
-
-                    {/* Column 2 */}
-                    <div className="space-y-4">
-                      <TextField
-                        fullWidth
-                        label="Subject"
-                        value={editTeacher.subject}
-                        onChange={(e) => setEditTeacher({...editTeacher, subject: e.target.value})}
-                        variant="outlined"
-                        required
-                      />
-                      
-                      <LocalizationProvider dateAdapter={AdapterDayjs}>
-                        <DatePicker
-                          label="Appointment Date"
-                          value={dayjs(editTeacher.appointmentDate)}
-                          onChange={(newValue) => {
-                            if (newValue) {
-                              setEditTeacher({
-                                ...editTeacher,
-                                appointmentDate: newValue.format('YYYY-MM-DD')
-                              });
-                            }
-                          }}
-                          slotProps={{ 
-                            textField: { 
-                              fullWidth: true, 
-                              variant: 'outlined' 
-                            } 
-                          }}
-                        />
-                      </LocalizationProvider>
-                      
-                      <TextField
-                        fullWidth
-                        label="SSNIT ID"
-                        value={editTeacher.ssnitId}
-                        onChange={(e) => setEditTeacher({...editTeacher, ssnitId: e.target.value})}
-                        variant="outlined"
-                      />
-                      
-                      <TextField
-                        fullWidth
-                        label="Bank Account"
-                        value={editTeacher.bankAccount}
-                        onChange={(e) => setEditTeacher({...editTeacher, bankAccount: e.target.value})}
-                        variant="outlined"
-                      />
-                    </div>
-
-                    {/* Column 3 */}
-                    <div className="space-y-4">
-                      <LocalizationProvider dateAdapter={AdapterDayjs}>
-                        <DatePicker
-                          label="First Rank Date"
-                          value={dayjs(editTeacher.firstRankDate)}
-                          onChange={(newValue) => {
-                            if (newValue) {
-                              setEditTeacher({
-                                ...editTeacher,
-                                firstRankDate: newValue.format('YYYY-MM-DD')
-                              });
-                            }
-                          }}
-                          slotProps={{ 
-                            textField: { 
-                              fullWidth: true, 
-                              variant: 'outlined' 
-                            } 
-                          }}
-                        />
-                      </LocalizationProvider>
-                      
-                      <TextField
-                        fullWidth
-                        label="Contact Number"
-                        value={editTeacher.contact}
-                        onChange={(e) => setEditTeacher({...editTeacher, contact: e.target.value})}
-                        variant="outlined"
-                        InputProps={{
-                          startAdornment: <InputAdornment position="start">+233</InputAdornment>,
-                        }}
-                      />
-                      
-                      <TextField
-                        fullWidth
-                        label="Email"
-                        value={editTeacher.email}
-                        onChange={(e) => setEditTeacher({...editTeacher, email: e.target.value})}
-                        variant="outlined"
-                        type="email"
-                      />
-                    </div>
-
-                    {/* Column 4 */}
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Teacher Photo</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="block w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-md file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-blue-50 file:text-blue-700
-                            hover:file:bg-blue-100"
-                        />
-                        {(imagePreview || editTeacher.image) && (
-                          <div className="mt-3 flex justify-center">
-                            <Image 
-                              src={imagePreview || editTeacher.image} 
-                              alt="Teacher preview" 
-                              width={100} 
-                              height={100} 
-                              className="h-24 w-24 rounded-full object-cover border"
-                            />
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Appointment Letter (PDF)</label>
-                        <input
-                          type="file"
-                          accept=".pdf"
-                          onChange={handlePdfUpload}
-                          className="block w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-md file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-blue-50 file:text-blue-700
-                            hover:file:bg-blue-100"
-                        />
-                        {(pdfPreview || editTeacher.appointmentLetter) && (
-                          <div className="mt-3">
-                            <Button
-                              variant="outlined"
-                              startIcon={<PictureAsPdfIcon />}
-                              onClick={() => window.open(pdfPreview || editTeacher.appointmentLetter, '_blank')}
-                              fullWidth
-                            >
-                              View Appointment Letter
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </DialogContent>
-              <DialogActions sx={{ padding: '16px 24px' }}>
-                <Button 
-                  onClick={handleCloseDialog} 
-                  variant="outlined"
-                  sx={{ marginRight: '8px' }}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSaveTeacher} 
-                  variant="contained" 
-                  color="primary"
-                  startIcon={<SaveIcon />}
-                >
-                  Save Teacher
-                </Button>
-              </DialogActions>
-            </Dialog>
-
-            {/* Teacher Details Modal */}
-            <Modal open={!!viewTeacherRow} onClose={() => setViewTeacherRow(null)}>
-              <Box sx={{ 
-                p: 3, 
-                bgcolor: "background.paper", 
-                borderRadius: 2, 
-                boxShadow: 24, 
-                width: 400, 
-                maxWidth: '90vw',
-                mx: "auto", 
-                my: "10%",
-                maxHeight: '80vh',
-                overflowY: 'auto'
-              }}>
-                <Typography variant="h6" gutterBottom>Teacher Details</Typography>
-                {viewTeacherRow && (
-                  <div className="space-y-3">
-                    {viewTeacherRow.image && (
-                      <div className="flex justify-center mb-3">
-                        <Image 
-                          src={viewTeacherRow.image} 
-                          alt="teacher photo" 
-                          width={96} 
-                          height={96} 
-                          className="h-24 w-24 rounded-full object-cover" 
-                        />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-5">
-                      <div><strong>Teacher ID:</strong></div>
-                      <div>{viewTeacherRow.teacherId}</div>
-                      
-                      <div><strong>Name:</strong></div>
-                      <div>{viewTeacherRow.name}</div>
-                      
-                      <div><strong>Date of Birth:</strong></div>
-                      <div>{new Date(viewTeacherRow.dob).toLocaleDateString("en-GB")}</div>
-                      
-                      <div><strong>Age:</strong></div>
-                      <div>{viewTeacherRow.age}</div>
-                      
-                      <div><strong>Subject:</strong></div>
-                      <div>{viewTeacherRow.subject}</div>
-                      
-                      <div><strong>Appointment Date:</strong></div>
-                      <div>{new Date(viewTeacherRow.appointmentDate).toLocaleDateString("en-GB")}</div>
-                      
-                      <div><strong>Contact:</strong></div>
-                      <div>{viewTeacherRow.contact || 'N/A'}</div>
-                      
-                      <div><strong>Email:</strong></div>
-                      <div>{viewTeacherRow.email || 'N/A'}</div>
-                      
-                      <div><strong>SSNIT ID:</strong></div>
-                      <div>{viewTeacherRow.ssnitId || 'N/A'}</div>
-                      
-                      <div><strong>Bank Account:</strong></div>
-                      <div>{viewTeacherRow.bankAccount || 'N/A'}</div>
-                      
-                      <div><strong>First Rank Date:</strong></div>
-                      <div>{new Date(viewTeacherRow.firstRankDate).toLocaleDateString("en-GB")}</div>
-                      
-                      {viewTeacherRow.appointmentLetter && (
-                        <>
-                          <div><strong>Appointment Letter:</strong></div>
-                          <div>
-                            <Button 
-                              variant="outlined" 
-                              startIcon={<PictureAsPdfIcon />}
-                              onClick={() => window.open(viewTeacherRow.appointmentLetter, '_blank')}
-                            >
-                              View Letter
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </Box>
-            </Modal>
-
-            <Snackbar
-              open={snackbarOpen}
-              autoHideDuration={6000}
-              onClose={handleSnackbarClose}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button 
+              onClick={() => setAddTeacherOpen(false)} 
+              variant="outlined" 
+              color="inherit"
             >
-              <Alert 
-                onClose={handleSnackbarClose} 
-                severity={snackbarMessage.includes('Failed') ? 'error' : 'success'} 
-                sx={{ width: '100%' }}
-              >
-                {snackbarMessage}
-              </Alert>
-            </Snackbar>
-          </div>
-        </SidebarInset>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveNewTeacher} 
+              variant="contained" 
+              color="primary"
+              disabled={!newTeacher?.name}
+            >
+              Save Teacher
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Save Confirmation Dialog */}
+        <Dialog
+          open={saveModalOpen}
+          onClose={handleCancelSave}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Confirm Save</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2 }}>
+              Are you sure you want to save these changes?
+            </DialogContentText>
+            {teacherToSave && (
+              <Box sx={{ 
+                backgroundColor: '#f5f5f5', 
+                p: 2, 
+                borderRadius: 1,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 1
+              }}>
+                <Typography variant="body2"><strong>Name:</strong> {teacherToSave.name}</Typography>
+                <Typography variant="body2"><strong>Teacher ID:</strong> {teacherToSave.teacherId}</Typography>
+                <Typography variant="body2"><strong>Subject:</strong> {teacherToSave.subject}</Typography>
+                <Typography variant="body2"><strong>Age:</strong> {teacherToSave.age}</Typography>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button 
+              onClick={handleCancelSave} 
+              variant="outlined" 
+              color="inherit"
+              sx={{ mr: 1 }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmSave} 
+              variant="contained" 
+              color="primary"
+              autoFocus
+            >
+              Confirm Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={handleCancelDelete}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ color: 'error.main' }}>Confirm Delete</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2 }}>
+              Are you sure you want to delete this teacher? This action cannot be undone.
+            </DialogContentText>
+            {teacherToDelete && (
+              <Box sx={{ 
+                backgroundColor: '#f5f5f5', 
+                p: 2, 
+                borderRadius: 1,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 1
+              }}>
+                <Typography variant="body2">
+                  <strong>Teacher:</strong> {teacherRows.find(t => t.id === teacherToDelete)?.name || 'Unknown'}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>ID:</strong> {teacherToDelete}
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button 
+              onClick={handleCancelDelete} 
+              variant="outlined" 
+              color="inherit"
+              sx={{ mr: 1 }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmDelete} 
+              variant="contained" 
+              color="error"
+              autoFocus
+            >
+              Confirm Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Teacher Details Dialog */}
+        <Dialog
+          open={!!viewRow}
+          onClose={() => setViewRow(null)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Teacher Details</DialogTitle>
+          <DialogContent>
+            {viewRow && (
+              <Box sx={{ mt: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                  {viewRow.image ? (
+                    <Avatar src={viewRow.image} sx={{ width: 120, height: 120 }} />
+                  ) : (
+                    <Avatar sx={{ width: 120, height: 120 }}>{viewRow.name.charAt(0)}</Avatar>
+                  )}
+                </Box>
+                <Box sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(2, 1fr)', 
+                  gap: 2,
+                  '& > div': {
+                    backgroundColor: '#f9f9f9',
+                    p: 2,
+                    borderRadius: 1
+                  }
+                }}>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Teacher ID</Typography>
+                    <Typography variant="body1">{viewRow.teacherId}</Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Name</Typography>
+                    <Typography variant="body1">{viewRow.name}</Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Date of Birth</Typography>
+                    <Typography variant="body1">
+                      {new Date(viewRow.dob).toLocaleDateString("en-GB")}
+                    </Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Age</Typography>
+                    <Typography variant="body1">{viewRow.age}</Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Subject</Typography>
+                    <Typography variant="body1">{viewRow.subject}</Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Appointment Date</Typography>
+                    <Typography variant="body1">
+                      {new Date(viewRow.appointmentDate).toLocaleDateString("en-GB")}
+                    </Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">SSNIT ID</Typography>
+                    <Typography variant="body1">{viewRow.ssnitId || 'N/A'}</Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Bank Account</Typography>
+                    <Typography variant="body1">{viewRow.bankAccount || 'N/A'}</Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">First Rank Date</Typography>
+                    <Typography variant="body1">
+                      {new Date(viewRow.firstRankDate).toLocaleDateString("en-GB")}
+                    </Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Contact</Typography>
+                    <Typography variant="body1">{viewRow.contact || 'N/A'}</Typography>
+                  </div>
+                  <div>
+                    <Typography variant="subtitle2" color="text.secondary">Email</Typography>
+                    <Typography variant="body1">{viewRow.email || 'N/A'}</Typography>
+                  </div>
+                  {viewRow.appointmentLetter && (
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <Button 
+                        fullWidth
+                        variant="outlined" 
+                        startIcon={<DescriptionIcon />}
+                        onClick={() => window.open(viewRow.appointmentLetter, '_blank')}
+                      >
+                        View Appointment Letter
+                      </Button>
+                    </div>
+                  )}
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button 
+              onClick={() => setViewRow(null)} 
+              variant="outlined" 
+              color="inherit"
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={6000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        >
+          <Alert 
+            onClose={handleSnackbarClose} 
+            severity={snackbarMessage.includes('Failed') ? 'error' : 'success'}
+            sx={{ width: '100%' }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+      </Box>
+      </SidebarInset>
       </SidebarProvider>
     </LocalizationProvider>
   );
