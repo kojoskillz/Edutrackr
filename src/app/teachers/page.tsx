@@ -1089,7 +1089,6 @@ export default function TeachersPage() {
                   <BreadcrumbLink href="#">Dashboard</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
-                    <BreadcrumbSeparator className="hidden md:block" />
                     <BreadcrumbItem>
                       <BreadcrumbPage>Teachers</BreadcrumbPage>
                     </BreadcrumbItem>
