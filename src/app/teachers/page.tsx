@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -26,7 +27,8 @@ import {
     Close as CancelIcon,
     ArrowBack as ArrowBackIcon,
     ArrowForward as ArrowForwardIcon,
-    Description as DescriptionIcon
+    Description as DescriptionIcon,
+    Download as DownloadIcon
 } from "@mui/icons-material";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -54,11 +56,13 @@ import {
     DialogContentText,
     DialogActions,
     TextField,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    Avatar
+    // FormControl,
+    // InputLabel,
+    // Select,
+    // MenuItem,
+    Avatar,
+    Menu,
+    MenuItem as MuiMenuItem
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -67,6 +71,10 @@ import dayjs from "dayjs";
 import { randomId } from "@mui/x-data-grid-generator";
 import { supabase } from '../Authentication-supabase/lib/supabase/supabaseClient';
 import { User } from "@supabase/supabase-js";
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import { GridToolbarProps } from "@mui/x-data-grid";
 
 type TeacherRow = GridValidRowModel & {
   id: string;
@@ -96,22 +104,24 @@ const calculateAge = (dob: string) => {
   return age;
 };
 
-function TeacherEditToolbar(props: {
-  setRows: (newRows: (oldRows: TeacherRow[]) => TeacherRow[]) => void;
-  setRowModesModel: (newModel: (oldModel: GridRowModesModel) => GridRowModesModel) => void;
-  onCopyAllTeacherNames: () => void;
-  onCopyTeacherContactInfo: () => void;
-  onPageChange: (newPage: number) => void;
-  page: number;
-  rowCount: number;
-  pageSize: number;
-}) {
+type CustomToolbarProps = GridToolbarProps & {
+    setRows: React.Dispatch<React.SetStateAction<readonly GridValidRowModel[]>>;
+    setRowModesModel: React.Dispatch<React.SetStateAction<GridRowModesModel>>;
+    onCopyAllTeacherNames: () => void;
+    onCopyTeacherContactInfo: () => void;
+    onDownload: (format: 'csv' | 'excel' | 'pdf') => void;
+    page: number;
+    rowCount: number;
+    pageSize: number;
+};
+
+function TeacherEditToolbar(props: CustomToolbarProps) {
   const { 
     setRows, 
     setRowModesModel, 
     onCopyAllTeacherNames, 
     onCopyTeacherContactInfo,
-    onPageChange,
+    onDownload,
     page,
     rowCount,
     pageSize
@@ -120,6 +130,26 @@ function TeacherEditToolbar(props: {
   const totalPages = Math.ceil(rowCount / pageSize);
   const isFirstPage = page === 0;
   const isLastPage = page >= totalPages - 1;
+
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleDownloadClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleDownloadClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleDownload = (format: 'csv' | 'excel' | 'pdf') => {
+    onDownload(format);
+    handleDownloadClose();
+  };
+
+  function handlePageChange(arg0: number): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <GridToolbarContainer sx={{ justifyContent: 'space-between', padding: '8px 16px' }}>
@@ -164,7 +194,7 @@ function TeacherEditToolbar(props: {
 
         <Stack direction="row" alignItems="center" spacing={1}>
           <IconButton 
-            onClick={() => onPageChange(page - 1)} 
+            onClick={() => handlePageChange(page - 1)} 
             disabled={isFirstPage}
             size="small"
           >
@@ -174,7 +204,7 @@ function TeacherEditToolbar(props: {
             Page {page + 1} of {totalPages}
           </Typography>
           <IconButton 
-            onClick={() => onPageChange(page + 1)} 
+            onClick={() => handlePageChange(page + 1)} 
             disabled={isLastPage}
             size="small"
           >
@@ -183,6 +213,25 @@ function TeacherEditToolbar(props: {
         </Stack>
       </div>
       <div style={{ display: 'flex', gap: '8px' }}>
+        <Button
+          color="primary"
+          size="small"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownloadClick}
+          sx={{ textTransform: 'none' }}
+        >
+          Download
+        </Button>
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleDownloadClose}
+        >
+          <MuiMenuItem onClick={() => handleDownload('csv')}>Download as CSV</MuiMenuItem>
+          <MuiMenuItem onClick={() => handleDownload('excel')}>Download as Excel</MuiMenuItem>
+          <MuiMenuItem onClick={() => handleDownload('pdf')}>Download as PDF</MuiMenuItem>
+        </Menu>
+
         <Tooltip title="Copy All Teacher Names">
           <Button
             color="primary"
@@ -242,7 +291,6 @@ export default function TeachersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Pagination state
   const [pagination, setPagination] = useState({
     page: 0,
     pageSize: 25,
@@ -428,7 +476,6 @@ export default function TeachersPage() {
         if (data && data.length > 0) {
           setTeacherRows(prevTeachers => 
             prevTeachers.map(teacher => 
-              // Ensure teacher has an id property and compare with teacherToSave.id
               (teacher as { id?: string }).id === (teacherToSave as { id?: string }).id ? data[0] : teacher
             )
           );
@@ -607,6 +654,136 @@ export default function TeachersPage() {
     }));
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imageDataUrl = reader.result as string;
+        setNewTeacher(prev => ({ ...prev, image: imageDataUrl }));
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      handleSnackbarOpen("Failed to upload image. Please try again.");
+    }
+  };
+
+  const downloadCSV = (data: TeacherRow[]) => {
+    const headers = [
+      'Teacher ID', 'Name', 'Age', 'Subject', 'Date of Birth', 
+      'Appointment Date', 'SSNIT ID', 'Bank Account', 
+      'First Rank Date', 'Contact', 'Email'
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...data.map(teacher => [
+        teacher.teacherId,
+        `"${teacher.name}"`,
+        teacher.age,
+        `"${teacher.subject}"`,
+        new Date(teacher.dob).toLocaleDateString("en-GB"),
+        new Date(teacher.appointmentDate).toLocaleDateString("en-GB"),
+        teacher.ssnitId,
+        teacher.bankAccount,
+        new Date(teacher.firstRankDate).toLocaleDateString("en-GB"),
+        teacher.contact,
+        teacher.email
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'teachers.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadExcel = (data: TeacherRow[]) => {
+    const worksheet = XLSX.utils.json_to_sheet(
+      data.map(teacher => ({
+        'Teacher ID': teacher.teacherId,
+        'Name': teacher.name,
+        'Age': teacher.age,
+        'Subject': teacher.subject,
+        'Date of Birth': new Date(teacher.dob).toLocaleDateString("en-GB"),
+        'Appointment Date': new Date(teacher.appointmentDate).toLocaleDateString("en-GB"),
+        'SSNIT ID': teacher.ssnitId,
+        'Bank Account': teacher.bankAccount,
+        'First Rank Date': new Date(teacher.firstRankDate).toLocaleDateString("en-GB"),
+        'Contact': teacher.contact,
+        'Email': teacher.email
+      }))
+    );
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Teachers');
+    XLSX.writeFile(workbook, 'teachers.xlsx');
+  };
+
+  const downloadPDF = (data: TeacherRow[]) => {
+    const doc = new jsPDF();
+    const title = 'Teachers List';
+    const headers = [
+      ['Teacher ID', 'Name', 'Age', 'Subject', 'Contact', 'Email']
+    ];
+    
+    const pdfData = data.map(teacher => [
+      teacher.teacherId,
+      teacher.name,
+      teacher.age.toString(),
+      teacher.subject,
+      teacher.contact,
+      teacher.email
+    ]);
+
+    doc.text(title, 14, 16);
+    (doc as any).autoTable({
+      head: headers,
+      body: pdfData,
+      startY: 20,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { cellPadding: 3, fontSize: 10 },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 15 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 30 },
+        5: { cellWidth: 40 }
+      }
+    });
+
+    doc.save('teachers.pdf');
+  };
+
+  const handleDownload = (format: 'csv' | 'excel' | 'pdf') => {
+    try {
+      switch (format) {
+        case 'csv':
+          downloadCSV(filteredTeachers);
+          break;
+        case 'excel':
+          downloadExcel(filteredTeachers);
+          break;
+        case 'pdf':
+          downloadPDF(filteredTeachers);
+          break;
+      }
+      handleSnackbarOpen(`Teachers data downloaded as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Download failed:', error);
+      handleSnackbarOpen('Failed to download. Please try again.');
+    }
+  };
+
   const filteredTeachers = teacherRows.filter((teacher) => {
     const t = searchText.toLowerCase();
     return (
@@ -644,8 +821,44 @@ export default function TeachersPage() {
         
         return <Avatar sx={{ width: 32, height: 32 }} />;
       },
+      renderEditCell: (params) => (
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                params.api.setEditCellValue({ 
+                  id: params.id, 
+                  field: params.field, 
+                  value: reader.result 
+                }, undefined);
+              };
+              reader.readAsDataURL(file);
+            }
+          }}
+        />
+      )
     },
-    { field: "teacherId", headerName: "Teacher ID", width: 120, editable: false },
+    { 
+      field: "teacherId", 
+      headerName: "Teacher ID", 
+      width: 120, 
+      editable: true,
+      renderEditCell: (params) => (
+        <TextField
+          value={params.value || ''}
+          onChange={(e) => params.api.setEditCellValue({ 
+            id: params.id, 
+            field: params.field, 
+            value: e.target.value 
+          }, undefined)}
+          fullWidth
+        />
+      )
+    },
     { field: "name", headerName: "Name", width: 180, editable: true },
     {
       field: "dob",
@@ -876,12 +1089,10 @@ export default function TeachersPage() {
                   <BreadcrumbLink href="#">Dashboard</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
-                  <>
                     <BreadcrumbSeparator className="hidden md:block" />
                     <BreadcrumbItem>
                       <BreadcrumbPage>Teachers</BreadcrumbPage>
                     </BreadcrumbItem>
-                  </>
               </BreadcrumbList>
             </Breadcrumb>
           </header>
@@ -920,32 +1131,44 @@ export default function TeachersPage() {
             onRowModesModelChange={setRowModesModel}
             onRowEditStop={handleRowEditStop}
             processRowUpdate={processRowUpdate}
-            slots={{ toolbar: TeacherEditToolbar }}
-            slotProps={{ 
-              toolbar: {
-                setRows: setTeacherRows as React.Dispatch<React.SetStateAction<readonly TeacherRow[]>>, // Fix type to match DataGrid expectations
-                setRowModesModel,
-                page: pagination.page,
-                rowCount: pagination.totalCount,
-                pageSize: pagination.pageSize
-              }
+            slots={{
+                toolbar: (props) => (
+                    <TeacherEditToolbar
+                        onCopyAllTeacherNames={handleCopyAllTeacherNames}
+                        onCopyTeacherContactInfo={handleCopyTeacherContactInfo}
+                        onDownload={handleDownload}
+                        {...props}
+                    />
+                )
+            }}
+            slotProps={{
+                toolbar: {
+                  setRows: setTeacherRows,
+                  setRowModesModel: setRowModesModel, 
+                  onCopyAllTeacherNames: handleCopyAllTeacherNames,
+                  onCopyTeacherContactInfo: handleCopyTeacherContactInfo,
+                  onDownload: handleDownload,
+                  page: pagination.page,
+                  rowCount: pagination.totalCount,
+                  pageSize: pagination.pageSize,
+                } as unknown as CustomToolbarProps, // Cast to the new type
             }}
             pagination
             paginationMode="server"
             rowCount={pagination.totalCount}
             pageSizeOptions={[25, 50, 100]}
             paginationModel={{
-              page: pagination.page,
-              pageSize: pagination.pageSize
+                page: pagination.page,
+                pageSize: pagination.pageSize
             }}
             onPaginationModelChange={(model) => {
-              handlePageChange(model.page);
-              if (model.pageSize !== pagination.pageSize) {
-                handlePageSizeChange(model.pageSize);
-              }
+                handlePageChange(model.page);
+                if (model.pageSize !== pagination.pageSize) {
+                    handlePageSizeChange(model.pageSize);
+                }
             }}
             loading={pagination.loading}
-            onProcessRowUpdateError={(error) => {
+            onProcessRowUpdateError={(error: any) => {
               console.error('Row update failed:', error);
               handleSnackbarOpen('Failed to save teacher changes. Please try again.');
             }}
@@ -974,7 +1197,7 @@ export default function TeachersPage() {
               <TextField
                 label="Teacher ID"
                 value={newTeacher?.teacherId || ''}
-                disabled
+                onChange={(e) => setNewTeacher({...newTeacher, teacherId: e.target.value})}
                 fullWidth
               />
               <TextField
@@ -1054,12 +1277,20 @@ export default function TeachersPage() {
                 onChange={(e) => setNewTeacher({...newTeacher, email: e.target.value})}
                 fullWidth
               />
-              <TextField
-                label="Image URL"
-                value={newTeacher?.image || ''}
-                onChange={(e) => setNewTeacher({...newTeacher, image: e.target.value})}
-                fullWidth
-              />
+              <Box sx={{ gridColumn: '1 / -1' }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Teacher Image</Typography>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                />
+                {newTeacher?.image && (
+                  <Avatar 
+                    src={newTeacher.image} 
+                    sx={{ width: 80, height: 80, mt: 2 }} 
+                  />
+                )}
+              </Box>
               <TextField
                 type="file"
                 label="Appointment Letter"
