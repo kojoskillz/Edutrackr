@@ -31,6 +31,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface Student {
     id: string;
+    studentId: string;
     name: string;
     studentClass: string;
     user_id: string;
@@ -44,6 +45,9 @@ interface PaymentRecord {
 interface Fee {
     id: string;
     studentId: string;
+    studentName: string;
+    studentClass: string;
+    studentNumber: string;
     name: string;
     amount: number;
     amountPaid: number;
@@ -61,6 +65,7 @@ const FeePaymentSystem: React.FC = () => {
     const [selectedStudentId, setSelectedStudentId] = React.useState<string | null>(null);
     const [newStudentName, setNewStudentName] = React.useState<string>('');
     const [newStudentClass, setNewStudentClass] = React.useState<string>('');
+    const [newStudentId, setNewStudentId] = React.useState<string>('');
     const [newFeeName, setNewFeeName] = React.useState<string>('');
     const [newFeeDefaultAmount, setNewFeeDefaultAmount] = React.useState<number>(0);
     const [editingFeeId, setEditingFeeId] = React.useState<string | null>(null);
@@ -69,6 +74,8 @@ const FeePaymentSystem: React.FC = () => {
     const [newAmountForAll, setNewAmountForAll] = React.useState<number>(0);
     const [receiptDetails, setReceiptDetails] = React.useState<{
         studentName: string;
+        studentId: string;
+        studentClass: string;
         feeName: string;
         amountPaid: number;
         paymentDate: string;
@@ -80,6 +87,7 @@ const FeePaymentSystem: React.FC = () => {
     const [isSaving, setIsSaving] = React.useState(false);
     const [totalFeesPaid, setTotalFeesPaid] = React.useState<number>(0);
     const [paymentFilter, setPaymentFilter] = React.useState<'all' | 'paid' | 'unpaid'>('all');
+    const [showClearDataModal, setShowClearDataModal] = React.useState(false);
 
     React.useEffect(() => {
         const total = fees.reduce((sum, fee) => sum + fee.amountPaid, 0);
@@ -134,7 +142,8 @@ const FeePaymentSystem: React.FC = () => {
                 const { data, error } = await supabase
                     .from('students')
                     .select('*')
-                    .eq('user_id', user_id);
+                    .eq('user_id', user_id)
+                    .order('studentId', { ascending: true });
 
                 if (error) throw error;
                 setStudents(data || []);
@@ -260,6 +269,8 @@ const FeePaymentSystem: React.FC = () => {
             if (student) {
                 setReceiptDetails({
                     studentName: student.name,
+                    studentId: student.studentId,
+                    studentClass: student.studentClass,
                     feeName: currentFee.name,
                     amountPaid: paymentAmount,
                     paymentDate: paymentDate,
@@ -285,19 +296,27 @@ const FeePaymentSystem: React.FC = () => {
         if (!user_id || isSaving) return;
         const trimmedName = newStudentName.trim();
         const trimmedClass = newStudentClass.trim();
+        const trimmedId = newStudentId.trim();
 
-        if (!trimmedName || !trimmedClass) {
-            toast.error("Please enter both student name and class.");
+        if (!trimmedName || !trimmedClass || !trimmedId) {
+            toast.error("Please enter student name, class, and ID.");
+            return;
+        }
+
+        const existingStudent = students.find(s => s.studentId === trimmedId);
+        if (existingStudent) {
+            toast.error(`Student ID ${trimmedId} already exists for ${existingStudent.name}`);
             return;
         }
 
         setIsSaving(true);
         try {
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('students')
                 .insert({
                     name: trimmedName,
                     studentClass: trimmedClass,
+                    studentId: trimmedId,
                     user_id: user_id,
                 })
                 .select();
@@ -306,7 +325,8 @@ const FeePaymentSystem: React.FC = () => {
 
             setNewStudentName('');
             setNewStudentClass('');
-            toast.success(`Added new student: ${trimmedName}`);
+            setNewStudentId('');
+            toast.success(`Added new student: ${trimmedName} (ID: ${trimmedId})`);
         } catch (error: any) {
             console.error("Error adding student:", error.message);
             toast.error(`Failed to add student: ${error.message}`);
@@ -452,10 +472,8 @@ const FeePaymentSystem: React.FC = () => {
 
     const clearAllData = async () => {
         if (!user_id || isSaving) return;
-        if (!window.confirm("Are you sure you want to clear all student and fee data? This action cannot be undone.")) {
-            return;
-        }
-
+        
+        setShowClearDataModal(false);
         setIsSaving(true);
         try {
             const { error: deleteFeesError } = await supabase
@@ -476,6 +494,7 @@ const FeePaymentSystem: React.FC = () => {
             setSearchTerm('');
             setNewStudentName('');
             setNewStudentClass('');
+            setNewStudentId('');
             setNewFeeName('');
             setNewFeeDefaultAmount(0);
             setEditingFeeId(null);
@@ -545,6 +564,8 @@ const FeePaymentSystem: React.FC = () => {
                 <div class="receipt-content">
                     <h3>Payment Receipt</h3>
                     <p><strong>Student:</strong> ${receiptDetails.studentName}</p>
+                    <p><strong>Student ID:</strong> ${receiptDetails.studentId}</p>
+                    <p><strong>Class:</strong> ${receiptDetails.studentClass}</p>
                     <p><strong>Fee Type:</strong> ${receiptDetails.feeName}</p>
                     <p><strong>Amount Paid:</strong> ₵${receiptDetails.amountPaid.toFixed(2)}</p>
                     <p><strong>Date:</strong> ${receiptDetails.paymentDate}</p>
@@ -584,6 +605,9 @@ const FeePaymentSystem: React.FC = () => {
         try {
             const newFees = students.map(student => ({
                 studentId: student.id,
+                studentName: student.name,
+                studentClass: student.studentClass,
+                studentNumber: student.studentId,
                 name: trimmedFeeName,
                 amount: newFeeDefaultAmount,
                 amountPaid: 0,
@@ -617,6 +641,7 @@ const FeePaymentSystem: React.FC = () => {
             const paymentStatus = balance <= 0 ? 'Paid' : 'Unpaid';
 
             return {
+                'Student ID': student.studentId,
                 'Student Name': student.name,
                 'Class': student.studentClass,
                 'Total Fees Due (₵)': totalDue,
@@ -639,7 +664,8 @@ const FeePaymentSystem: React.FC = () => {
     const uniqueFeeNames = Array.from(new Set(fees.map(fee => fee.name)));
     const filteredStudents = students.filter(student =>
         student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.studentClass.toLowerCase().includes(searchTerm.toLowerCase())
+        student.studentClass.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
     ).filter(student => {
         if (paymentFilter === 'all') return true;
         
@@ -663,6 +689,32 @@ const FeePaymentSystem: React.FC = () => {
 
     return (
         <div className="container mx-auto p-4">
+            {/* Clear Data Confirmation Modal */}
+            {showClearDataModal && (
+                <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+                        <h3 className="text-xl font-bold mb-4">Confirm Clear All Data</h3>
+                        <p className="mb-6 text-gray-700">
+                            Are you sure you want to clear all student and fee data? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowClearDataModal(false)}
+                                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={clearAllData}
+                                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            >
+                                Clear All Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <h2 className="text-2xl font-semibold mb-4">Fee Payment System</h2>
 
             {/* Summary Card */}
@@ -699,7 +751,7 @@ const FeePaymentSystem: React.FC = () => {
                 </div>
                 
                 <button
-                    onClick={clearAllData}
+                    onClick={() => setShowClearDataModal(true)}
                     className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
                     disabled={isSaving}
                 >
@@ -711,7 +763,7 @@ const FeePaymentSystem: React.FC = () => {
             <div className="mb-4 flex gap-2">
                 <input
                     type="text"
-                    placeholder="Search student by name or class..."
+                    placeholder="Search student by name, class, or ID..."
                     className="flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -737,6 +789,8 @@ const FeePaymentSystem: React.FC = () => {
                 <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded-md" role="alert">
                     <h3 className="font-bold text-xl mb-2">Payment Receipt</h3>
                     <p><strong>Student:</strong> {receiptDetails.studentName}</p>
+                    <p><strong>Student ID:</strong> {receiptDetails.studentId}</p>
+                    <p><strong>Class:</strong> {receiptDetails.studentClass}</p>
                     <p><strong>Fee Type:</strong> {receiptDetails.feeName}</p>
                     <p><strong>Amount Paid:</strong> ₵{receiptDetails.amountPaid.toFixed(2)}</p>
                     <p><strong>Date:</strong> {receiptDetails.paymentDate}</p>
@@ -767,7 +821,15 @@ const FeePaymentSystem: React.FC = () => {
                     {/* Add New Student Form */}
                     <div className="mb-6">
                         <h3 className="text-xl font-semibold mb-3">Add New Student</h3>
-                        <div className="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <input
+                                type="text"
+                                placeholder="Student ID"
+                                className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={newStudentId}
+                                onChange={(e) => setNewStudentId(e.target.value)}
+                                disabled={isSaving}
+                            />
                             <input
                                 type="text"
                                 placeholder="Student Name"
@@ -787,7 +849,7 @@ const FeePaymentSystem: React.FC = () => {
                             <button
                                 onClick={addStudent}
                                 className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-                                disabled={isSaving || !newStudentName.trim() || !newStudentClass.trim()}
+                                disabled={isSaving || !newStudentName.trim() || !newStudentClass.trim() || !newStudentId.trim()}
                             >
                                 {isSaving ? 'Adding...' : 'Add Student'}
                             </button>
@@ -899,7 +961,9 @@ const FeePaymentSystem: React.FC = () => {
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
                                             <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student ID</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Type</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -911,7 +975,13 @@ const FeePaymentSystem: React.FC = () => {
                                                 return fee.payments.map((payment, index) => (
                                                     <tr key={`${fee.id}-${index}`}>
                                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                            {student?.studentId || 'N/A'}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                             {student?.name || 'Unknown Student'}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            {student?.studentClass || 'N/A'}
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                             {fee.name}
@@ -956,7 +1026,10 @@ const FeePaymentSystem: React.FC = () => {
                                             >
                                                 <div className="flex-1 min-w-[200px] cursor-pointer hover:bg-gray-50 p-2 rounded-md" onClick={() => setSelectedStudentId(student.id)}>
                                                     <p className="text-lg font-medium">{student.name}</p>
-                                                    <p className="text-sm text-gray-500">{student.studentClass}</p>
+                                                    <div className="flex gap-4 text-sm text-gray-500">
+                                                        <span>ID: {student.studentId}</span>
+                                                        <span>Class: {student.studentClass}</span>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <span className={`font-semibold ${studentOutstanding <= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -986,7 +1059,10 @@ const FeePaymentSystem: React.FC = () => {
                 selectedStudent && (
                     <div>
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-semibold">{selectedStudent.name}&apos;s Fees ({selectedStudent.studentClass})</h3>
+                            <div>
+                                <h3 className="text-xl font-semibold">{selectedStudent.name}&apos;s Fees</h3>
+                                <p className="text-gray-600">ID: {selectedStudent.studentId} | Class: {selectedStudent.studentClass}</p>
+                            </div>
                             <button
                                 onClick={() => setSelectedStudentId(null)}
                                 className="px-4 py-2 bg-blue-400 text-white rounded-md hover:bg-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-opacity-50"
