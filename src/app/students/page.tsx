@@ -1,4 +1,5 @@
-"use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+'use client';
 
 import * as React from "react";
 import { Dispatch, SetStateAction } from "react";
@@ -27,6 +28,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CancelIcon from "@mui/icons-material/Close";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import PaymentsIcon from '@mui/icons-material/Payments';
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -40,10 +42,15 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
 import "react-toastify/dist/ReactToastify.css";
-import {
-    Button, Typography, Modal, Box, Tooltip, Snackbar, Alert,
-    IconButton, Stack
-} from "@mui/material";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import Modal from "@mui/material/Modal";
+import Box from "@mui/material/Box";
+import Tooltip from "@mui/material/Tooltip";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
 
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -53,6 +60,7 @@ import { randomId } from "@mui/x-data-grid-generator";
 import Image from "next/image";
 import { supabase } from '../Authentication-supabase/lib/supabase/supabaseClient';
 import { User } from "@supabase/supabase-js";
+import { useRouter } from 'next/navigation';
 
 type ClassRow = {
   id: string;
@@ -66,6 +74,7 @@ type ClassRow = {
 
 type StudentRow = GridRowModel & {
   id: string;
+  studentId: string;
   name: string;
   dob: string;
   age: number;
@@ -76,6 +85,19 @@ type StudentRow = GridRowModel & {
   parentEmail?: string;
   isNew?: boolean;
   user_id?: string;
+};
+
+const generateStudentId = (lastId: string | null) => {
+  // Generate 4 random alphanumeric characters
+  const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+  
+  if (!lastId) return `EDU-0001-${randomPart}`;
+  
+  // Extract the sequence number from the last ID
+  const parts = lastId.split('-');
+  const num = parseInt(parts[1], 10);
+  
+  return `EDU-${(num + 1).toString().padStart(4, '0')}-${randomPart}`;
 };
 
 const calculateAge = (dob: string) => {
@@ -167,6 +189,7 @@ function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
                 ...r,
                 {
                   id,
+                  studentId: '',
                   name: "",
                   dob: dayjs().format('YYYY-MM-DD'),
                   age: 0,
@@ -248,6 +271,7 @@ function StudentEditToolbar(props: GridSlotProps["toolbar"]) {
 }
 
 export default function ClassesPage() {
+  const router = useRouter();
   const [user, setUser] = React.useState<User | null>(null);
   const [classRows, setClassRows] = React.useState<ClassRow[]>([]);
   const [classRowModesModel, setClassRowModesModel] = React.useState<GridRowModesModel>({});
@@ -267,7 +291,6 @@ export default function ClassesPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Pagination state
   const [studentPagination, setStudentPagination] = React.useState({
     page: 0,
     pageSize: 25,
@@ -321,7 +344,7 @@ export default function ClassesPage() {
         .from('students')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
-        .order('name', { ascending: true })
+        .order('studentId', { ascending: true })
         .range(from, to);
       
       if (studentError) throw new Error(`Student fetch error: ${studentError.message}`);
@@ -336,6 +359,26 @@ export default function ClassesPage() {
     }
   };
 
+  const fetchLastStudentId = async () => {
+    try {
+      if (!user) throw new Error("User not authenticated");
+      
+      const { data, error } = await supabase
+        .from('students')
+        .select('studentId')
+        .eq('user_id', user.id)
+        .order('studentId', { ascending: false })
+        .limit(1);
+      
+      if (error) throw new Error(`Error fetching last student ID: ${error.message}`);
+      
+      return data && data.length > 0 ? data[0].studentId : null;
+    } catch (error) {
+      console.error("Error fetching last student ID:", error);
+      throw error;
+    }
+  };
+
   const fetchDataWithRetry = async (retries = 3, delay = 1000) => {
     setIsLoading(true);
     setError(null);
@@ -345,7 +388,6 @@ export default function ClassesPage() {
         throw new Error("User not authenticated");
       }
       
-      // First try to fetch classes
       let attempts = 0;
       let classes: ClassRow[] = [];
       while (attempts < retries) {
@@ -359,7 +401,6 @@ export default function ClassesPage() {
         }
       }
       
-      // Then try to fetch students with pagination
       attempts = 0;
       let students: StudentRow[] = [];
       let totalCount = 0;
@@ -486,8 +527,15 @@ export default function ClassesPage() {
     try {
       const dob = newRow.dob ? new Date(newRow.dob).toISOString() : new Date().toISOString();
       
+      let studentId = newRow.studentId;
+      if (newRow.isNew && !studentId) {
+        const lastStudentId = await fetchLastStudentId();
+        studentId = generateStudentId(lastStudentId);
+      }
+
       const updated: StudentRow = {
         id: newRow.id as string,
+        studentId: studentId as string,
         name: newRow.name as string,
         dob,
         age: calculateAge(dob),
@@ -629,13 +677,13 @@ export default function ClassesPage() {
   const handleCopyStudentNameClassContactInfo = async () => {
     const combinedInfo = studentsForSelectedClass.map(student => {
       const s = student as StudentRow;
-      return `${s.name}, Class: ${s.class}, Phone: ${s.parentPhoneNumber || 'N/A'}, Email: ${s.parentEmail || 'N/A'}`;
+      return `${s.name}, ID: ${s.studentId}, Class: ${s.class}, Phone: ${s.parentPhoneNumber || 'N/A'}, Email: ${s.parentEmail || 'N/A'}`;
     });
 
     if (combinedInfo.length > 0) {
       try {
         await navigator.clipboard.writeText(combinedInfo.join('\n'));
-        handleSnackbarOpen(`Copied names, class, and contact info for ${combinedInfo.length} student(s)`);
+        handleSnackbarOpen(`Copied names, IDs, class, and contact info for ${combinedInfo.length} student(s)`);
       } catch (err) {
         console.error("Failed to copy combined info: ", err);
         handleSnackbarOpen("Failed to copy combined info. Please try again.");
@@ -657,7 +705,7 @@ export default function ClassesPage() {
     setStudentPagination(prev => ({
       ...prev,
       pageSize: newPageSize,
-      page: 0, // Reset to first page
+      page: 0,
       loading: true
     }));
   };
@@ -679,18 +727,11 @@ export default function ClassesPage() {
     },
     delete: (id: GridRowId) => async () => {
       try {
-        const { error } = await supabase
-          .from('students')
-          .delete()
-          .eq('id', id);
-        
-        if (error) throw new Error(`Delete failed: ${error.message}`);
-        
         setAllStudents((r) => r.filter((x) => x.id !== id));
-        handleSnackbarOpen('Student deleted successfully');
+        handleSnackbarOpen('Student removed from view (not deleted from database)');
       } catch (error) {
-        console.error("Error deleting student:", error);
-        const errorMessage = error instanceof Error ? error.message : "Failed to delete student";
+        console.error("Error removing student:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to remove student";
         handleSnackbarOpen(errorMessage);
       }
     },
@@ -702,6 +743,12 @@ export default function ClassesPage() {
       const row = allStudents.find((r) => r.id === id) as StudentRow;
       if (row?.name) {
         handleCopySingleStudentName(row.name);
+      }
+    },
+    feePayment: (id: GridRowId) => () => {
+      const row = allStudents.find((r) => r.id === id) as StudentRow;
+      if (row) {
+        router.push(`/fee-payment?studentId=${row.studentId}&name=${encodeURIComponent(row.name)}&class=${encodeURIComponent(row.class)}`);
       }
     }
   };
@@ -722,6 +769,7 @@ export default function ClassesPage() {
       const row = r as StudentRow;
       return row.class === selectedClassName && (
         (row.name?.toLowerCase() ?? "").includes(t) ||
+        (row.studentId?.toLowerCase() ?? "").includes(t) ||
         (row.class?.toLowerCase() ?? "").includes(t) ||
         (row.dob?.includes(t) ?? false) ||
         (row.gender?.toLowerCase() ?? "").includes(t) ||
@@ -731,36 +779,13 @@ export default function ClassesPage() {
     });
   }, [allStudents, selectedClassName, studentSearchText]);
 
-  const classColumns: GridColDef[] = [
-    { field: "name", headerName: "Class Name", width: 180, editable: true },
-    { field: "teacher", headerName: "Teacher", width: 180, editable: true },
-    { field: "description", headerName: "Description", width: 250, editable: true },
-    { field: "capacity", headerName: "Capacity", width: 100, type: "number", editable: true },
-    {
-      field: "actions",
-      type: "actions",
-      headerName: "Actions",
-      width: 200,
-      getActions: ({ id, row }) => {
-        const isEdit = classRowModesModel[id]?.mode === GridRowModes.Edit;
-        const classRow = row as ClassRow;
-
-        return isEdit
-          ? [
-              <GridActionsCellItem key="save" icon={<SaveIcon />} label="Save" onClick={classActions.save(id)} color="primary" />,
-              <GridActionsCellItem key="cancel" icon={<CancelIcon />} label="Cancel" onClick={classActions.cancel(id)} />,
-            ]
-          : [
-              <GridActionsCellItem key="viewStudents" icon={<SchoolIcon />} label="View Students" onClick={classActions.viewStudents(id, classRow.name)} color="inherit" />,
-              <GridActionsCellItem key="view" icon={<VisibilityIcon />} label="View Class Details" onClick={classActions.view(id)} />,
-              <GridActionsCellItem key="edit" icon={<EditIcon />} label="Edit Class" onClick={classActions.edit(id)} color="inherit" />,
-              <GridActionsCellItem key="delete" icon={<DeleteIcon />} label="Delete Class" onClick={classActions.delete(id)} color="inherit" />,
-            ];
-      },
-    },
-  ];
-
   const studentColumns: GridColDef[] = [
+    {
+      field: "studentId",
+      headerName: "Student ID",
+      width: 120,
+      editable: false,
+    },
     {
       field: "image",
       headerName: "Photo",
@@ -857,7 +882,7 @@ export default function ClassesPage() {
       field: "actions",
       type: "actions",
       headerName: "Actions",
-      width: 170,
+      width: 220,
       getActions: ({ id }) => {
         const isEdit = studentRowModesModel[id]?.mode === GridRowModes.Edit;
 
@@ -867,10 +892,46 @@ export default function ClassesPage() {
               <GridActionsCellItem key="cancel" icon={<CancelIcon />} label="Cancel" onClick={studentActions.cancel(id)} />,
             ]
           : [
+              <GridActionsCellItem 
+                key="feePayment" 
+                icon={<PaymentsIcon />} 
+                label="Fee Payment" 
+                onClick={studentActions.feePayment(id)} 
+                color="inherit" 
+              />,
               <GridActionsCellItem key="copyName" icon={<ContentCopyIcon />} label="Copy Name" onClick={studentActions.copyName(id)} color="inherit" />,
               <GridActionsCellItem key="view" icon={<VisibilityIcon />} label="View Student Details" onClick={studentActions.view(id)} />,
               <GridActionsCellItem key="edit" icon={<EditIcon />} label="Edit Student" onClick={studentActions.edit(id)} color="inherit" />,
               <GridActionsCellItem key="delete" icon={<DeleteIcon />} label="Delete Student" onClick={studentActions.delete(id)} color="inherit" />,
+            ];
+      },
+    },
+  ];
+
+  const classColumns: GridColDef[] = [
+    { field: "name", headerName: "Class Name", width: 180, editable: true },
+    { field: "teacher", headerName: "Teacher", width: 180, editable: true },
+    { field: "description", headerName: "Description", width: 250, editable: true },
+    { field: "capacity", headerName: "Capacity", width: 100, type: "number", editable: true },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Actions",
+      width: 200,
+      getActions: ({ id, row }) => {
+        const isEdit = classRowModesModel[id]?.mode === GridRowModes.Edit;
+        const classRow = row as ClassRow;
+
+        return isEdit
+          ? [
+              <GridActionsCellItem key="save" icon={<SaveIcon />} label="Save" onClick={classActions.save(id)} color="primary" />,
+              <GridActionsCellItem key="cancel" icon={<CancelIcon />} label="Cancel" onClick={classActions.cancel(id)} />,
+            ]
+          : [
+              <GridActionsCellItem key="viewStudents" icon={<SchoolIcon />} label="View Students" onClick={classActions.viewStudents(id, classRow.name)} color="inherit" />,
+              <GridActionsCellItem key="view" icon={<VisibilityIcon />} label="View Class Details" onClick={classActions.view(id)} />,
+              <GridActionsCellItem key="edit" icon={<EditIcon />} label="Edit Class" onClick={classActions.edit(id)} color="inherit" />,
+              <GridActionsCellItem key="delete" icon={<DeleteIcon />} label="Delete Class" onClick={classActions.delete(id)} color="inherit" />,
             ];
       },
     },
@@ -1085,6 +1146,7 @@ export default function ClassesPage() {
                             className="h-16 w-16 rounded-full object-cover" 
                           />
                         )}
+                        <p><strong>Student ID:</strong> {viewStudentRow.studentId}</p>
                         <p><strong>Name:</strong> {viewStudentRow.name}</p>
                         <p><strong>DOB:</strong> {new Date(viewStudentRow.dob).toLocaleDateString("en-GB")}</p>
                         <p><strong>Gender:</strong> {viewStudentRow.gender}</p>
